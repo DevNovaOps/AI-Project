@@ -57,7 +57,7 @@ export default function ActivityBar() {
         })}
       </div>
 
-      <div className="activity-bar-group">
+      <div className="activity-bar-group" style={{ gap: 6 }}>
         <button
           className={`activity-item ${location.pathname === '/settings' ? 'active' : ''}`}
           onClick={() => navigate('/settings')}
@@ -67,6 +67,51 @@ export default function ActivityBar() {
           <Settings size={18} strokeWidth={1.7} />
           <span className="activity-label">Settings</span>
         </button>
+
+        {/* AegisVault mini card widget at bottom */}
+        <div 
+          style={{
+            width: 48,
+            borderRadius: 6,
+            padding: '6px 2px',
+            backgroundColor: '#091326',
+            border: '1px solid #1a2a47',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+            marginTop: 4,
+            cursor: 'pointer'
+          }}
+          onClick={() => navigate('/')}
+          title="AegisVault - Multi-agent debugging system"
+        >
+          <div style={{
+            width: 20,
+            height: 20,
+            borderRadius: 4,
+            background: 'var(--grad-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            fontSize: 10,
+            fontWeight: 800
+          }}>
+            A
+          </div>
+          <span style={{ fontSize: 8, fontWeight: 700, color: '#f8fafc', lineHeight: 1 }}>
+            AegisVault
+          </span>
+          <span style={{ fontSize: 7, color: '#64748b', lineHeight: 1 }}>
+            System
+          </span>
+          <div style={{ display: 'flex', gap: 3, fontSize: 7, color: '#38bdf8', marginTop: 2, fontWeight: 600 }}>
+            <span>24</span>
+            <span style={{ color: '#a855f7' }}>6</span>
+            <span style={{ color: '#10b981' }}>12</span>
+          </div>
+        </div>
       </div>
     </aside>
   );

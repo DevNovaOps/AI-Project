@@ -1,448 +1,471 @@
 import React, { useState } from 'react';
 import { 
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, AreaChart, Area, CartesianGrid, Legend 
-} from 'recharts';
-import { 
-  BarChart2, Download, Printer, Filter, Search, ShieldCheck, 
-  AlertCircle, CheckCircle, Clock, FileCode, Sparkles, X, ChevronRight 
+  FileText, Download, Calendar, GitBranch, ChevronDown, 
+  Printer, Check, Sparkles, X, AlertCircle 
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
+
+import MetricCard from '../components/reports/MetricCard';
+import IssueTrendChart from '../components/reports/IssueTrendChart';
+import IssueDistributionChart from '../components/reports/IssueDistributionChart';
+import CategoryBreakdown from '../components/reports/CategoryBreakdown';
+import IssueTable from '../components/reports/IssueTable';
+import IssueDetailsPanel from '../components/reports/IssueDetailsPanel';
+
 import { 
-  initialReportMetrics, issueTrendsData, severityDistributionData, 
-  categoryBreakdownData, agentPerformanceData 
+  summaryMetricsData, 
+  issueTrendsData, 
+  severityDistributionData, 
+  categoryBreakdownData, 
+  detailedIssuesList 
 } from '../data/reportData';
 
 export default function ReportsPage() {
-  const { issues, appliedFixes, project, theme } = useAppStore();
-  const [selectedIssueModal, setSelectedIssueModal] = useState(null);
-  const [filterSeverity, setFilterSeverity] = useState('All');
-  const [filterStatus, setFilterStatus] = useState('All');
-  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+  const { appliedFixes, applyFix, undoFix, setRightSidebarTab } = useAppStore();
 
-  const totalIssues = issues.length;
-  const fixedCount = appliedFixes.length;
-  const criticalCount = issues.filter(i => i.severity === 'Critical' && !appliedFixes.includes(i.id)).length;
-  const codeQuality = fixedCount > 0 ? 94 : 86;
+  // State management
+  const [selectedIssueId, setSelectedIssueId] = useState('ISSUE-01');
+  const [dateRange, setDateRange] = useState('Oct 1, 2024 - Oct 10, 2024');
+  const [selectedBranch, setSelectedBranch] = useState('All Branches');
+  const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+  const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
 
-  // Filtered issues for the table
-  const filteredIssues = issues.filter((iss) => {
-    const isFixed = appliedFixes.includes(iss.id) || iss.status === 'Fixed';
-    if (filterSeverity !== 'All' && iss.severity !== filterSeverity) return false;
-    if (filterStatus === 'Open' && isFixed) return false;
-    if (filterStatus === 'Fixed' && !isFixed) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      if (!iss.title.toLowerCase().includes(q) && !iss.file.toLowerCase().includes(q) && !iss.detail.toLowerCase().includes(q)) {
-        return false;
-      }
+  // Issues list merged with appliedFixes store
+  const issues = detailedIssuesList.map(item => ({
+    ...item,
+    status: appliedFixes.includes(item.id) ? 'Fixed' : item.status
+  }));
+
+  const selectedIssue = issues.find(i => i.id === selectedIssueId) || issues[0];
+  const currentIndex = issues.findIndex(i => i.id === selectedIssue.id) + 1;
+  const isSelectedFixed = appliedFixes.includes(selectedIssue.id) || selectedIssue.status === 'Fixed';
+
+  // Navigation between issues
+  const handlePrevIssue = () => {
+    const idx = issues.findIndex(i => i.id === selectedIssue.id);
+    if (idx > 0) {
+      setSelectedIssueId(issues[idx - 1].id);
+    } else {
+      setSelectedIssueId(issues[issues.length - 1].id);
     }
-    return true;
-  });
+  };
+
+  const handleNextIssue = () => {
+    const idx = issues.findIndex(i => i.id === selectedIssue.id);
+    if (idx < issues.length - 1) {
+      setSelectedIssueId(issues[idx + 1].id);
+    } else {
+      setSelectedIssueId(issues[0].id);
+    }
+  };
+
+  // Actions
+  const handleApplyFix = (issueId) => {
+    if (appliedFixes.includes(issueId)) {
+      undoFix(issueId);
+      showToast(`Reverted fix for ${issueId}`);
+    } else {
+      applyFix(issueId);
+      showToast(`Applied verified AI patch for ${issueId}`);
+    }
+  };
+
+  const handleViewInEditor = (file, line) => {
+    navigate('/');
+  };
+
+  const handleExplainIssue = (issue) => {
+    setRightSidebarTab('chat');
+    navigate('/');
+  };
+
+  const handleAddToTests = (issue) => {
+    navigate('/tests');
+  };
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  // Generate Report Action
+  const handleGenerateReport = () => {
+    setIsGenerating(true);
+    setTimeout(() => {
+      setIsGenerating(false);
+      setReportModalOpen(true);
+      showToast('Comprehensive report generated successfully!');
+    }, 600);
+  };
 
   // Working CSV Export
   const handleExportCSV = () => {
-    const headers = ['ID', 'Severity', 'Title', 'Detail', 'File', 'Line', 'Source', 'Status'];
-    const rows = issues.map(i => [
-      i.id,
+    const headers = ['#', 'Severity', 'Title', 'Detail', 'File', 'Line', 'Category', 'Status', 'Detected'];
+    const rows = issues.map((i, idx) => [
+      idx + 1,
       i.severity,
-      `"${i.title}"`,
-      `"${i.detail}"`,
+      `"${i.title.replace(/"/g, '""')}"`,
+      `"${i.detail.replace(/"/g, '""')}"`,
       i.file,
       i.line,
-      i.source,
-      appliedFixes.includes(i.id) ? 'Fixed' : 'Open'
+      i.category,
+      i.status,
+      i.detected
     ]);
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `AutonomusAI_Report_${project.name}_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `AutonomusAI_Quality_Report_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    showToast('Downloaded CSV report!');
   };
 
   const handlePrint = () => {
     window.print();
   };
 
-  const chartThemeColors = {
-    text: theme === 'dark' ? '#94a3b8' : '#64748b',
-    grid: theme === 'dark' ? '#1e293b' : '#e2e8f0',
-    tooltipBg: theme === 'dark' ? '#0f172a' : '#ffffff',
-    tooltipBorder: theme === 'dark' ? '#334155' : '#cbd5e1'
-  };
-
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Top Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 16 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div className="logo-badge" style={{ width: 32, height: 32 }}>
-              <BarChart2 size={18} color="#ffffff" />
-            </div>
-            <div>
-              <h1 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: -0.5 }}>
-                Diagnostics &amp; Analytics Report
-              </h1>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                Multi-agent telemetry, issue resolution trends, and verification analytics for <strong style={{ color: 'var(--text-primary)' }}>{project.name}</strong> ({project.branch} branch)
-              </p>
-            </div>
-          </div>
+    <div 
+      style={{ 
+        flex: 1, 
+        overflowY: 'auto', 
+        backgroundColor: '#030b18', 
+        padding: '16px 22px 24px 22px', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: 14,
+        position: 'relative'
+      }}
+    >
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          top: 56,
+          right: 24,
+          backgroundColor: '#0c1830',
+          border: '1px solid #1a66ff',
+          boxShadow: '0 8px 24px rgba(0, 112, 243, 0.4)',
+          borderRadius: 8,
+          padding: '10px 16px',
+          color: '#ffffff',
+          fontSize: 12,
+          fontWeight: 600,
+          zIndex: 100,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          animation: 'popupFadeIn 0.2s ease-out'
+        }}>
+          <Sparkles size={14} color="#38bdf8" />
+          <span>{toastMessage}</span>
         </div>
+      )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button 
-            className="btn btn-secondary" 
-            onClick={handlePrint}
-            title="Print report or save to PDF"
+      {/* TOP HEADER */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        {/* Left Title Area */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Document Icon Box with Purple Gradient */}
+          <div 
+            style={{ 
+              width: 40, 
+              height: 40, 
+              borderRadius: 8, 
+              background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', 
+              boxShadow: '0 0 16px rgba(124, 58, 237, 0.45)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              color: '#ffffff'
+            }}
           >
-            <Printer size={14} />
-            <span>Print Report</span>
-          </button>
-
-          <button 
-            className="btn btn-primary-gradient" 
-            onClick={handleExportCSV}
-            title="Export full issue log to CSV"
-          >
-            <Download size={14} />
-            <span>Export CSV</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Summary KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>
-        <div className="card" style={{ padding: '14px', gap: 4 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Total Issues</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)' }}>{totalIssues}</div>
-          <div style={{ fontSize: 10, color: '#38bdf8' }}>Across 24 files</div>
-        </div>
-
-        <div className="card" style={{ padding: '14px', gap: 4 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Critical Bugs</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: criticalCount > 0 ? 'var(--color-critical)' : 'var(--color-success)' }}>
-            {criticalCount}
-          </div>
-          <div style={{ fontSize: 10, color: criticalCount > 0 ? 'var(--color-critical)' : 'var(--color-success)' }}>
-            {criticalCount > 0 ? 'Requires attention' : 'All resolved'}
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: '14px', gap: 4 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Fixed Issues</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--color-success)' }}>{fixedCount}</div>
-          <div style={{ fontSize: 10, color: 'var(--color-success)' }}>{Math.round((fixedCount / totalIssues) * 100)}% resolution rate</div>
-        </div>
-
-        <div className="card" style={{ padding: '14px', gap: 4 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Files Scanned</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#38bdf8' }}>24</div>
-          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>3,420 AST nodes</div>
-        </div>
-
-        <div className="card" style={{ padding: '14px', gap: 4 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Analysis Time</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#a855f7' }}>2.1s</div>
-          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>5 agents in pipeline</div>
-        </div>
-
-        <div className="card" style={{ padding: '14px', gap: 4 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Code Quality</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#10b981' }}>{codeQuality}/100</div>
-          <div style={{ fontSize: 10, color: '#10b981' }}>Grade A (Certified)</div>
-        </div>
-      </div>
-
-      {/* Visual Analytics Charts Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16 }}>
-        {/* Chart 1: Issue Trends Over Time */}
-        <div className="card" style={{ padding: '16px', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Issue Resolution &amp; Quality Trend</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>7-day autonomous pipeline velocity</div>
-            </div>
-            <span className="badge badge-subtle">Daily</span>
+            <FileText size={22} />
           </div>
 
-          <div style={{ width: '100%', height: 220 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={issueTrendsData}>
-                <defs>
-                  <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#38bdf8" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorFixed" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={chartThemeColors.grid} />
-                <XAxis dataKey="date" stroke={chartThemeColors.text} fontSize={11} />
-                <YAxis stroke={chartThemeColors.text} fontSize={11} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: chartThemeColors.tooltipBg, 
-                    borderColor: chartThemeColors.tooltipBorder, 
-                    borderRadius: 6, fontSize: 11 
-                  }} 
-                />
-                <Area type="monotone" dataKey="total" stroke="#38bdf8" fillOpacity={1} fill="url(#colorTotal)" name="Total Issues" />
-                <Area type="monotone" dataKey="fixed" stroke="#10b981" fillOpacity={1} fill="url(#colorFixed)" name="Resolved Fixes" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Chart 2: Severity Distribution Pie */}
-        <div className="card" style={{ padding: '16px', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Severity Distribution</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Active issue classification breakdown</div>
-            </div>
-          </div>
-
-          <div style={{ width: '100%', height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={severityDistributionData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={85}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {severityDistributionData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: chartThemeColors.tooltipBg, 
-                    borderColor: chartThemeColors.tooltipBorder, 
-                    borderRadius: 6, fontSize: 11 
-                  }} 
-                />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Chart 3 & 4 Grid: Category Breakdown & Agent Accuracy */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        {/* Categories Bar Chart */}
-        <div className="card" style={{ padding: '16px', gap: 12 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-            Issues by Category
-          </div>
-          <div style={{ width: '100%', height: 180 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={categoryBreakdownData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={chartThemeColors.grid} />
-                <XAxis dataKey="name" stroke={chartThemeColors.text} fontSize={11} />
-                <YAxis stroke={chartThemeColors.text} fontSize={11} />
-                <Tooltip contentStyle={{ backgroundColor: chartThemeColors.tooltipBg, borderColor: chartThemeColors.tooltipBorder, borderRadius: 6, fontSize: 11 }} />
-                <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} name="Issues" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* 5-Agent Accuracy & Task Distribution */}
-        <div className="card" style={{ padding: '16px', gap: 12 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-            Autonomous Agent Orchestration Performance
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {agentPerformanceData.map((agent, i) => (
-              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{agent.agent} Agent</span>
-                  <span style={{ color: 'var(--text-muted)' }}>{agent.accuracy}% Accuracy • {agent.avgTime}s avg</span>
-                </div>
-                <div style={{ width: '100%', height: 5, backgroundColor: 'var(--bg-card-subtle)', borderRadius: 2, overflow: 'hidden' }}>
-                  <div style={{ width: `${agent.accuracy}%`, height: '100%', background: 'var(--grad-primary)' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Comprehensive Issues Table with Filters */}
-      <div className="card" style={{ padding: '16px', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Workspace Issues Directory</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Click any issue row to inspect diagnostic evidence, root causes, and patch telemetry</div>
-          </div>
-
-          {/* Filters */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* Search Input */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', padding: '4px 8px', borderRadius: 'var(--radius-md)', width: 180 }}>
-              <Search size={12} color="var(--text-muted)" />
-              <input
-                type="text"
-                placeholder="Search report..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ width: '100%', background: 'transparent', border: 'none', fontSize: 11, outline: 'none' }}
-              />
-            </div>
-
-            {/* Severity Filter */}
-            <select 
-              value={filterSeverity} 
-              onChange={(e) => setFilterSeverity(e.target.value)}
-              style={{ height: 28, fontSize: 11, padding: '0 8px' }}
-            >
-              <option value="All">All Severities</option>
-              <option value="Critical">Critical</option>
-              <option value="High">High</option>
-              <option value="Medium">Medium</option>
-              <option value="Low">Low</option>
-            </select>
-
-            {/* Status Filter */}
-            <select 
-              value={filterStatus} 
-              onChange={(e) => setFilterStatus(e.target.value)}
-              style={{ height: 28, fontSize: 11, padding: '0 8px' }}
-            >
-              <option value="All">All Statuses</option>
-              <option value="Open">Open Only</option>
-              <option value="Fixed">Fixed Only</option>
-            </select>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#ffffff', letterSpacing: '-0.3px', margin: 0 }}>
+              Reports
+            </h1>
+            <p style={{ fontSize: 11, color: '#91a6c6', margin: '2px 0 0 0' }}>
+              Analyze results, track progress and generate detailed reports for your code.
+            </p>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="ide-table-wrapper">
-          <table className="ide-table">
-            <thead>
-              <tr>
-                <th style={{ width: 90 }}>Severity</th>
-                <th>Message &amp; Finding</th>
-                <th style={{ width: 120 }}>File Location</th>
-                <th style={{ width: 60 }}>Line</th>
-                <th style={{ width: 100 }}>Category</th>
-                <th style={{ width: 90 }}>Status</th>
-                <th style={{ width: 90, textAlign: 'center' }}>Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredIssues.map((item) => {
-                const isFixed = appliedFixes.includes(item.id) || item.status === 'Fixed';
+        {/* Right Action Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Date Range Dropdown */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => { setDateDropdownOpen(!dateDropdownOpen); setBranchDropdownOpen(false); }}
+              style={{
+                height: 32,
+                padding: '0 12px',
+                backgroundColor: '#0b1930',
+                border: '1px solid #1a2a47',
+                borderRadius: 6,
+                color: '#f8fafc',
+                fontSize: 11,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer'
+              }}
+            >
+              <span>{dateRange}</span>
+              <ChevronDown size={12} color="#8fa2be" />
+            </button>
 
-                return (
-                  <tr 
-                    key={item.id}
-                    onClick={() => setSelectedIssueModal(item)}
+            {dateDropdownOpen && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                right: 0,
+                width: 190,
+                backgroundColor: '#0c1830',
+                border: '1px solid #1a2a47',
+                borderRadius: 6,
+                padding: 4,
+                zIndex: 30,
+                boxShadow: '0 10px 25px rgba(0,0,0,0.8)'
+              }}>
+                {[
+                  'Oct 1, 2024 - Oct 10, 2024',
+                  'Last 7 Days',
+                  'Last 30 Days',
+                  'Month to Date',
+                  'All Time'
+                ].map((range) => (
+                  <div
+                    key={range}
+                    onClick={() => { setDateRange(range); setDateDropdownOpen(false); }}
+                    style={{
+                      padding: '6px 10px',
+                      fontSize: 11,
+                      color: dateRange === range ? '#38bdf8' : '#f8fafc',
+                      backgroundColor: dateRange === range ? '#132342' : 'transparent',
+                      borderRadius: 4,
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={(e) => { if (dateRange !== range) e.target.style.backgroundColor = '#16284a'; }}
+                    onMouseLeave={(e) => { if (dateRange !== range) e.target.style.backgroundColor = 'transparent'; }}
                   >
-                    <td>
-                      <span className={`badge badge-${item.severity.toLowerCase()}`}>
-                        {item.severity}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.title}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.detail}</div>
-                    </td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{item.file}</td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{item.line}</td>
-                    <td><span className="badge badge-subtle">{item.category}</span></td>
-                    <td>
-                      {isFixed ? (
-                        <span className="badge badge-success">
-                          <CheckCircle size={10} /> Fixed
-                        </span>
-                      ) : (
-                        <span className="badge badge-warning">Open</span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button 
-                        className="btn btn-secondary" 
-                        style={{ height: 22, fontSize: 10, padding: '0 6px' }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedIssueModal(item);
-                        }}
-                      >
-                        <span>Inspect</span>
-                        <ChevronRight size={10} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    {range}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Branch Dropdown */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => { setBranchDropdownOpen(!branchDropdownOpen); setDateDropdownOpen(false); }}
+              style={{
+                height: 32,
+                padding: '0 12px',
+                backgroundColor: '#0b1930',
+                border: '1px solid #1a2a47',
+                borderRadius: 6,
+                color: '#f8fafc',
+                fontSize: 11,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer'
+              }}
+            >
+              <span>{selectedBranch}</span>
+              <ChevronDown size={12} color="#8fa2be" />
+            </button>
+
+            {branchDropdownOpen && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                right: 0,
+                width: 150,
+                backgroundColor: '#0c1830',
+                border: '1px solid #1a2a47',
+                borderRadius: 6,
+                padding: 4,
+                zIndex: 30,
+                boxShadow: '0 10px 25px rgba(0,0,0,0.8)'
+              }}>
+                {[
+                  'All Branches',
+                  'main',
+                  'feature/auth-guard',
+                  'staging',
+                  'develop'
+                ].map((branch) => (
+                  <div
+                    key={branch}
+                    onClick={() => { setSelectedBranch(branch); setBranchDropdownOpen(false); }}
+                    style={{
+                      padding: '6px 10px',
+                      fontSize: 11,
+                      color: selectedBranch === branch ? '#38bdf8' : '#f8fafc',
+                      backgroundColor: selectedBranch === branch ? '#132342' : 'transparent',
+                      borderRadius: 4,
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={(e) => { if (selectedBranch !== branch) e.target.style.backgroundColor = '#16284a'; }}
+                    onMouseLeave={(e) => { if (selectedBranch !== branch) e.target.style.backgroundColor = 'transparent'; }}
+                  >
+                    {branch}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Generate Report Primary CTA Button */}
+          <button
+            className="btn btn-primary-gradient"
+            onClick={handleGenerateReport}
+            disabled={isGenerating}
+            style={{
+              height: 32,
+              padding: '0 14px',
+              fontSize: 11,
+              fontWeight: 600,
+              gap: 6,
+              borderRadius: 6
+            }}
+          >
+            {isGenerating ? (
+              <>
+                <div className="animate-spin" style={{ width: 12, height: 12, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%' }} />
+                <span>Generating...</span>
+              </>
+            ) : (
+              <>
+                <Download size={13} />
+                <span>Generate Report</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
 
-      {/* Issue Detail Modal */}
-      {selectedIssueModal && (
-        <div className="modal-overlay" onClick={() => setSelectedIssueModal(null)}>
-          <div className="palette-box" style={{ width: 620 }} onClick={(e) => e.stopPropagation()}>
+      {/* SUMMARY METRIC CARDS (6 HORIZONTALLY ALIGNED) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
+        {summaryMetricsData.map((item) => (
+          <MetricCard
+            key={item.id}
+            title={item.title}
+            value={item.value}
+            change={item.change}
+            isPositive={item.isPositive}
+            subtitle={item.subtitle}
+            iconType={item.iconType}
+            color={item.color}
+            bg={item.bg}
+            border={item.border}
+          />
+        ))}
+      </div>
+
+      {/* ANALYTICS ROW (3 PANELS: Issue Trend, Issue Distribution, Issues by Category) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.05fr 1.15fr', gap: 10, minHeight: 240 }}>
+        {/* Panel A: Issue Trend */}
+        <IssueTrendChart data={issueTrendsData} />
+
+        {/* Panel B: Issue Distribution */}
+        <IssueDistributionChart data={severityDistributionData} totalCount={24} />
+
+        {/* Panel C: Issues by Category */}
+        <CategoryBreakdown data={categoryBreakdownData} />
+      </div>
+
+      {/* SPLIT ROW: ISSUE MANAGEMENT TABLE (LEFT) + RIGHT-SIDE ISSUE DETAILS PANEL (RIGHT) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 385px', gap: 10, flex: 1, minHeight: 460 }}>
+        {/* Left: Large Issue Management Table with Filter Toolbar */}
+        <IssueTable
+          issues={issues}
+          selectedIssueId={selectedIssueId}
+          onSelectIssue={(id) => setSelectedIssueId(id)}
+          onViewInEditor={handleViewInEditor}
+          onExplainIssue={handleExplainIssue}
+        />
+
+        {/* Right: Detailed Issue Information & Fix Panel */}
+        <IssueDetailsPanel
+          issue={selectedIssue}
+          currentIndex={currentIndex}
+          totalCount={issues.length}
+          onPrev={handlePrevIssue}
+          onNext={handleNextIssue}
+          onApplyFix={handleApplyFix}
+          onAddToTests={handleAddToTests}
+          onExplain={handleExplainIssue}
+          isFixed={isSelectedFixed}
+        />
+      </div>
+
+      {/* GENERATE REPORT MODAL */}
+      {reportModalOpen && (
+        <div className="modal-overlay" onClick={() => setReportModalOpen(false)}>
+          <div 
+            className="palette-box" 
+            style={{ width: 620, padding: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className={`badge badge-${selectedIssueModal.severity.toLowerCase()}`}>
-                  {selectedIssueModal.severity}
-                </span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {selectedIssueModal.title}
-                </span>
+                <FileText size={18} color="#38bdf8" />
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#ffffff' }}>AutonomusAI Quality &amp; Audit Report</span>
               </div>
-              <button className="icon-action-btn" onClick={() => setSelectedIssueModal(null)}>
-                <X size={16} />
+              <button className="editor-tab-close" onClick={() => setReportModalOpen(false)}>
+                <X size={14} />
               </button>
             </div>
 
-            <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 420, overflowY: 'auto' }}>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Description</div>
-                <div style={{ fontSize: 12, color: 'var(--text-primary)', marginTop: 2 }}>{selectedIssueModal.detail}</div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Root Cause Diagnosis</div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2, lineHeight: 1.5 }}>
-                  {selectedIssueModal.rootCause || 'Evaluated AST expression without sufficient input boundary validation.'}
+            <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12, fontSize: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, textAlign: 'center' }}>
+                <div style={{ padding: 10, backgroundColor: '#091326', borderRadius: 6, border: '1px solid #1a2a47' }}>
+                  <div style={{ color: '#8fa2be', fontSize: 10 }}>Total Issues</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#ffffff', marginTop: 2 }}>24</div>
+                </div>
+                <div style={{ padding: 10, backgroundColor: '#091326', borderRadius: 6, border: '1px solid #1a2a47' }}>
+                  <div style={{ color: '#8fa2be', fontSize: 10 }}>Critical Issues</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#ef4444', marginTop: 2 }}>4</div>
+                </div>
+                <div style={{ padding: 10, backgroundColor: '#091326', borderRadius: 6, border: '1px solid #1a2a47' }}>
+                  <div style={{ color: '#8fa2be', fontSize: 10 }}>Fixed Rate</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#10b981', marginTop: 2 }}>75%</div>
                 </div>
               </div>
 
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Suggested Fix</div>
-                <div style={{ 
-                  backgroundColor: 'var(--bg-code-block)', padding: '8px 12px', borderRadius: 4, 
-                  fontFamily: 'var(--font-mono)', fontSize: 11, marginTop: 4, whiteSpace: 'pre-wrap', color: 'var(--text-secondary)' 
-                }}>
-                  {selectedIssueModal.suggestedFix}
-                </div>
+              <div style={{ color: '#91a6c6', lineHeight: 1.5 }}>
+                Report generated for repository <strong>AegisVault</strong> on <strong>{selectedBranch}</strong> ({dateRange}). All 24 issues indexed across 32 files. Automated sandbox tests verified zero syntax or typing regressions.
               </div>
+            </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', paddingTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
-                <span>File: {selectedIssueModal.fullPath || selectedIssueModal.file}</span>
-                <span>Line: {selectedIssueModal.line}</span>
-                <span>Confidence: {selectedIssueModal.confidence}%</span>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '12px 18px', borderTop: '1px solid var(--border-subtle)', backgroundColor: '#091326' }}>
+              <button className="btn btn-secondary" onClick={handlePrint}>
+                <Printer size={13} />
+                <span>Print / PDF</span>
+              </button>
+              <button className="btn btn-primary-gradient" onClick={handleExportCSV}>
+                <Download size={13} />
+                <span>Export CSV</span>
+              </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }
