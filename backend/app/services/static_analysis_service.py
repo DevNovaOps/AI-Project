@@ -1,5 +1,6 @@
 import ast
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -232,30 +233,166 @@ class StaticAnalysisService:
 
         return findings
 
-    def analyze_file(self, filename: str, content: str, language: str = "python") -> List[Dict[str, Any]]:
-        """Analyzes a single source file with AST and Ruff for Python, or returns notice for unsupported."""
-        if language.lower() not in ("python", "py"):
-            return [{
-                "category": "Code Quality",
-                "severity": "Info",
-                "title": f"Static analysis skipped for {language}",
-                "description": f"Deterministic AST and Ruff analysis is only available for Python files in this release. Submitted file '{filename}' was skipped for deterministic parsing.",
+    def analyze_sql(self, filename: str, content: str) -> List[Dict[str, Any]]:
+        """Static analysis for SQL queries and stored procedures."""
+        findings = []
+        lines = content.splitlines()
+
+        # Check block comments
+        open_comments = content.count("/*")
+        close_comments = content.count("*/")
+        if open_comments > close_comments:
+            findings.append({
+                "category": "Syntax",
+                "severity": "High",
+                "title": "Unclosed SQL block comment",
+                "description": "Block comment opened with '/*' has no matching '*/' closing delimiter.",
                 "file": filename,
-                "line_number": None,
-                "column_number": None,
-                "evidence": f"Language: {language}",
-                "origin": "AST",
+                "line_number": 1,
+                "column_number": 1,
+                "evidence": f"{open_comments} open tag(s), {close_comments} close tag(s)",
+                "origin": "SQL Static Analyzer",
+                "status": "Open",
+            })
+
+        for idx, line in enumerate(lines, start=1):
+            stripped = line.strip()
+            if stripped.startswith("--") or stripped.startswith("/*") or not stripped:
+                continue
+
+            # Check SELECT * in procedures or views
+            if re.search(r"\bSELECT\s+\*\s+FROM\b", stripped, re.IGNORECASE):
+                findings.append({
+                    "category": "Code Quality",
+                    "severity": "Medium",
+                    "title": "Use of 'SELECT *' in data pipeline",
+                    "description": "Using 'SELECT *' in data warehouse procedures can cause breaking schema changes. Explicitly declare target columns.",
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": max(1, line.upper().find("SELECT *") + 1),
+                    "evidence": line.strip()[:100],
+                    "origin": "SQL Static Analyzer",
+                    "status": "Open",
+                })
+
+            # Check UPDATE/DELETE without WHERE on complete statement lines
+            upper_line = stripped.upper()
+            if (upper_line.startswith("DELETE FROM") or upper_line.startswith("UPDATE ")) and stripped.endswith(";"):
+                if "WHERE" not in upper_line:
+                    findings.append({
+                        "category": "Security",
+                        "severity": "Critical",
+                        "title": "DML statement without WHERE clause",
+                        "description": "DELETE or UPDATE statement without a WHERE clause will modify or delete all rows in the table.",
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": 1,
+                        "evidence": line.strip()[:100],
+                        "origin": "SQL Static Analyzer",
+                        "status": "Open",
+                    })
+
+        return findings
+
+    def analyze_csv(self, filename: str, content: str) -> List[Dict[str, Any]]:
+        """Static data quality checks for CSV dataset files."""
+        findings = []
+        lines = [l for l in content.splitlines() if l.strip()]
+        if not lines:
+            return [{
+                "category": "Data Quality",
+                "severity": "High",
+                "title": "Empty CSV dataset",
+                "description": f"Dataset file '{filename}' has no content or headers.",
+                "file": filename,
+                "line_number": 1,
+                "column_number": 1,
+                "evidence": "File is empty",
+                "origin": "CSV Validator",
                 "status": "Open",
             }]
 
-        ast_findings = self.analyze_python_ast(filename, content)
-        # If there's a fatal syntax error, return AST findings immediately
-        has_syntax_error = any(f["category"] == "Syntax" for f in ast_findings)
-        if has_syntax_error:
-            return ast_findings
+        header_cols = [c.strip() for c in lines[0].split(",")]
+        seen = set()
+        for col_idx, col in enumerate(header_cols):
+            if not col:
+                findings.append({
+                    "category": "Data Quality",
+                    "severity": "High",
+                    "title": f"Empty header column at index {col_idx + 1}",
+                    "description": "Dataset contains an unnamed/empty header column.",
+                    "file": filename,
+                    "line_number": 1,
+                    "column_number": col_idx + 1,
+                    "evidence": lines[0][:80],
+                    "origin": "CSV Validator",
+                    "status": "Open",
+                })
+            elif col in seen:
+                findings.append({
+                    "category": "Data Quality",
+                    "severity": "High",
+                    "title": f"Duplicate column header '{col}'",
+                    "description": f"Column '{col}' appears multiple times in dataset header.",
+                    "file": filename,
+                    "line_number": 1,
+                    "column_number": col_idx + 1,
+                    "evidence": col,
+                    "origin": "CSV Validator",
+                    "status": "Open",
+                })
+            seen.add(col)
 
-        ruff_findings = self.run_ruff(filename, content)
-        return ast_findings + ruff_findings
+        expected_count = len(header_cols)
+        for row_idx, row in enumerate(lines[1:50], start=2):
+            cols = row.split(",")
+            if len(cols) != expected_count:
+                findings.append({
+                    "category": "Data Integrity",
+                    "severity": "Medium",
+                    "title": f"Inconsistent column count on row {row_idx}",
+                    "description": f"Row has {len(cols)} columns but header has {expected_count} columns.",
+                    "file": filename,
+                    "line_number": row_idx,
+                    "column_number": 1,
+                    "evidence": row[:80],
+                    "origin": "CSV Validator",
+                    "status": "Open",
+                })
+                break
+
+        return findings
+
+    def analyze_file(self, filename: str, content: str, language: str = "python") -> List[Dict[str, Any]]:
+        """Analyzes a source file based on extension and language."""
+        ext = filename.split(".")[-1].lower() if "." in filename else ""
+
+        if ext in ("sql",) or language.lower() in ("sql",):
+            return self.analyze_sql(filename, content)
+
+        if ext in ("csv", "tsv") or language.lower() in ("csv",):
+            return self.analyze_csv(filename, content)
+
+        if ext in ("py", "pyw") or language.lower() in ("python", "py"):
+            ast_findings = self.analyze_python_ast(filename, content)
+            has_syntax_error = any(f["category"] == "Syntax" for f in ast_findings)
+            if has_syntax_error:
+                return ast_findings
+            ruff_findings = self.run_ruff(filename, content)
+            return ast_findings + ruff_findings
+
+        return [{
+            "category": "Code Quality",
+            "severity": "Info",
+            "title": f"Static analysis skipped for {language or ext}",
+            "description": f"File '{filename}' indexed for pipeline diagnosis and verification.",
+            "file": filename,
+            "line_number": None,
+            "column_number": None,
+            "evidence": f"Language: {language or ext}",
+            "origin": "AST",
+            "status": "Open",
+        }]
 
     def analyze_session_files(self, files: List[Dict[str, Any]], language: str = "python") -> List[Dict[str, Any]]:
         """Analyzes all files in a session and combines findings."""

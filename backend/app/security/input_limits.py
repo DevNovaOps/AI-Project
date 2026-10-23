@@ -3,7 +3,10 @@ from typing import List
 from app.core.config import settings
 from app.core.exceptions import SecurityViolationException
 
-SUPPORTED_LANGUAGES = {"python", "py", "javascript", "js", "typescript", "ts"}
+SUPPORTED_LANGUAGES = {
+    "python", "py", "javascript", "js", "typescript", "ts",
+    "sql", "tsql", "csv", "plaintext", "markdown", "json", "rust", "go"
+}
 
 
 def validate_session_limits(files_data: List[dict], language: str, max_repair_attempts: int) -> None:

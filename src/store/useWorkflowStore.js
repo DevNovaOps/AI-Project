@@ -32,6 +32,14 @@ export const useWorkflowStore = create((set, get) => ({
       return; // Already running
     }
 
+    const truncateContent = (text) => {
+      if (!text || typeof text !== 'string') return '';
+      if (text.length > 120000) {
+        return text.slice(0, 120000) + '\n# [Content truncated for analysis: exceeded size limit]';
+      }
+      return text;
+    };
+
     // Gather files from appStore
     let sourceFiles = [];
     const openFiles = Object.values(appStore.files);
@@ -40,30 +48,42 @@ export const useWorkflowStore = create((set, get) => ({
       sourceFiles = openFiles.map(f => ({
         filename: f.path || f.filename || 'main.py',
         file_path: f.path || f.filename || 'main.py',
-        content: f.content || '',
+        content: truncateContent(f.content),
       }));
     }
 
-    // If no files are currently cached in appStore, fetch from project
-    if (sourceFiles.length === 0 && currentProject?.id) {
+    // Always supplement with project code files (up to 5 total) if available
+    if (currentProject?.id && sourceFiles.length < 5 && appStore.fileTree?.length > 0) {
       try {
         const tree = appStore.fileTree;
-        // Collect first few source files
-        const collectFiles = (nodes, acc = []) => {
+        const codeExtensions = ['.sql', '.py', '.js', '.jsx', '.ts', '.tsx'];
+        const existingPaths = new Set(sourceFiles.map(f => f.filename));
+
+        const collectCodeFiles = (nodes, acc = []) => {
           for (const n of nodes) {
-            if (n.type === 'file' && acc.length < 5) acc.push(n.id);
-            if (n.children) collectFiles(n.children, acc);
+            if (n.type === 'file' && !existingPaths.has(n.id)) {
+              const lower = n.id.toLowerCase();
+              if (codeExtensions.some(ext => lower.endsWith(ext)) && (sourceFiles.length + acc.length) < 5) {
+                acc.push(n.id);
+              }
+            }
+            if (n.children) collectCodeFiles(n.children, acc);
           }
           return acc;
         };
-        const paths = collectFiles(tree);
+
+        const paths = collectCodeFiles(tree);
         for (const p of paths) {
-          const contentRes = await apiClient.get(`/projects/${currentProject.id}/files/content?path=${encodeURIComponent(p)}`);
-          sourceFiles.push({
-            filename: p,
-            file_path: p,
-            content: contentRes.content || '',
-          });
+          try {
+            const contentRes = await apiClient.get(`/projects/${currentProject.id}/files/content?path=${encodeURIComponent(p)}`);
+            sourceFiles.push({
+              filename: p,
+              file_path: p,
+              content: truncateContent(contentRes.content),
+            });
+          } catch (e) {
+            // Ignore single file fetch error
+          }
         }
       } catch (err) {
         console.warn('Could not auto-fetch project files for analysis:', err);
@@ -78,6 +98,20 @@ export const useWorkflowStore = create((set, get) => ({
         type: 'warning',
       });
       return;
+    }
+
+    // Detect target language
+    let detectedLang = appStore.activeLanguage || 'python';
+    const firstCodeFile = sourceFiles.find(f => {
+      const lower = f.filename.toLowerCase();
+      return lower.endsWith('.py') || lower.endsWith('.sql') || lower.endsWith('.js') || lower.endsWith('.ts');
+    });
+    if (firstCodeFile) {
+      const lower = firstCodeFile.filename.toLowerCase();
+      if (lower.endsWith('.sql')) detectedLang = 'sql';
+      else if (lower.endsWith('.py')) detectedLang = 'python';
+      else if (lower.endsWith('.js') || lower.endsWith('.jsx')) detectedLang = 'javascript';
+      else if (lower.endsWith('.ts') || lower.endsWith('.tsx')) detectedLang = 'typescript';
     }
 
     set({
@@ -99,7 +133,7 @@ export const useWorkflowStore = create((set, get) => ({
       // 1. Create real DebugSession on FastAPI backend
       const session = await sessionsApi.create({
         title: `Analysis: ${currentProject?.name || 'Workspace'}`,
-        language: appStore.activeLanguage || 'python',
+        language: detectedLang,
         task_description: 'Analyze source files, detect runtime and syntax errors, diagnose root causes, and propose verified patches.',
         files: sourceFiles,
         source_files: sourceFiles,
