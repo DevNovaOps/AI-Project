@@ -5,11 +5,13 @@ import {
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
+import logoDark from '../../assets/images/logo-dark.png';
+import logoLight from '../../assets/images/logo-light.png';
 
 export default function ActivityBar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { toggleLeftSidebar } = useAppStore();
+  const { toggleLeftSidebar, theme } = useAppStore();
 
   const navItems = [
     { id: 'explorer', label: 'Explorer', icon: FolderGit2, path: '/', isToggle: true },
@@ -86,19 +88,12 @@ export default function ActivityBar() {
           onClick={() => navigate('/')}
           title="AegisVault - Multi-agent debugging system"
         >
-          <div style={{
-            width: 20,
-            height: 20,
-            borderRadius: 4,
-            background: 'var(--grad-primary)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontSize: 10,
-            fontWeight: 800
-          }}>
-            A
+          <div className="brand-logo-container" style={{ width: 22, height: 22, borderRadius: 5 }}>
+            <img 
+              src={theme === 'dark' ? logoDark : logoLight} 
+              alt="AegisVault" 
+              className="brand-logo-img" 
+            />
           </div>
           <span style={{ fontSize: 8, fontWeight: 700, color: '#f8fafc', lineHeight: 1 }}>
             AegisVault

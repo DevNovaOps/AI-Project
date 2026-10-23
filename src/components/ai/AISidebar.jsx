@@ -9,9 +9,12 @@ import ChatPanel from './ChatPanel';
 import TestsPanel from './TestsPanel';
 import FixesPanel from './FixesPanel';
 import ReportPreview from './ReportPreview';
+import logoDark from '../../assets/images/logo-dark.png';
+import logoLight from '../../assets/images/logo-light.png';
 
 export default function AISidebar() {
   const { 
+    theme,
     isRightSidebarOpen, toggleRightSidebar, 
     rightSidebarTab, setRightSidebarTab, 
     activeFilePath 
@@ -50,8 +53,12 @@ export default function AISidebar() {
       {/* Header */}
       <div className="ai-sidebar-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div className="logo-badge" style={{ width: 24, height: 24 }}>
-            <Sparkles size={14} color="#ffffff" />
+          <div className="brand-logo-container" style={{ width: 24, height: 24, borderRadius: 6 }}>
+            <img 
+              src={theme === 'dark' ? logoDark : logoLight} 
+              alt="AutonomusAI" 
+              className="brand-logo-img" 
+            />
           </div>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>AutonomusAI</div>
