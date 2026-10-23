@@ -41,7 +41,12 @@ export default function StatusBar() {
         );
       case 'failed':
         return (
-          <div className="status-badge" style={{ color: '#ef4444' }}>
+          <div 
+            className="status-badge cursor-pointer" 
+            style={{ color: '#ef4444' }}
+            title="Click to view Agent Logs in console"
+            onClick={() => setConsoleTab('agentLogs')}
+          >
             <AlertCircle size={12} color="#ef4444" />
             <span>AI Agents: Failed</span>
           </div>
@@ -97,11 +102,11 @@ export default function StatusBar() {
         <div 
           className="status-badge" 
           onClick={() => setConsoleTab('testResults')}
-          style={{ color: failedTestsCount > 0 ? '#f97316' : '#10b981' }}
+          style={{ color: failedTestsCount > 0 ? '#f97316' : (testCases.length > 0 ? '#10b981' : 'var(--text-secondary)') }}
           title="Open Test Results View"
         >
-          {failedTestsCount > 0 ? <XCircle size={12} /> : <CheckCircle size={12} />}
-          <span>{failedTestsCount > 0 ? `${failedTestsCount} Tests Failed` : 'All Tests Passed'}</span>
+          {failedTestsCount > 0 ? <XCircle size={12} /> : (testCases.length > 0 ? <CheckCircle size={12} /> : <Clock size={12} />)}
+          <span>{testCases.length === 0 ? 'No Tests Run' : (failedTestsCount > 0 ? `${failedTestsCount} Tests Failed` : 'All Tests Passed')}</span>
         </div>
       </div>
 
@@ -110,22 +115,7 @@ export default function StatusBar() {
         {/* Workflow State indicator */}
         {getWorkflowBadge()}
 
-        {/* Latency & Resource Stats */}
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Clock size={11} />
-          <span>Analysis: 2.1s</span>
-        </span>
-
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span>Tests: 3.2s</span>
-        </span>
-
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <HardDrive size={11} />
-          <span>Memory: 1.1 GB</span>
-        </span>
-
-        <span style={{ color: 'var(--text-muted)' }}>Python 3.11.5</span>
+        <span style={{ color: 'var(--text-muted)' }}>Python 3.11</span>
         <span style={{ color: 'var(--text-muted)' }}>UTF-8</span>
         <span style={{ color: 'var(--text-muted)' }}>Spaces: 4</span>
       </div>

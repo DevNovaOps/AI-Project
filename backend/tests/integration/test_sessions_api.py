@@ -91,3 +91,22 @@ async def test_report_not_yet_available():
         report_res = await ac.get(f"/api/v1/debug/sessions/{session_id}/report")
     assert report_res.status_code == 404
     assert "not yet available" in report_res.json()["message"]
+
+
+@pytest.mark.asyncio
+async def test_create_debug_session_with_flexible_payload():
+    # Test that source_files with file_path or path works interchangeably
+    payload = {
+        "title": "Flexible payload test",
+        "language": "python",
+        "source_files": [
+            {"file_path": "./src/module.py", "content": "def foo(): pass\n"}
+        ],
+    }
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.post("/api/v1/debug/sessions", json=payload)
+
+    assert response.status_code == 201
+    data = response.json()
+    assert len(data["files"]) == 1
+    assert data["files"][0]["filename"] == "src/module.py"

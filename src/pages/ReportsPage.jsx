@@ -23,12 +23,12 @@ import {
 
 export default function ReportsPage() {
   const navigate = useNavigate();
-  const { appliedFixes, applyFix, undoFix, setRightSidebarTab } = useAppStore();
+  const { appliedFixes, applyFix, undoFix, setRightSidebarTab, issues: storeIssues, currentProject, finalReport } = useAppStore();
 
   // State management
-  const [selectedIssueId, setSelectedIssueId] = useState('ISSUE-01');
-  const [dateRange, setDateRange] = useState('Oct 1, 2024 - Oct 10, 2024');
-  const [selectedBranch, setSelectedBranch] = useState('All Branches');
+  const [selectedIssueId, setSelectedIssueId] = useState(null);
+  const [dateRange, setDateRange] = useState('Current Analysis Session');
+  const [selectedBranch, setSelectedBranch] = useState(currentProject?.default_branch || 'main');
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -36,14 +36,27 @@ export default function ReportsPage() {
   const [toastMessage, setToastMessage] = useState(null);
 
   // Issues list merged with appliedFixes store
-  const issues = detailedIssuesList.map(item => ({
+  const issues = (storeIssues || []).map(item => ({
     ...item,
-    status: appliedFixes.includes(item.id) ? 'Fixed' : item.status
+    detected: item.source || 'Static AST',
+    status: appliedFixes.includes(item.id) ? 'Fixed' : (item.status || 'Open')
   }));
 
-  const selectedIssue = issues.find(i => i.id === selectedIssueId) || issues[0];
-  const currentIndex = issues.findIndex(i => i.id === selectedIssue.id) + 1;
-  const isSelectedFixed = appliedFixes.includes(selectedIssue.id) || selectedIssue.status === 'Fixed';
+  const selectedIssue = issues.find(i => i.id === selectedIssueId) || issues[0] || null;
+  const currentIndex = selectedIssue ? issues.findIndex(i => i.id === selectedIssue.id) + 1 : 0;
+  const isSelectedFixed = selectedIssue ? (appliedFixes.includes(selectedIssue.id) || selectedIssue.status === 'Fixed') : false;
+
+  // Real summary metrics computed from backend findings
+  const criticalCount = issues.filter(i => i.severity === 'Critical' || i.severity === 'High').length;
+  const fixedCount = issues.filter(i => i.status === 'Fixed').length;
+  const healthScore = issues.length === 0 ? 100 : Math.max(20, Math.round(100 - (criticalCount * 25) + (fixedCount * 20)));
+
+  const summaryMetrics = [
+    { label: 'Workspace Health Score', value: `${healthScore}/100`, change: issues.length === 0 ? 'Optimal' : `${issues.length} detected`, trend: 'up' },
+    { label: 'Active Findings', value: `${issues.length}`, change: `${criticalCount} critical`, trend: criticalCount > 0 ? 'down' : 'up' },
+    { label: 'Patches Applied', value: `${fixedCount}`, change: `${issues.length - fixedCount} pending`, trend: 'up' },
+    { label: 'Quality Verification', value: issues.length > 0 && fixedCount === issues.length ? '100%' : `${Math.round((fixedCount / Math.max(1, issues.length)) * 100)}%`, change: 'Deterministic AST', trend: 'up' },
+  ];
 
   // Navigation between issues
   const handlePrevIssue = () => {
@@ -358,60 +371,86 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* SUMMARY METRIC CARDS (6 HORIZONTALLY ALIGNED) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
-        {summaryMetricsData.map((item) => (
-          <MetricCard
-            key={item.id}
-            title={item.title}
-            value={item.value}
-            change={item.change}
-            isPositive={item.isPositive}
-            subtitle={item.subtitle}
-            iconType={item.iconType}
-            color={item.color}
-            bg={item.bg}
-            border={item.border}
-          />
-        ))}
-      </div>
+      {/* SUMMARY METRIC CARDS OR EMPTY STATE */}
+      {issues.length === 0 ? (
+        <div style={{
+          padding: '60px 20px',
+          backgroundColor: '#071224',
+          borderRadius: 12,
+          border: '1px solid #1a2a47',
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 16
+        }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', backgroundColor: '#0c1d38', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #1a66ff' }}>
+            <Sparkles size={28} color="#38bdf8" />
+          </div>
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#ffffff', margin: 0 }}>No Analysis Reports Generated Yet</h2>
+            <p style={{ fontSize: 12, color: '#91a6c6', maxWidth: 480, margin: '8px auto 0', lineHeight: 1.5 }}>
+              Execute the 5-Agent pipeline on your workspace files to generate comprehensive defect reports, AST code metrics, and verification benchmarks.
+            </p>
+          </div>
+          <button
+            className="btn btn-primary-gradient"
+            onClick={() => navigate('/')}
+            style={{ height: 36, padding: '0 20px', fontSize: 12, marginTop: 4 }}
+          >
+            Go to Editor &amp; Start Analysis
+          </button>
+        </div>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
+            {dynamicMetrics.map((item) => (
+              <MetricCard
+                key={item.id}
+                title={item.title}
+                value={item.value}
+                change={item.change}
+                isPositive={item.isPositive}
+                subtitle={item.subtitle}
+                iconType={item.iconType}
+                color={item.color}
+                bg={item.bg}
+                border={item.border}
+              />
+            ))}
+          </div>
 
-      {/* ANALYTICS ROW (3 PANELS: Issue Trend, Issue Distribution, Issues by Category) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.05fr 1.15fr', gap: 10, minHeight: 240 }}>
-        {/* Panel A: Issue Trend */}
-        <IssueTrendChart data={issueTrendsData} />
+          {/* ANALYTICS ROW */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.05fr 1.15fr', gap: 10, minHeight: 240 }}>
+            <IssueTrendChart data={issueTrendsData} />
+            <IssueDistributionChart data={severityDistributionData} totalCount={issues.length} />
+            <CategoryBreakdown data={categoryBreakdownData} />
+          </div>
 
-        {/* Panel B: Issue Distribution */}
-        <IssueDistributionChart data={severityDistributionData} totalCount={24} />
+          {/* SPLIT ROW: ISSUE MANAGEMENT TABLE (LEFT) + RIGHT-SIDE ISSUE DETAILS PANEL (RIGHT) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 385px', gap: 10, flex: 1, minHeight: 460 }}>
+            <IssueTable
+              issues={issues}
+              selectedIssueId={selectedIssueId}
+              onSelectIssue={(id) => setSelectedIssueId(id)}
+              onViewInEditor={handleViewInEditor}
+              onExplainIssue={handleExplainIssue}
+            />
 
-        {/* Panel C: Issues by Category */}
-        <CategoryBreakdown data={categoryBreakdownData} />
-      </div>
-
-      {/* SPLIT ROW: ISSUE MANAGEMENT TABLE (LEFT) + RIGHT-SIDE ISSUE DETAILS PANEL (RIGHT) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 385px', gap: 10, flex: 1, minHeight: 460 }}>
-        {/* Left: Large Issue Management Table with Filter Toolbar */}
-        <IssueTable
-          issues={issues}
-          selectedIssueId={selectedIssueId}
-          onSelectIssue={(id) => setSelectedIssueId(id)}
-          onViewInEditor={handleViewInEditor}
-          onExplainIssue={handleExplainIssue}
-        />
-
-        {/* Right: Detailed Issue Information & Fix Panel */}
-        <IssueDetailsPanel
-          issue={selectedIssue}
-          currentIndex={currentIndex}
-          totalCount={issues.length}
-          onPrev={handlePrevIssue}
-          onNext={handleNextIssue}
-          onApplyFix={handleApplyFix}
-          onAddToTests={handleAddToTests}
-          onExplain={handleExplainIssue}
-          isFixed={isSelectedFixed}
-        />
-      </div>
+            <IssueDetailsPanel
+              issue={selectedIssue}
+              currentIndex={currentIndex}
+              totalCount={issues.length}
+              onPrev={handlePrevIssue}
+              onNext={handleNextIssue}
+              onApplyFix={handleApplyFix}
+              onAddToTests={handleAddToTests}
+              onExplain={handleExplainIssue}
+              isFixed={isSelectedFixed}
+            />
+          </div>
+        </>
+      )}
 
       {/* GENERATE REPORT MODAL */}
       {reportModalOpen && (

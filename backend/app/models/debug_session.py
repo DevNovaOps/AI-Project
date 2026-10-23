@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from sqlalchemy import JSON, DateTime, Index, String, Text
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Uuid
 
@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.models.agent_run import AgentRun
     from app.models.final_report import FinalReport
     from app.models.finding import Finding
+    from app.models.project import Project
     from app.models.repair_attempt import RepairAttempt
     from app.models.source_file import SourceFile
     from app.models.test_run import TestRun
@@ -26,6 +27,11 @@ class DebugSession(Base, TimestampMixin):
         primary_key=True,
         default=uuid.uuid4,
     )
+    project_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid,
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     language: Mapped[str] = mapped_column(String(50), default="python", nullable=False)
     status: Mapped[str] = mapped_column(
@@ -39,6 +45,7 @@ class DebugSession(Base, TimestampMixin):
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
+    project: Mapped[Optional["Project"]] = relationship("Project", back_populates="debug_sessions")
     files: Mapped[List["SourceFile"]] = relationship(
         "SourceFile",
         back_populates="session",

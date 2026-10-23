@@ -2,13 +2,14 @@ import React, { useRef, useEffect, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { useAppStore } from '../../store/useAppStore';
 import DiagnosticPopup from './DiagnosticPopup';
-import { Play } from 'lucide-react';
+import { Play, Save, Check, FileCode } from 'lucide-react';
 
 export default function CodeEditor() {
   const { 
     theme, activeFilePath, files, updateFileContent,
     cursorPosition, setCursorPosition,
     selectedIssueId, issues, runTests,
+    saveActiveFile, isSavingFile,
     isDiagnosticPopupOpen, closeDiagnosticPopup
   } = useAppStore();
 
@@ -25,17 +26,12 @@ export default function CodeEditor() {
   const isHoveringPopupRef = useRef(false);
   isHoveringPopupRef.current = isHoveringPopup;
 
-  const activeFilePathRef = useRef(activeFilePath);
-  activeFilePathRef.current = activeFilePath;
+  const currentFile = activeFilePath ? files[activeFilePath] : null;
 
-  const issuesRef = useRef(issues);
-  issuesRef.current = issues;
-
-  const currentFile = files[activeFilePath] || {
-    name: 'untitled',
-    language: 'plaintext',
-    content: ''
-  };
+  // Filter issues for current active file
+  const activeFileIssues = issues.filter(
+    (i) => i.filePath === activeFilePath || i.fullPath === activeFilePath || i.file === (currentFile?.name || activeFilePath)
+  );
 
   const handlePopupClose = () => {
     if (hoverTimeoutRef.current) {
@@ -48,14 +44,14 @@ export default function CodeEditor() {
     closeDiagnosticPopup();
   };
 
-  // When diagnostic popup is explicitly requested from external action, reset dismissed state
+  // When diagnostic popup is explicitly opened from external action (e.g. Problems tab), reset dismissed state
   useEffect(() => {
     if (isDiagnosticPopupOpen) {
       isDismissedRef.current = false;
     }
   }, [isDiagnosticPopupOpen]);
 
-  // Global listener: dismiss popup when clicking anywhere outside it (e.g. clicking in code or outside)
+  // Global listener: dismiss popup when clicking anywhere outside it (e.g. clicking in code, tabs, workspace)
   useEffect(() => {
     const handleDocumentMouseDown = (e) => {
       // Don't close if clicking inside the diagnostic popup itself
@@ -72,7 +68,7 @@ export default function CodeEditor() {
         return;
       }
 
-      // If popup is open and user clicked in code or anywhere else
+      // If popup is open and user clicked anywhere in code or outside
       if (isDiagnosticPopupOpen || isHoveringError || isHoveringPopup) {
         handlePopupClose();
       }
@@ -101,11 +97,18 @@ export default function CodeEditor() {
       setCursorPosition({ line: e.position.lineNumber, col: e.position.column });
     });
 
+    // Add Save command (Ctrl+S or Cmd+S)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      if (saveActiveFile) saveActiveFile();
+    });
+
     // Clicking anywhere in the code or editor dismisses the diagnostic popup
     editor.onMouseDown((e) => {
-      if (activeFilePathRef.current !== 'backend/main.py') return;
       const targetLine = e.target.position?.lineNumber || e.target.detail?.lineNumber;
-      const isGlyphElem = e.target.element && e.target.element.classList && e.target.element.classList.contains('monaco-error-glyph');
+      const isGlyphElem = e.target.element && e.target.element.classList && (
+        e.target.element.classList.contains('monaco-error-glyph') || 
+        e.target.element.classList.contains('monaco-error-line-highlight')
+      );
       const isGutterLine6 = (e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN || 
                              e.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS) && targetLine === 6;
 
@@ -125,9 +128,9 @@ export default function CodeEditor() {
 
     // Detect mouse move over line 6 or error glyph: only show error popup when hovering on it
     editor.onMouseMove((e) => {
-      if (activeFilePathRef.current !== 'backend/main.py') return;
+      if (activeFilePath !== 'backend/main.py') return;
 
-      const issue = issuesRef.current.find(i => i.id === 'ISSUE-01');
+      const issue = issues.find(i => i.id === 'ISSUE-01');
       if (issue && issue.status === 'Fixed') {
         setIsHoveringError(false);
         return;
@@ -156,7 +159,7 @@ export default function CodeEditor() {
         // Calculate accurate pixel position relative to editor content
         const lineTop = editor.getTopForLineNumber(6) - editor.getScrollTop();
         const layout = editor.getLayoutInfo();
-        const leftPos = Math.max(380, Math.min(layout.contentLeft + 360, window.innerWidth - 680));
+        const leftPos = Math.max(380, Math.min((layout?.contentLeft || 60) + 360, window.innerWidth - 680));
 
         setPopupPosition({
           top: Math.max(30, lineTop - 15),
@@ -189,53 +192,68 @@ export default function CodeEditor() {
       }
     });
 
-    applyErrorDecorations();
+    applyDecorations();
   };
 
-  const applyErrorDecorations = () => {
-    if (!editorRef.current || !monacoRef.current) return;
+  const applyDecorations = () => {
+    if (!editorRef.current || !monacoRef.current || !activeFilePath) return;
     const editor = editorRef.current;
     const monaco = monacoRef.current;
 
-    if (activeFilePath === 'backend/main.py') {
+    // Combine active file issues and line 6 decoration for backend/main.py
+    const decorationsList = [];
+
+    if (activeFileIssues.length > 0) {
+      activeFileIssues.forEach((issue) => {
+        const line = issue.line || 1;
+        const isFixed = issue.status === 'Fixed';
+
+        decorationsList.push({
+          range: new monaco.Range(line, 1, line, 100),
+          options: {
+            isWholeLine: true,
+            className: isFixed ? 'monaco-success-line-highlight' : 'monaco-error-line-highlight',
+            glyphMarginClassName: isFixed ? 'monaco-success-glyph' : 'monaco-error-glyph',
+            hoverMessage: {
+              value: `**${issue.severity || 'Issue'}**: ${issue.title}\n\n${issue.detail || ''}`,
+            },
+            inlineClassName: isFixed ? undefined : 'monaco-error-inline-squiggly',
+          },
+        });
+      });
+    } else if (activeFilePath === 'backend/main.py') {
       const issue = issues.find(i => i.id === 'ISSUE-01');
       const isFixed = issue && issue.status === 'Fixed';
 
       if (!isFixed) {
-        // Red squiggly underline & line highlight on line 6
-        decorationsRef.current = editor.deltaDecorations(decorationsRef.current, [
-          {
-            range: new monaco.Range(6, 1, 6, 45),
-            options: {
-              isWholeLine: true,
-              className: 'monaco-error-line-highlight',
-              glyphMarginClassName: 'monaco-error-glyph',
-              hoverMessage: { value: '**Runtime Error**: Division by zero. len(numbers) could be 0.' },
-              inlineClassName: 'monaco-error-inline-squiggly'
-            }
+        decorationsList.push({
+          range: new monaco.Range(6, 1, 6, 45),
+          options: {
+            isWholeLine: true,
+            className: 'monaco-error-line-highlight',
+            glyphMarginClassName: 'monaco-error-glyph',
+            hoverMessage: { value: '**Runtime Error**: Division by zero. len(numbers) could be 0.' },
+            inlineClassName: 'monaco-error-inline-squiggly'
           }
-        ]);
+        });
       } else {
-        // Green validated decoration
-        decorationsRef.current = editor.deltaDecorations(decorationsRef.current, [
-          {
-            range: new monaco.Range(3, 1, 4, 20),
-            options: {
-              isWholeLine: true,
-              className: 'monaco-success-line-highlight',
-              glyphMarginClassName: 'monaco-success-glyph',
-              hoverMessage: { value: '**Fix Validated**: Defensive boundary guard in place.' }
-            }
+        decorationsList.push({
+          range: new monaco.Range(3, 1, 4, 20),
+          options: {
+            isWholeLine: true,
+            className: 'monaco-success-line-highlight',
+            glyphMarginClassName: 'monaco-success-glyph',
+            hoverMessage: { value: '**Fix Validated**: Defensive boundary guard in place.' }
           }
-        ]);
+        });
       }
-    } else {
-      decorationsRef.current = editor.deltaDecorations(decorationsRef.current, []);
     }
+
+    decorationsRef.current = editor.deltaDecorations(decorationsRef.current, decorationsList);
   };
 
   useEffect(() => {
-    applyErrorDecorations();
+    applyDecorations();
   }, [activeFilePath, issues]);
 
   // Jump to line when cursorPosition changes from external actions (like clicking Problems table)
@@ -243,10 +261,10 @@ export default function CodeEditor() {
     if (editorRef.current && cursorPosition) {
       editorRef.current.revealLineInCenter(cursorPosition.line);
       editorRef.current.setPosition({ lineNumber: cursorPosition.line, column: cursorPosition.col || 1 });
-      if (cursorPosition.line && activeFilePath === 'backend/main.py') {
+      if (cursorPosition.line) {
         const lineTop = editorRef.current.getTopForLineNumber(cursorPosition.line) - editorRef.current.getScrollTop();
         const layout = editorRef.current.getLayoutInfo();
-        const leftPos = Math.max(380, Math.min(layout.contentLeft + 360, window.innerWidth - 680));
+        const leftPos = Math.max(380, Math.min((layout?.contentLeft || 60) + 360, window.innerWidth - 680));
         setPopupPosition({
           top: Math.max(30, lineTop - 15),
           left: leftPos
@@ -255,10 +273,25 @@ export default function CodeEditor() {
     }
   }, [cursorPosition, activeFilePath]);
 
-  // The popup is ONLY shown when hovered on line 6 / glyph, or hovering inside the popup, or opened via click
-  const shouldShowPopup = (isHoveringError || isHoveringPopup || isDiagnosticPopupOpen) && 
-                          activeFilePath === 'backend/main.py' && 
-                          issues.find(i => i.id === selectedIssueId)?.status !== 'Fixed';
+  if (!activeFilePath || !currentFile) {
+    return (
+      <div className="editor-canvas-container" style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        gap: 12, backgroundColor: 'var(--bg-editor)', color: 'var(--text-muted)'
+      }}>
+        <FileCode size={48} strokeWidth={1.2} color="var(--border-focus)" />
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)' }}>No File Open</div>
+          <div style={{ fontSize: 11, marginTop: 4 }}>Select a file from the Project Explorer or press Ctrl+K</div>
+        </div>
+      </div>
+    );
+  }
+
+  // The popup is shown when hovered over error or opened via Problems panel, as long as the issue isn't fixed
+  const currentIssue = issues.find(i => i.id === selectedIssueId);
+  const isSelectedFixed = currentIssue && currentIssue.status === 'Fixed';
+  const shouldShowPopup = (isHoveringError || isHoveringPopup || isDiagnosticPopupOpen) && !isSelectedFixed;
 
   return (
     <div className="editor-canvas-container">
@@ -267,8 +300,8 @@ export default function CodeEditor() {
         height="calc(100% - 24px)"
         theme={theme === 'dark' ? 'vs-dark' : 'light'}
         path={activeFilePath}
-        language={currentFile.language || 'python'}
-        value={currentFile.content}
+        language={currentFile.language || 'plaintext'}
+        value={currentFile.content || ''}
         onChange={(val) => updateFileContent(activeFilePath, val || '')}
         onMount={handleEditorDidMount}
         options={{
@@ -290,7 +323,7 @@ export default function CodeEditor() {
         }}
       />
 
-      {/* Floating Diagnostic Card: ONLY rendered when hovering over the error or popup */}
+      {/* Floating Diagnostic Card */}
       {shouldShowPopup && (
         <DiagnosticPopup 
           style={{ 
@@ -319,24 +352,37 @@ export default function CodeEditor() {
       <div className="editor-status-bar">
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span>{currentFile.name}</span>
+          {currentFile.isDirty && <span style={{ color: '#fbbf24', fontSize: 11 }}>● Unsaved</span>}
           <span style={{ color: 'var(--text-muted)' }}>•</span>
           <span>Ln {cursorPosition.line}, Col {cursorPosition.col}</span>
           <span style={{ color: 'var(--text-muted)' }}>•</span>
-          <span>Spaces: 4</span>
+          <span style={{ textTransform: 'capitalize' }}>{currentFile.language || 'plaintext'}</span>
           <span style={{ color: 'var(--text-muted)' }}>•</span>
           <span>UTF-8</span>
           <span style={{ color: 'var(--text-muted)' }}>•</span>
           <span>Python 3.11.5</span>
         </span>
 
-        <button 
-          className="icon-action-btn" 
-          style={{ width: 22, height: 22, color: 'var(--color-success)' }}
-          onClick={runTests}
-          title="Run File in Sandbox"
-        >
-          <Play size={12} fill="currentColor" />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button 
+            className="icon-action-btn" 
+            style={{ width: 22, height: 22, color: 'var(--color-success)' }}
+            onClick={runTests}
+            title="Run File in Sandbox"
+          >
+            <Play size={12} fill="currentColor" />
+          </button>
+          
+          <button 
+            className="icon-action-btn" 
+            style={{ width: 22, height: 22, color: currentFile.isDirty ? '#38bdf8' : 'var(--text-muted)' }}
+            onClick={saveActiveFile}
+            disabled={isSavingFile || !currentFile.isDirty}
+            title="Save file (Ctrl+S)"
+          >
+            <Save size={12} />
+          </button>
+        </div>
       </div>
     </div>
   );

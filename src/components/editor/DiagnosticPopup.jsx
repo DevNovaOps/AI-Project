@@ -9,8 +9,10 @@ export default function DiagnosticPopup({ style, onMouseEnter, onMouseLeave, onC
     setRightSidebarTab, appliedFixes 
   } = useAppStore();
 
-  const issue = issues.find(i => i.id === selectedIssueId) || issues[0];
-  const isApplied = appliedFixes.includes(issue.id);
+  const issue = issues.find(i => i.id === selectedIssueId) || issues[0] || null;
+  if (!issue) return null;
+
+  const isApplied = appliedFixes.includes(issue.id) || issue.status === 'Fixed';
 
   const handleClose = (e) => {
     e?.stopPropagation();
@@ -48,8 +50,10 @@ export default function DiagnosticPopup({ style, onMouseEnter, onMouseLeave, onC
       {/* Header */}
       <div className="diagnostic-header">
         <div className="diagnostic-tag">
-          <AlertCircle size={14} color={issue.severity === 'Critical' ? 'var(--color-critical)' : '#f97316'} />
-          <span style={{ color: issue.severity === 'Critical' ? 'var(--color-critical)' : '#f97316' }}>{issue.category || 'Runtime Error'}</span>
+          <AlertCircle size={14} color={issue.severity === 'Critical' ? 'var(--color-critical)' : (issue.severity === 'High' ? '#f97316' : '#38bdf8')} />
+          <span style={{ color: issue.severity === 'Critical' ? 'var(--color-critical)' : (issue.severity === 'High' ? '#f97316' : '#38bdf8') }}>
+            {issue.category || 'Diagnostic Finding'}
+          </span>
         </div>
         <button 
           className="editor-tab-close" 
@@ -62,14 +66,14 @@ export default function DiagnosticPopup({ style, onMouseEnter, onMouseLeave, onC
 
       {/* Title & Description */}
       <div>
-        <div id="diag-title" className="diagnostic-title">{issue.title || 'Division by zero'}</div>
-        <div className="diagnostic-desc">{issue.detail}</div>
+        <div id="diag-title" className="diagnostic-title">{issue.title || 'Code Defect'}</div>
+        <div className="diagnostic-desc">{issue.detail || issue.message}</div>
       </div>
 
       {/* Code Snippet Preview */}
       <div className="diagnostic-code-box">
-        <span style={{ color: 'var(--text-muted)', userSelect: 'none' }}>{issue.line || 6}</span>
-        <span>
+        <span style={{ color: 'var(--text-muted)', userSelect: 'none' }}>{issue.line || 1}</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
           {issue.codeSnippet ? (
             issue.codeSnippet
           ) : (
@@ -78,7 +82,7 @@ export default function DiagnosticPopup({ style, onMouseEnter, onMouseLeave, onC
         </span>
       </div>
 
-      {/* Actions matching Crop 3 */}
+      {/* Actions */}
       <div className="diagnostic-actions">
         <button 
           className="btn btn-secondary" 
@@ -93,7 +97,7 @@ export default function DiagnosticPopup({ style, onMouseEnter, onMouseLeave, onC
           className="btn btn-primary-gradient" 
           style={{ height: 28, fontSize: 11, padding: '0 12px', flex: 1.2, gap: 6 }}
           onClick={handleFixWithAI}
-          disabled={isApplied}
+          disabled={isApplied || !issue.suggestedFix}
         >
           {isApplied ? (
             <>
@@ -117,7 +121,6 @@ export default function DiagnosticPopup({ style, onMouseEnter, onMouseLeave, onC
           <span>Add Test</span>
         </button>
       </div>
-
     </div>
   );
 }

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { 
   AlertCircle, Lightbulb, CheckCircle2, ChevronRight, Copy, Check, 
-  Sparkles, FlaskConical, ExternalLink, ShieldCheck, ChevronLeft
+  Sparkles, FlaskConical, ExternalLink, ShieldCheck, ChevronLeft, Play
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
+import { useWorkflowStore } from '../../store/useWorkflowStore';
 
 export default function AnalysisPanel() {
   const { 
@@ -12,13 +13,47 @@ export default function AnalysisPanel() {
     setRightSidebarTab 
   } = useAppStore();
 
+  const { startAutonomousWorkflow, workflowState } = useWorkflowStore();
   const [copied, setCopied] = useState(false);
+
+  if (issues.length === 0) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '40px 20px', textAlign: 'center', gap: 14, color: 'var(--text-muted)'
+      }}>
+        <div style={{
+          width: 48, height: 48, borderRadius: '50%', backgroundColor: 'var(--bg-card)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-subtle)'
+        }}>
+          <Sparkles size={22} color="#38bdf8" />
+        </div>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+            No Analysis Findings
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
+            Run the 5-Agent pipeline to perform deep AST static analysis, diagnose root causes, and propose verified patches.
+          </div>
+        </div>
+        <button
+          className="btn btn-primary-gradient"
+          onClick={startAutonomousWorkflow}
+          disabled={workflowState !== 'idle' && workflowState !== 'completed' && workflowState !== 'failed'}
+          style={{ height: 32, fontSize: 11, padding: '0 16px' }}
+        >
+          <Play size={12} fill="#ffffff" />
+          <span>Start Autonomous Analysis</span>
+        </button>
+      </div>
+    );
+  }
 
   const issue = issues.find(i => i.id === selectedIssueId) || issues[0];
   const isApplied = appliedFixes.includes(issue.id) || issue.status === 'Fixed';
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(issue.suggestedFix);
+    navigator.clipboard.writeText(issue.suggestedFix || issue.codeSnippet || '');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -45,15 +80,16 @@ export default function AnalysisPanel() {
         padding: '6px 10px', background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', 
         border: '1px solid var(--border-subtle)', fontSize: 11 
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ color: '#38bdf8', fontWeight: 700 }}>🐍</span>
-          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{issue.file}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+          <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+            {issue.file || issue.filePath}
+          </span>
           <span style={{ color: 'var(--text-muted)' }}>Line {issue.line}</span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span className="badge-runtime-error">
-            {issue.category || 'Runtime Error'}
+            {issue.category || 'Issue'}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <button 
@@ -87,160 +123,93 @@ export default function AnalysisPanel() {
               {issue.title}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2, lineHeight: 1.4 }}>
-              {issue.detail}
+              {issue.detail || issue.message}
             </div>
           </div>
         </div>
 
-        {/* Badges matching Crop 4 */}
         <div className="issue-banner-badges">
-          <span className="badge badge-critical">
+          <span className={`badge badge-${(issue.severity || 'medium').toLowerCase()}`}>
             <AlertCircle size={11} />
             <span>{issue.severity}</span>
           </span>
           <span className="badge-runtime-error">
             <Lightbulb size={11} />
-            <span>{issue.category || 'Runtime Error'}</span>
+            <span>{issue.category || 'Static Analysis'}</span>
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-muted)' }}>
             <span>Confidence</span>
             <span className="badge badge-success">
-              {issue.confidence}%
+              {issue.confidence || 90}%
             </span>
           </div>
         </div>
       </div>
 
-
       {/* Section: Root Cause */}
       <div className="card">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
           <Lightbulb size={14} color="#38bdf8" />
-          <span>Root Cause</span>
+          <span>Root Cause Diagnosis</span>
         </div>
         <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-          {issue.rootCause || 'The function does not handle the case when the input list is empty. Division by zero occurs when len(numbers) is 0.'}
+          {issue.rootCause || issue.detail || 'Analysis detected potential defect based on AST traversal and rule matching.'}
         </div>
       </div>
 
       {/* Section: Suggested Fix */}
-      <div className="card" style={{ gap: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
-            <CheckCircle2 size={14} color="var(--color-success)" />
-            <span>Suggested Fix</span>
+      {issue.suggestedFix && (
+        <div className="card" style={{ gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
+              <CheckCircle2 size={14} color="var(--color-success)" />
+              <span>Suggested Fix</span>
+            </div>
+            <button 
+              className="icon-action-btn" 
+              style={{ width: 22, height: 22 }}
+              onClick={handleCopy}
+              title="Copy fix code"
+            >
+              {copied ? <Check size={12} color="var(--color-success)" /> : <Copy size={12} />}
+            </button>
           </div>
-          <button 
-            className="icon-action-btn" 
-            style={{ width: 22, height: 22 }}
-            onClick={handleCopy}
-            title="Copy fix code"
-          >
-            {copied ? <Check size={12} color="var(--color-success)" /> : <Copy size={12} />}
-          </button>
-        </div>
 
-        {/* Code Snippet Box */}
-        <div style={{ 
-          backgroundColor: 'var(--bg-code-block)', 
-          border: '1px solid var(--border-subtle)', 
-          borderRadius: 'var(--radius-sm)', 
-          padding: '8px 10px', 
-          fontFamily: 'var(--font-mono)', 
-          fontSize: 11,
-          lineHeight: 1.5,
-          color: 'var(--text-secondary)'
-        }}>
-          <div><span style={{ color: 'var(--text-muted)', marginRight: 10 }}>1</span><span className="token-keyword">def</span> <span className="token-function">calculate_average</span>(numbers):</div>
-          <div><span style={{ color: 'var(--text-muted)', marginRight: 10 }}>2</span>    <span className="token-keyword">if</span> <span className="token-function">len</span>(numbers) == <span className="token-number">0</span>:</div>
-          <div><span style={{ color: 'var(--text-muted)', marginRight: 10 }}>3</span>        <span className="token-keyword">return</span> <span className="token-number">0</span></div>
-          <div><span style={{ color: 'var(--text-muted)', marginRight: 10 }}>4</span>    <span className="token-keyword">return</span> <span className="token-function">sum</span>(numbers) / <span className="token-function">len</span>(numbers)</div>
+          <div style={{
+            backgroundColor: 'var(--bg-code-block)',
+            padding: '8px 10px',
+            borderRadius: 'var(--radius-sm)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            color: 'var(--text-primary)',
+            whiteSpace: 'pre-wrap',
+            maxHeight: 140,
+            overflowY: 'auto'
+          }}>
+            {issue.suggestedFix}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Action Buttons matching input_file_0.png and input_file_1.png */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.2fr 1fr', gap: 8 }}>
+      {/* Action Buttons */}
+      <div style={{ display: 'flex', gap: 6 }}>
         {isApplied ? (
           <button 
             className="btn btn-secondary" 
-            style={{ height: 34, fontSize: 12, padding: '0 8px' }}
+            style={{ flex: 1, height: 32 }}
             onClick={() => undoFix(issue.id)}
           >
-            <Check size={14} color="var(--color-success)" />
-            <span>Fix Applied</span>
+            Undo Applied Fix
           </button>
         ) : (
           <button 
             className="btn btn-primary-gradient" 
-            style={{ height: 34, fontSize: 12, padding: '0 10px' }}
+            style={{ flex: 1, height: 32 }}
             onClick={() => applyFix(issue.id)}
           >
-            <Sparkles size={14} />
-            <span>Apply Fix</span>
+            Apply Fix to Workspace
           </button>
         )}
-
-        <button 
-          className="btn btn-secondary" 
-          style={{ height: 34, fontSize: 12, padding: '0 8px' }}
-          onClick={() => setRightSidebarTab('tests')}
-          title="Run test case for this fix"
-        >
-          <FlaskConical size={14} />
-          <span>Add to Tests</span>
-        </button>
-
-        <button 
-          className="btn btn-secondary" 
-          style={{ height: 34, fontSize: 12, padding: '0 8px' }}
-          onClick={() => setRightSidebarTab('chat')}
-          title="Explain issue in Chat"
-        >
-          <Lightbulb size={14} />
-          <span>Explain</span>
-        </button>
-      </div>
-
-
-      {/* Additional Suggestions */}
-      <div className="card" style={{ gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
-          <ShieldCheck size={14} color="#38bdf8" />
-          <span>Additional Suggestions</span>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {(issue.additionalSuggestions || [
-            { id: 'sugg-1', title: 'Add input type validation', badge: 'Warning', type: 'warning' },
-            { id: 'sugg-2', title: 'Add docstring', badge: 'Info', type: 'info' },
-            { id: 'sugg-3', title: 'Handle non-numeric values', badge: 'Info', type: 'info' }
-          ]).map((sugg) => (
-            <div 
-              key={sugg.id} 
-              className="palette-item"
-              style={{ 
-                padding: '6px 8px', 
-                background: 'var(--bg-card-subtle)', 
-                border: '1px solid var(--border-subtle)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-primary)' }}>
-                  {sugg.title}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span className={sugg.type === 'warning' ? 'badge badge-warning' : 'badge badge-info'} style={{ fontSize: 9 }}>
-                  {sugg.badge}
-                </span>
-                <ChevronRight size={12} color="var(--text-muted)" />
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );

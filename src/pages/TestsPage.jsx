@@ -6,15 +6,15 @@ import {
 import { useAppStore } from '../store/useAppStore';
 
 export default function TestsPage() {
-  const { testCases, runTests, isTestingRunning, project } = useAppStore();
-  const [activeTestId, setActiveTestId] = useState('test-3');
+  const { testCases, runTests, isTestingRunning, currentProject, lastTestOutput } = useAppStore();
+  const [activeTestId, setActiveTestId] = useState(null);
 
   const passed = testCases.filter(t => t.status === 'passed').length;
   const failed = testCases.filter(t => t.status === 'failed').length;
   const total = testCases.length;
-  const passRate = Math.round((passed / total) * 100);
+  const passRate = total > 0 ? Math.round((passed / total) * 100) : 0;
 
-  const activeTest = testCases.find(t => t.id === activeTestId) || testCases[0];
+  const activeTest = testCases.find(t => t.id === activeTestId) || testCases[0] || null;
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -27,7 +27,7 @@ export default function TestsPage() {
           <div>
             <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Test Suite Management</h1>
             <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              Pytest execution, automated regression guards, and test tracebacks for {project.name}
+              Sandbox Pytest execution, automated regression guards, and test tracebacks for {currentProject?.name || 'Workspace'}
             </p>
           </div>
         </div>
@@ -67,104 +67,133 @@ export default function TestsPage() {
         </div>
         <div className="card" style={{ padding: '12px', gap: 4 }}>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Pass Rate</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: '#38bdf8' }}>{passRate}%</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#38bdf8' }}>{total > 0 ? `${passRate}%` : '—'}</div>
         </div>
       </div>
 
-      {/* Two-Column Workspace: Test List on Left, Output/Traceback on Right */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.8fr', gap: 16, flex: 1, minHeight: 340 }}>
-        {/* Left: Test Cases List */}
-        <div className="card" style={{ padding: '12px', gap: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-            Registered Tests in tests/test_main.py
-          </div>
+      {/* Content or Empty State */}
+      {total === 0 ? (
+        <div style={{
+          padding: '48px 20px',
+          backgroundColor: 'var(--bg-card)',
+          borderRadius: 8,
+          border: '1px solid var(--border-subtle)',
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 12
+        }}>
+          {lastTestOutput?.reason ? (
+            <>
+              <ShieldAlert size={36} color="#f59e0b" />
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                {lastTestOutput.reason}
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 440, margin: 0, lineHeight: 1.5 }}>
+                Tests are isolated and will not execute arbitrary repository code directly on the host system without a configured sandbox.
+              </p>
+            </>
+          ) : (
+            <>
+              <Clock size={36} color="var(--border-focus)" />
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                No tests have been run yet.
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 440, margin: 0, lineHeight: 1.5 }}>
+                Click "Run All Unit Tests" to verify syntax, assertions, and defensive boundary guards across your project.
+              </p>
+            </>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.8fr', gap: 16, flex: 1, minHeight: 340 }}>
+          {/* Left: Test Cases List */}
+          <div className="card" style={{ padding: '12px', gap: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Execution Results
+            </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto' }}>
-            {testCases.map((t) => {
-              const isSelected = activeTestId === t.id;
-              const isPassed = t.status === 'passed';
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto' }}>
+              {testCases.map((t) => {
+                const isSelected = activeTestId === t.id;
+                const isPassed = t.status === 'passed';
 
-              return (
-                <div
-                  key={t.id}
-                  className={`palette-item ${isSelected ? 'active' : ''}`}
-                  style={{ 
-                    padding: '8px 12px', 
-                    border: '1px solid var(--border-subtle)',
-                    borderLeft: `4px solid ${isPassed ? 'var(--color-success)' : 'var(--color-critical)'}`,
-                    borderRadius: 'var(--radius-sm)'
-                  }}
-                  onClick={() => setActiveTestId(t.id)}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {isPassed ? <CheckCircle2 size={15} color="var(--color-success)" /> : <XCircle size={15} color="var(--color-critical)" />}
-                    <div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {t.name}
-                      </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t.file}</div>
+                return (
+                  <div
+                    key={t.id}
+                    className={`palette-item ${isSelected ? 'active' : ''}`}
+                    style={{ 
+                      padding: '8px 12px', 
+                      border: '1px solid var(--border-subtle)',
+                      borderLeft: `4px solid ${isPassed ? 'var(--color-success)' : 'var(--color-critical)'}`,
+                      borderRadius: 'var(--radius-sm)'
+                    }}
+                    onClick={() => setActiveTestId(t.id)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {isPassed ? <CheckCircle2 size={15} color="var(--color-success)" /> : <XCircle size={15} color="var(--color-critical)" />}
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600 }}>
+                        {t.name || t.test_name}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-muted)' }}>
+                      <span>{t.duration_ms ? `${t.duration_ms}ms` : '—'}</span>
                     </div>
                   </div>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t.duration}</span>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Right: Selected Test Output / Traceback */}
+          <div className="card" style={{ padding: '14px', gap: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Diagnostic Output &amp; Traceback
+            </div>
+
+            {activeTest ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700 }}>
+                  {activeTest.name || activeTest.test_name}
                 </div>
-              );
-            })}
+                {(activeTest.error || activeTest.stderr) && (
+                  <div style={{
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid var(--color-critical-border)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '8px 12px',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 11,
+                    color: 'var(--color-critical)',
+                    whiteSpace: 'pre-wrap'
+                  }}>
+                    {activeTest.traceback || activeTest.stderr || activeTest.error}
+                  </div>
+                )}
+                {activeTest.stdout && (
+                  <div style={{
+                    backgroundColor: 'var(--bg-code-block)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '8px 12px',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 11,
+                    color: 'var(--text-secondary)',
+                    whiteSpace: 'pre-wrap'
+                  }}>
+                    {activeTest.stdout}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                Select a test on the left to view output and tracebacks.
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Right: Detailed Inspection & Traceback */}
-        <div className="card" style={{ padding: '16px', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-                {activeTest.name}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Status: {activeTest.status.toUpperCase()} • Duration: {activeTest.duration}</div>
-            </div>
-            <span className={activeTest.status === 'passed' ? 'badge badge-success' : 'badge badge-critical'}>
-              {activeTest.status === 'passed' ? 'Passed' : 'Failed'}
-            </span>
-          </div>
-
-          {activeTest.error && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-critical)', textTransform: 'uppercase' }}>
-                Failure Traceback
-              </div>
-              <div style={{ 
-                backgroundColor: 'rgba(239, 68, 68, 0.08)', 
-                border: '1px solid var(--color-critical-border)', 
-                borderRadius: 'var(--radius-sm)', 
-                padding: '10px 12px', 
-                fontFamily: 'var(--font-mono)', 
-                fontSize: 11, 
-                color: 'var(--color-critical)',
-                whiteSpace: 'pre-wrap',
-                lineHeight: 1.5
-              }}>
-                {activeTest.traceback}
-              </div>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-              Execution Stdout
-            </div>
-            <div style={{ 
-              backgroundColor: 'var(--bg-code-block)', 
-              border: '1px solid var(--border-subtle)', 
-              borderRadius: 'var(--radius-sm)', 
-              padding: '10px 12px', 
-              fontFamily: 'var(--font-mono)', 
-              fontSize: 11, 
-              color: 'var(--text-secondary)' 
-            }}>
-              {activeTest.stdout || 'Test executed in Python 3.11 pytest runner without stdout pollution.'}
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

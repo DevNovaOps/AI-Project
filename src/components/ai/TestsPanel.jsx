@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import { 
   CheckCircle2, XCircle, Play, RotateCw, Filter, Clock, 
-  ChevronDown, ChevronRight, ShieldCheck, AlertCircle 
+  ChevronDown, ChevronRight, ShieldCheck, AlertCircle, ShieldAlert 
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 
 export default function TestsPanel() {
-  const { testCases, runTests, isTestingRunning } = useAppStore();
+  const { testCases, runTests, isTestingRunning, lastTestOutput } = useAppStore();
   const [filter, setFilter] = useState('all');
-  const [expandedId, setExpandedId] = useState('test-3');
+  const [expandedId, setExpandedId] = useState(null);
 
   const passed = testCases.filter(t => t.status === 'passed').length;
   const failed = testCases.filter(t => t.status === 'failed').length;
   const total = testCases.length;
-  const passRate = Math.round((passed / total) * 100);
+  const passRate = total > 0 ? Math.round((passed / total) * 100) : 0;
 
   const filteredTests = testCases.filter(t => {
     if (filter === 'passed') return t.status === 'passed';
@@ -38,133 +38,112 @@ export default function TestsPanel() {
           <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Failed</div>
         </div>
         <div className="card" style={{ padding: '8px', textAlign: 'center', gap: 2 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#38bdf8' }}>84.6%</div>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Coverage</div>
-        </div>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="card" style={{ padding: '10px', gap: 6 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 600 }}>
-          <span>Suite Health</span>
-          <span style={{ color: passRate === 100 ? 'var(--color-success)' : 'var(--color-warning)' }}>
-            {passRate}% Pass Rate
-          </span>
-        </div>
-        <div style={{ width: '100%', height: 6, backgroundColor: 'var(--bg-card-subtle)', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
-          <div style={{ width: `${passRate}%`, backgroundColor: 'var(--color-success)', transition: 'width 0.4s ease' }} />
-          {failed > 0 && <div style={{ width: `${100 - passRate}%`, backgroundColor: 'var(--color-critical)' }} />}
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#38bdf8' }}>{total > 0 ? `${passRate}%` : '—'}</div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Pass Rate</div>
         </div>
       </div>
 
       {/* Action Buttons */}
       <div style={{ display: 'flex', gap: 6 }}>
-        <button 
-          className="btn btn-primary-gradient" 
-          style={{ flex: 1, height: 28, fontSize: 11 }}
+        <button
+          className="btn btn-primary-gradient"
+          style={{ flex: 1, height: 32, fontSize: 11 }}
           onClick={runTests}
           disabled={isTestingRunning}
         >
           {isTestingRunning ? (
             <>
-              <div className="animate-spin" style={{ width: 10, height: 10, border: '1.5px solid #fff', borderTopColor: 'transparent', borderRadius: '50%' }} />
-              <span>Executing Suite...</span>
+              <div className="animate-spin" style={{ width: 12, height: 12, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%' }} />
+              <span>Running Suite...</span>
             </>
           ) : (
             <>
-              <Play size={12} fill="#fff" />
+              <Play size={12} fill="#ffffff" />
               <span>Run Tests</span>
             </>
           )}
         </button>
-
-        {failed > 0 && (
-          <button 
-            className="btn btn-secondary" 
-            style={{ height: 28, fontSize: 11 }}
-            onClick={runTests}
-          >
-            <RotateCw size={11} />
-            <span>Retry Failed</span>
-          </button>
-        )}
       </div>
 
-      {/* Filter Tabs */}
-      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 6 }}>
-        {['all', 'passed', 'failed'].map((f) => (
-          <button
-            key={f}
-            className={`btn btn-secondary ${filter === f ? 'active' : ''}`}
-            style={{ 
-              height: 22, fontSize: 10, textTransform: 'capitalize', padding: '0 8px',
-              color: filter === f ? '#38bdf8' : undefined,
-              borderColor: filter === f ? 'var(--border-focus)' : undefined
-            }}
-            onClick={() => setFilter(f)}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
+      {/* Tests List or Empty State */}
+      {total === 0 ? (
+        <div style={{
+          padding: '30px 16px',
+          backgroundColor: 'var(--bg-card)',
+          borderRadius: 8,
+          border: '1px solid var(--border-subtle)',
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 10
+        }}>
+          {lastTestOutput?.reason ? (
+            <>
+              <ShieldAlert size={26} color="#f59e0b" />
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                {lastTestOutput.reason}
+              </div>
+            </>
+          ) : (
+            <>
+              <Clock size={26} color="var(--border-focus)" />
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                No tests have been run yet.
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflowY: 'auto' }}>
+          {filteredTests.map((test) => {
+            const isPassed = test.status === 'passed';
+            const isExpanded = expandedId === test.id;
 
-      {/* Test Cases */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {filteredTests.map((test) => {
-          const isExp = expandedId === test.id;
-          const isPassed = test.status === 'passed';
-
-          return (
-            <div 
-              key={test.id} 
-              className="card" 
-              style={{ 
-                padding: '8px 10px', 
-                borderLeft: `3px solid ${isPassed ? 'var(--color-success)' : 'var(--color-critical)'}`,
-                gap: 4 
-              }}
-            >
+            return (
               <div 
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
-                onClick={() => setExpandedId(isExp ? null : test.id)}
+                key={test.id}
+                className="card"
+                style={{
+                  padding: '8px 10px',
+                  borderLeft: `3px solid ${isPassed ? 'var(--color-success)' : 'var(--color-critical)'}`,
+                  gap: 4
+                }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {isExp ? <ChevronDown size={12} color="var(--text-muted)" /> : <ChevronRight size={12} color="var(--text-muted)" />}
-                  {isPassed ? <CheckCircle2 size={13} color="var(--color-success)" /> : <XCircle size={13} color="var(--color-critical)" />}
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600 }}>
-                    {test.name}
+                <div 
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+                  onClick={() => setExpandedId(isExpanded ? null : test.id)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {isPassed ? <CheckCircle2 size={13} color="var(--color-success)" /> : <XCircle size={13} color="var(--color-critical)" />}
+                    <span style={{ fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
+                      {test.name || test.test_name}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                    {test.duration_ms ? `${test.duration_ms}ms` : '—'}
                   </span>
                 </div>
-                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{test.duration}</span>
-              </div>
 
-              {isExp && (
-                <div style={{ marginTop: 4, paddingLeft: 18, fontSize: 11 }}>
-                  {test.error && (
-                    <div style={{ 
-                      backgroundColor: 'rgba(239, 68, 68, 0.1)', 
-                      border: '1px solid var(--color-critical-border)', 
-                      borderRadius: 'var(--radius-sm)', 
-                      padding: '6px 8px', 
-                      fontFamily: 'var(--font-mono)', 
-                      fontSize: 10, 
-                      color: 'var(--color-critical)',
-                      whiteSpace: 'pre-wrap'
-                    }}>
-                      {test.traceback}
-                    </div>
-                  )}
-                  {test.stdout && (
-                    <div style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
-                      {test.stdout}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                {isExpanded && (test.error || test.stderr || test.stdout) && (
+                  <div style={{
+                    marginTop: 4,
+                    padding: '6px 8px',
+                    backgroundColor: 'var(--bg-code-block)',
+                    borderRadius: 4,
+                    fontSize: 10,
+                    fontFamily: 'var(--font-mono)',
+                    color: test.error ? 'var(--color-critical)' : 'var(--text-secondary)',
+                    whiteSpace: 'pre-wrap'
+                  }}>
+                    {test.traceback || test.stderr || test.error || test.stdout}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

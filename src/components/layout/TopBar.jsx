@@ -27,6 +27,7 @@ export default function TopBar() {
 
   const languages = [
     { id: 'python', label: 'Python 3.11', icon: '🐍' },
+    { id: 'sql', label: 'SQL (T-SQL / ANSI)', icon: '🗄️' },
     { id: 'javascript', label: 'JavaScript (Node 20)', icon: '⚡' },
     { id: 'typescript', label: 'TypeScript 5.3', icon: '🔷' },
     { id: 'rust', label: 'Rust 1.76', icon: '🦀' },

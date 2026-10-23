@@ -101,9 +101,9 @@ export default function ActivityBar() {
             System
           </span>
           <div style={{ display: 'flex', gap: 3, fontSize: 7, color: '#38bdf8', marginTop: 2, fontWeight: 600 }}>
-            <span>24</span>
-            <span style={{ color: '#a855f7' }}>6</span>
-            <span style={{ color: '#10b981' }}>12</span>
+            <span style={{ color: '#38bdf8' }}>AI</span>
+            <span style={{ color: '#a855f7' }}>5</span>
+            <span style={{ color: '#10b981' }}>OK</span>
           </div>
         </div>
       </div>
