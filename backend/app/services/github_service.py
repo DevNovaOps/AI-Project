@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import re
 from datetime import datetime, timezone
@@ -50,14 +51,14 @@ def parse_and_validate_github_url(url: str) -> Tuple[str, str]:
         raise ValueError(f"Invalid host '{host}'. Only 'github.com' is allowed.")
 
     # Path format: /owner/repo or /owner/repo.git
-    path = parsed.path.strip("/").rstrip(".git")
+    path = parsed.path.strip("/")
     parts = [p for p in path.split("/") if p]
 
     if len(parts) < 2:
         raise ValueError("Invalid GitHub repository URL. Expected format: https://github.com/owner/repository")
 
     owner = parts[0]
-    repo = parts[1]
+    repo = parts[1].removesuffix(".git")
 
     # Validate characters (GitHub username and repo rules)
     if not re.match(r"^[a-zA-Z0-9_\-\.]+$", owner):
@@ -210,54 +211,47 @@ class GitHubService:
                 job.progress = 25
                 self.db.commit()
 
-                # 4. Fetch content for each file
-                imported_files = []
-                total_bytes = 0
+                # 4. Fetch content for files concurrently
+                semaphore = asyncio.Semaphore(15)
 
-                for idx, item in enumerate(file_items):
+                async def fetch_single_file(item: dict) -> Optional[WorkspaceFile]:
                     file_path = item.get("path", "").replace("\\", "/")
                     filename = file_path.split("/")[-1]
                     ext = filename.split(".")[-1] if "." in filename else ""
-
-                    # Download raw content
                     raw_url = f"https://raw.githubusercontent.com/{owner}/{repo_name}/{target_branch}/{file_path}"
-                    try:
-                        raw_resp = await client.get(raw_url)
-                        if raw_resp.status_code == 200:
-                            content = raw_resp.text
-                            size = len(content.encode("utf-8"))
-
-                            # Check single file size limit
-                            if size > settings.MAX_SOURCE_FILE_SIZE_BYTES:
-                                content = content[:settings.MAX_SOURCE_FILE_SIZE_BYTES] + "\n# [Content truncated: exceeded file size limit]"
+                    async with semaphore:
+                        try:
+                            raw_resp = await client.get(raw_url)
+                            if raw_resp.status_code == 200:
+                                content = raw_resp.text
                                 size = len(content.encode("utf-8"))
 
-                            total_bytes += size
-                            if total_bytes > settings.MAX_REPO_SIZE_BYTES:
-                                logger.warning(f"Repo {owner}/{repo_name} exceeded max size limit of {settings.MAX_REPO_SIZE_BYTES} bytes.")
-                                break
+                                if size > settings.MAX_SOURCE_FILE_SIZE_BYTES:
+                                    content = content[:settings.MAX_SOURCE_FILE_SIZE_BYTES] + "\n# [Content truncated: exceeded file size limit]"
+                                    size = len(content.encode("utf-8"))
 
-                            content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+                                content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+                                return WorkspaceFile(
+                                    project_id=project.id,
+                                    relative_path=file_path,
+                                    filename=filename,
+                                    file_extension=ext,
+                                    content=content,
+                                    content_hash=content_hash,
+                                    size_bytes=size,
+                                    version=1,
+                                    is_directory=False,
+                                )
+                        except Exception as err:
+                            logger.warning(f"Failed to fetch content for {file_path}: {err}")
+                    return None
 
-                            ws_file = WorkspaceFile(
-                                project_id=project.id,
-                                relative_path=file_path,
-                                filename=filename,
-                                file_extension=ext,
-                                content=content,
-                                content_hash=content_hash,
-                                size_bytes=size,
-                                version=1,
-                                is_directory=False,
-                            )
-                            imported_files.append(ws_file)
-                    except Exception as err:
-                        logger.warning(f"Failed to fetch content for {file_path}: {err}")
+                file_results = await asyncio.gather(*(fetch_single_file(item) for item in file_items))
+                imported_files = [wf for wf in file_results if wf is not None]
 
-                    job.files_processed = len(imported_files)
-                    job.progress = int(25 + (70 * ((idx + 1) / max(1, len(file_items)))))
-                    if idx % 10 == 0:
-                        self.db.commit()
+                job.files_processed = len(imported_files)
+                job.progress = 95
+                self.db.commit()
 
                 # Add files to database
                 for wf in imported_files:

@@ -1,10 +1,10 @@
 /**
  * AutonomusAI Centralized API Client
- * Configured via Vite environment variable VITE_API_BASE_URL.
+ * Configured via Vite environment variable VITE_API_BASE_URL or proxied /api/v1.
  * Handles timeouts, normalized errors, standard JSON headers, and cancellations.
  */
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 class ApiError extends Error {
   constructor(message, status = 0, data = null) {
@@ -31,6 +31,9 @@ export function normalizeError(error) {
     return error.message;
   }
   if (error instanceof Error) {
+    if (error.message === 'Failed to fetch') {
+      return 'Cannot connect to the backend server. Please verify the FastAPI backend is running on port 8000.';
+    }
     return error.message;
   }
   return 'An unexpected network error occurred';
@@ -44,7 +47,7 @@ export async function apiRequest(endpoint, options = {}) {
     method = 'GET',
     headers = {},
     body = null,
-    timeoutMs = 30000,
+    timeoutMs = 60000,
     signal = null,
     isFormData = false,
   } = options;
@@ -54,7 +57,6 @@ export async function apiRequest(endpoint, options = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  // If a parent signal was passed, abort if it aborts
   if (signal) {
     signal.addEventListener('abort', () => controller.abort());
   }
@@ -74,7 +76,6 @@ export async function apiRequest(endpoint, options = {}) {
 
     clearTimeout(timeoutId);
 
-    // Handle 204 No Content
     if (response.status === 204) {
       return null;
     }
@@ -107,7 +108,10 @@ export async function apiRequest(endpoint, options = {}) {
     if (err instanceof ApiError) {
       throw err;
     }
-    throw new ApiError(err.message || 'Network connection failed. Ensure backend is running.', 0);
+    if (err.message === 'Failed to fetch') {
+      throw new ApiError('Cannot connect to the backend server. Please ensure the FastAPI backend is running on port 8000.', 0);
+    }
+    throw new ApiError(err.message || 'Network connection failed.', 0);
   }
 }
 
@@ -117,5 +121,8 @@ export const apiClient = {
   put: (endpoint, body, options = {}) => apiRequest(endpoint, { ...options, method: 'PUT', body }),
   patch: (endpoint, body, options = {}) => apiRequest(endpoint, { ...options, method: 'PATCH', body }),
   delete: (endpoint, options = {}) => apiRequest(endpoint, { ...options, method: 'DELETE' }),
-  getBaseUrl: () => BASE_URL,
+  getBaseUrl: () => {
+    if (BASE_URL.startsWith('http')) return BASE_URL;
+    return `${window.location.protocol}//${window.location.host}${BASE_URL}`;
+  },
 };
