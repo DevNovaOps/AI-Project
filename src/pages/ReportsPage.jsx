@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { 
-  FileText, Download, Calendar, GitBranch, ChevronDown, 
-  Printer, Check, Sparkles, X, AlertCircle 
+import {
+  FileText, Download, Calendar, GitBranch, ChevronDown,
+  Printer, Check, Sparkles, X, AlertCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
@@ -13,12 +13,12 @@ import CategoryBreakdown from '../components/reports/CategoryBreakdown';
 import IssueTable from '../components/reports/IssueTable';
 import IssueDetailsPanel from '../components/reports/IssueDetailsPanel';
 
-import { 
-  summaryMetricsData, 
-  issueTrendsData, 
-  severityDistributionData, 
-  categoryBreakdownData, 
-  detailedIssuesList 
+import {
+  summaryMetricsData,
+  issueTrendsData,
+  severityDistributionData,
+  categoryBreakdownData,
+  detailedIssuesList
 } from '../data/reportData';
 
 export default function ReportsPage() {
@@ -133,7 +133,18 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="reports-page">
+    <div
+      style={{
+        flex: 1,
+        overflowY: 'auto',
+        backgroundColor: '#030b18',
+        padding: '16px 22px 24px 22px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+        position: 'relative'
+      }}
+    >
       {/* Toast Notification */}
       {toastMessage && (
         <div style={{
@@ -164,15 +175,15 @@ export default function ReportsPage() {
         {/* Left Title Area */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* Document Icon Box with Purple Gradient */}
-          <div 
-            style={{ 
-              width: 40, 
-              height: 40, 
-              borderRadius: 8, 
-              background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', 
-              boxShadow: '0 0 16px rgba(124, 58, 237, 0.45)', 
-              display: 'flex', 
-              alignItems: 'center', 
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 8,
+              background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+              boxShadow: '0 0 16px rgba(124, 58, 237, 0.45)',
+              display: 'flex',
+              alignItems: 'center',
               justifyContent: 'center',
               color: '#ffffff'
             }}
@@ -181,10 +192,10 @@ export default function ReportsPage() {
           </div>
 
           <div>
-            <h1 className="reports-header-title">
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#ffffff', letterSpacing: '-0.3px', margin: 0 }}>
               Reports
             </h1>
-            <p className="reports-header-desc">
+            <p style={{ fontSize: 11, color: '#91a6c6', margin: '2px 0 0 0' }}>
               Analyze results, track progress and generate detailed reports for your code.
             </p>
           </div>
@@ -196,14 +207,37 @@ export default function ReportsPage() {
           <div style={{ position: 'relative' }}>
             <button
               onClick={() => { setDateDropdownOpen(!dateDropdownOpen); setBranchDropdownOpen(false); }}
-              className="reports-input-btn"
+              style={{
+                height: 32,
+                padding: '0 12px',
+                backgroundColor: '#0b1930',
+                border: '1px solid #1a2a47',
+                borderRadius: 6,
+                color: '#f8fafc',
+                fontSize: 11,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer'
+              }}
             >
               <span>{dateRange}</span>
-              <ChevronDown size={12} className="reports-sub-muted" />
+              <ChevronDown size={12} color="#8fa2be" />
             </button>
 
             {dateDropdownOpen && (
-              <div className="reports-dropdown" style={{ right: 0, width: 190 }}>
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                right: 0,
+                width: 190,
+                backgroundColor: '#0c1830',
+                border: '1px solid #1a2a47',
+                borderRadius: 6,
+                padding: 4,
+                zIndex: 30,
+                boxShadow: '0 10px 25px rgba(0,0,0,0.8)'
+              }}>
                 {[
                   'Oct 1, 2024 - Oct 10, 2024',
                   'Last 7 Days',
@@ -214,14 +248,18 @@ export default function ReportsPage() {
                   <div
                     key={range}
                     onClick={() => { setDateRange(range); setDateDropdownOpen(false); }}
-                    className="reports-dropdown-item"
                     style={{
-                      color: dateRange === range ? '#38bdf8' : undefined,
-                      fontWeight: dateRange === range ? 700 : 500
+                      padding: '6px 10px',
+                      fontSize: 11,
+                      color: dateRange === range ? '#38bdf8' : '#f8fafc',
+                      backgroundColor: dateRange === range ? '#132342' : 'transparent',
+                      borderRadius: 4,
+                      cursor: 'pointer'
                     }}
+                    onMouseEnter={(e) => { if (dateRange !== range) e.target.style.backgroundColor = '#16284a'; }}
+                    onMouseLeave={(e) => { if (dateRange !== range) e.target.style.backgroundColor = 'transparent'; }}
                   >
-                    <span>{range}</span>
-                    {dateRange === range && <Check size={12} color="#38bdf8" />}
+                    {range}
                   </div>
                 ))}
               </div>
@@ -232,14 +270,37 @@ export default function ReportsPage() {
           <div style={{ position: 'relative' }}>
             <button
               onClick={() => { setBranchDropdownOpen(!branchDropdownOpen); setDateDropdownOpen(false); }}
-              className="reports-input-btn"
+              style={{
+                height: 32,
+                padding: '0 12px',
+                backgroundColor: '#0b1930',
+                border: '1px solid #1a2a47',
+                borderRadius: 6,
+                color: '#f8fafc',
+                fontSize: 11,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer'
+              }}
             >
               <span>{selectedBranch}</span>
-              <ChevronDown size={12} className="reports-sub-muted" />
+              <ChevronDown size={12} color="#8fa2be" />
             </button>
 
             {branchDropdownOpen && (
-              <div className="reports-dropdown" style={{ right: 0, width: 150 }}>
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                right: 0,
+                width: 150,
+                backgroundColor: '#0c1830',
+                border: '1px solid #1a2a47',
+                borderRadius: 6,
+                padding: 4,
+                zIndex: 30,
+                boxShadow: '0 10px 25px rgba(0,0,0,0.8)'
+              }}>
                 {[
                   'All Branches',
                   'main',
@@ -250,14 +311,18 @@ export default function ReportsPage() {
                   <div
                     key={branch}
                     onClick={() => { setSelectedBranch(branch); setBranchDropdownOpen(false); }}
-                    className="reports-dropdown-item"
                     style={{
-                      color: selectedBranch === branch ? '#38bdf8' : undefined,
-                      fontWeight: selectedBranch === branch ? 700 : 500
+                      padding: '6px 10px',
+                      fontSize: 11,
+                      color: selectedBranch === branch ? '#38bdf8' : '#f8fafc',
+                      backgroundColor: selectedBranch === branch ? '#132342' : 'transparent',
+                      borderRadius: 4,
+                      cursor: 'pointer'
                     }}
+                    onMouseEnter={(e) => { if (selectedBranch !== branch) e.target.style.backgroundColor = '#16284a'; }}
+                    onMouseLeave={(e) => { if (selectedBranch !== branch) e.target.style.backgroundColor = 'transparent'; }}
                   >
-                    <span>{branch}</span>
-                    {selectedBranch === branch && <Check size={12} color="#38bdf8" />}
+                    {branch}
                   </div>
                 ))}
               </div>
@@ -351,15 +416,15 @@ export default function ReportsPage() {
       {/* GENERATE REPORT MODAL */}
       {reportModalOpen && (
         <div className="modal-overlay" onClick={() => setReportModalOpen(false)}>
-          <div 
-            className="palette-box" 
+          <div
+            className="palette-box"
             style={{ width: 620, padding: 0 }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <FileText size={18} color="#38bdf8" />
-                <span className="reports-heading" style={{ fontSize: 14, fontWeight: 700 }}>AETHERION Quality &amp; Audit Report</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#ffffff' }}>AETHERION Quality &amp; Audit Report</span>
               </div>
               <button className="editor-tab-close" onClick={() => setReportModalOpen(false)}>
                 <X size={14} />
@@ -368,26 +433,26 @@ export default function ReportsPage() {
 
             <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12, fontSize: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, textAlign: 'center' }}>
-                <div className="reports-card" style={{ padding: 10 }}>
-                  <div className="reports-sub-muted" style={{ fontSize: 10 }}>Total Issues</div>
-                  <div className="reports-heading" style={{ fontSize: 18, fontWeight: 700, marginTop: 2 }}>24</div>
+                <div style={{ padding: 10, backgroundColor: '#091326', borderRadius: 6, border: '1px solid #1a2a47' }}>
+                  <div style={{ color: '#8fa2be', fontSize: 10 }}>Total Issues</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#ffffff', marginTop: 2 }}>24</div>
                 </div>
-                <div className="reports-card" style={{ padding: 10 }}>
-                  <div className="reports-sub-muted" style={{ fontSize: 10 }}>Critical Issues</div>
+                <div style={{ padding: 10, backgroundColor: '#091326', borderRadius: 6, border: '1px solid #1a2a47' }}>
+                  <div style={{ color: '#8fa2be', fontSize: 10 }}>Critical Issues</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: '#ef4444', marginTop: 2 }}>4</div>
                 </div>
-                <div className="reports-card" style={{ padding: 10 }}>
-                  <div className="reports-sub-muted" style={{ fontSize: 10 }}>Fixed Rate</div>
+                <div style={{ padding: 10, backgroundColor: '#091326', borderRadius: 6, border: '1px solid #1a2a47' }}>
+                  <div style={{ color: '#8fa2be', fontSize: 10 }}>Fixed Rate</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: '#10b981', marginTop: 2 }}>75%</div>
                 </div>
               </div>
 
-              <div className="reports-text-muted" style={{ lineHeight: 1.5 }}>
+              <div style={{ color: '#91a6c6', lineHeight: 1.5 }}>
                 Report generated for repository <strong>AegisVault</strong> on <strong>{selectedBranch}</strong> ({dateRange}). All 24 issues indexed across 32 files. Automated sandbox tests verified zero syntax or typing regressions.
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '12px 18px', borderTop: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-panel-header)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '12px 18px', borderTop: '1px solid var(--border-subtle)', backgroundColor: '#091326' }}>
               <button className="btn btn-secondary" onClick={handlePrint}>
                 <Printer size={13} />
                 <span>Print / PDF</span>

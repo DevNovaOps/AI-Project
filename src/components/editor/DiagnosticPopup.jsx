@@ -40,14 +40,16 @@ export default function DiagnosticPopup({ style, onMouseEnter, onMouseLeave, onC
       role="alertdialog" 
       aria-labelledby="diag-title"
       style={style}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
       {/* Header */}
       <div className="diagnostic-header">
         <div className="diagnostic-tag">
-          <AlertCircle size={14} color="var(--color-critical)" />
-          <span>{issue.category || 'Runtime Error'}</span>
+          <AlertCircle size={14} color={issue.severity === 'Critical' ? 'var(--color-critical)' : '#f97316'} />
+          <span style={{ color: issue.severity === 'Critical' ? 'var(--color-critical)' : '#f97316' }}>{issue.category || 'Runtime Error'}</span>
         </div>
         <button 
           className="editor-tab-close" 
@@ -68,7 +70,11 @@ export default function DiagnosticPopup({ style, onMouseEnter, onMouseLeave, onC
       <div className="diagnostic-code-box">
         <span style={{ color: 'var(--text-muted)', userSelect: 'none' }}>{issue.line || 6}</span>
         <span>
-          return <span style={{ color: '#38bdf8' }}>sum</span>(numbers) <span style={{ color: '#f43f5e', fontWeight: 'bold' }}>/</span> <span style={{ color: '#38bdf8' }}>len</span>(numbers)
+          {issue.codeSnippet ? (
+            issue.codeSnippet
+          ) : (
+            <>return <span style={{ color: '#38bdf8' }}>sum</span>(numbers) <span style={{ color: '#f43f5e', fontWeight: 'bold' }}>/</span> <span style={{ color: '#38bdf8' }}>len</span>(numbers)</>
+          )}
         </span>
       </div>
 

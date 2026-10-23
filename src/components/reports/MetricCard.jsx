@@ -1,12 +1,12 @@
 import React from 'react';
-import { 
-  Bug, AlertTriangle, Info, FileText, Clock, CheckCircle2, 
-  ArrowUpRight, ArrowDownRight 
+import {
+  Bug, AlertTriangle, Info, FileText, Clock, CheckCircle2,
+  ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
 
-export default function MetricCard({ 
-  title, value, change, isPositive, subtitle, iconType, 
-  color, bg, border, onClick, isSelected 
+export default function MetricCard({
+  title, value, change, isPositive, subtitle, iconType,
+  color, bg, border, onClick, isSelected
 }) {
   const renderIcon = () => {
     switch (iconType) {
@@ -28,12 +28,14 @@ export default function MetricCard({
   };
 
   return (
-    <div 
-      className="reports-card"
+    <div
+      className="card"
       onClick={onClick}
       style={{
-        border: isSelected ? `1px solid ${color}` : undefined,
-        boxShadow: isSelected ? `0 0 14px ${color}33` : undefined,
+        backgroundColor: '#061326',
+        border: isSelected ? `1px solid ${color}` : '1px solid #12243e',
+        boxShadow: isSelected ? `0 0 14px ${color}33` : 'none',
+        borderRadius: 10,
         padding: '12px 14px',
         display: 'flex',
         flexDirection: 'row',
@@ -44,7 +46,7 @@ export default function MetricCard({
       }}
     >
       {/* Icon Badge */}
-      <div 
+      <div
         style={{
           width: 42,
           height: 42,
@@ -63,18 +65,18 @@ export default function MetricCard({
 
       {/* Metric Content */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-        <span className="reports-text-muted" style={{ fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 11, color: '#8fa2be', fontWeight: 500, whiteSpace: 'nowrap' }}>
           {title}
         </span>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-          <span className="reports-heading" style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.1 }}>
+          <span style={{ fontSize: 22, fontWeight: 700, color: '#ffffff', lineHeight: 1.1 }}>
             {value}
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
-            <span 
-              style={{ 
-                fontSize: 10, 
-                fontWeight: 600, 
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
                 color: change.startsWith('-') ? '#10b981' : (isPositive ? '#10b981' : (color || '#ef4444')),
                 display: 'flex',
                 alignItems: 'center',
@@ -84,7 +86,7 @@ export default function MetricCard({
               <span>{change.startsWith('-') ? '▼' : '▲'}</span>
               <span>{change}</span>
             </span>
-            <span className="reports-sub-muted" style={{ fontSize: 9, marginTop: 2 }}>
+            <span style={{ fontSize: 9, color: '#64748b', marginTop: 2 }}>
               {subtitle || 'vs last run'}
             </span>
           </div>

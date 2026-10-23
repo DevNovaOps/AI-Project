@@ -1,19 +1,16 @@
 import React, { useState } from 'react';
-import { 
-  Search, Filter, ChevronDown, MoreHorizontal, Eye, Lightbulb, 
+import {
+  Search, Filter, ChevronDown, MoreHorizontal, Eye, Lightbulb,
   AlertCircle, AlertTriangle, Info, CheckCircle2, ArrowDown, ArrowUp
 } from 'lucide-react';
-import { useAppStore } from '../../store/useAppStore';
 
-export default function IssueTable({ 
-  issues, 
-  selectedIssueId, 
-  onSelectIssue, 
-  onExplainIssue, 
-  onViewInEditor 
+export default function IssueTable({
+  issues,
+  selectedIssueId,
+  onSelectIssue,
+  onExplainIssue,
+  onViewInEditor
 }) {
-  const { theme } = useAppStore();
-  const isLight = theme === 'light';
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState('newest'); // 'newest' | 'oldest' | 'severity'
@@ -115,9 +112,12 @@ export default function IssueTable({
   };
 
   return (
-    <div 
-      className="reports-card"
+    <div
+      className="card"
       style={{
+        backgroundColor: '#061326',
+        border: '1px solid #12243e',
+        borderRadius: 10,
         padding: '12px 14px',
         display: 'flex',
         flexDirection: 'column',
@@ -133,7 +133,7 @@ export default function IssueTable({
           {/* All Issues */}
           <button
             onClick={() => setActiveFilter('all')}
-            className={activeFilter === 'all' ? 'btn-primary-gradient' : 'reports-pill'}
+            className={activeFilter === 'all' ? 'btn-primary-gradient' : 'btn-secondary'}
             style={{
               height: 28,
               padding: '0 10px',
@@ -147,10 +147,10 @@ export default function IssueTable({
             }}
           >
             <span>All Issues</span>
-            <span 
+            <span
               style={{
-                backgroundColor: activeFilter === 'all' ? 'rgba(255, 255, 255, 0.25)' : (isLight ? '#f1f5f9' : '#16233d'),
-                color: activeFilter === 'all' ? '#ffffff' : (isLight ? '#ef4444' : '#f87171'),
+                backgroundColor: activeFilter === 'all' ? 'rgba(255, 255, 255, 0.25)' : '#16233d',
+                color: activeFilter === 'all' ? '#ffffff' : '#f87171',
                 padding: '1px 5px',
                 borderRadius: 4,
                 fontSize: 10,
@@ -164,7 +164,6 @@ export default function IssueTable({
           {/* Critical */}
           <button
             onClick={() => setActiveFilter('critical')}
-            className={activeFilter === 'critical' ? '' : 'reports-pill'}
             style={{
               height: 28,
               padding: '0 10px',
@@ -174,9 +173,9 @@ export default function IssueTable({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              backgroundColor: activeFilter === 'critical' ? (isLight ? '#fee2e2' : '#260e14') : undefined,
-              border: activeFilter === 'critical' ? '1px solid #ef4444' : undefined,
-              color: activeFilter === 'critical' ? (isLight ? '#b91c1c' : '#f8fafc') : undefined,
+              backgroundColor: activeFilter === 'critical' ? '#260e14' : '#0b1930',
+              border: activeFilter === 'critical' ? '1px solid #ef4444' : '1px solid #1a2b47',
+              color: '#f8fafc',
               cursor: 'pointer'
             }}
           >
@@ -190,7 +189,6 @@ export default function IssueTable({
           {/* High */}
           <button
             onClick={() => setActiveFilter('high')}
-            className={activeFilter === 'high' ? '' : 'reports-pill'}
             style={{
               height: 28,
               padding: '0 10px',
@@ -200,9 +198,9 @@ export default function IssueTable({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              backgroundColor: activeFilter === 'high' ? (isLight ? '#ffedd5' : '#26190e') : undefined,
-              border: activeFilter === 'high' ? '1px solid #f97316' : undefined,
-              color: activeFilter === 'high' ? (isLight ? '#c2410c' : '#f8fafc') : undefined,
+              backgroundColor: activeFilter === 'high' ? '#26190e' : '#0b1930',
+              border: activeFilter === 'high' ? '1px solid #f97316' : '1px solid #1a2b47',
+              color: '#f8fafc',
               cursor: 'pointer'
             }}
           >
@@ -216,7 +214,6 @@ export default function IssueTable({
           {/* Medium */}
           <button
             onClick={() => setActiveFilter('medium')}
-            className={activeFilter === 'medium' ? '' : 'reports-pill'}
             style={{
               height: 28,
               padding: '0 10px',
@@ -226,9 +223,9 @@ export default function IssueTable({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              backgroundColor: activeFilter === 'medium' ? (isLight ? '#cffafe' : '#0e232c') : undefined,
-              border: activeFilter === 'medium' ? '1px solid #06b6d4' : undefined,
-              color: activeFilter === 'medium' ? (isLight ? '#0e7490' : '#f8fafc') : undefined,
+              backgroundColor: activeFilter === 'medium' ? '#0e232c' : '#0b1930',
+              border: activeFilter === 'medium' ? '1px solid #06b6d4' : '1px solid #1a2b47',
+              color: '#f8fafc',
               cursor: 'pointer'
             }}
           >
@@ -242,7 +239,6 @@ export default function IssueTable({
           {/* Low */}
           <button
             onClick={() => setActiveFilter('low')}
-            className={activeFilter === 'low' ? '' : 'reports-pill'}
             style={{
               height: 28,
               padding: '0 10px',
@@ -252,9 +248,9 @@ export default function IssueTable({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              backgroundColor: activeFilter === 'low' ? (isLight ? '#f3e8ff' : '#180e2a') : undefined,
-              border: activeFilter === 'low' ? '1px solid #a855f7' : undefined,
-              color: activeFilter === 'low' ? (isLight ? '#7e22ce' : '#f8fafc') : undefined,
+              backgroundColor: activeFilter === 'low' ? '#180e2a' : '#0b1930',
+              border: activeFilter === 'low' ? '1px solid #a855f7' : '1px solid #1a2b47',
+              color: '#f8fafc',
               cursor: 'pointer'
             }}
           >
@@ -268,7 +264,6 @@ export default function IssueTable({
           {/* Fixed */}
           <button
             onClick={() => setActiveFilter('fixed')}
-            className={activeFilter === 'fixed' ? '' : 'reports-pill'}
             style={{
               height: 28,
               padding: '0 10px',
@@ -278,16 +273,16 @@ export default function IssueTable({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              backgroundColor: activeFilter === 'fixed' ? (isLight ? '#d1fae5' : '#0e281e') : undefined,
-              border: activeFilter === 'fixed' ? '1px solid #10b981' : undefined,
-              color: activeFilter === 'fixed' ? (isLight ? '#047857' : '#f8fafc') : undefined,
+              backgroundColor: activeFilter === 'fixed' ? '#0e281e' : '#0b1930',
+              border: activeFilter === 'fixed' ? '1px solid #10b981' : '1px solid #1a2b47',
+              color: '#f8fafc',
               cursor: 'pointer'
             }}
           >
             <CheckCircle2 size={12} color="#10b981" />
             <span>Fixed</span>
             <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '1px 5px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
-              {fixedCount}
+              18
             </span>
           </button>
         </div>
@@ -295,61 +290,100 @@ export default function IssueTable({
         {/* Right Search and Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {/* Search Box */}
-          <div className="reports-search-box">
-            <Search size={13} className="reports-sub-muted" />
-            <input 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            backgroundColor: '#091326',
+            border: '1px solid #1a2a47',
+            borderRadius: 6,
+            padding: '4px 10px',
+            width: 170
+          }}>
+            <Search size={13} color="#64748b" />
+            <input
               type="text"
               placeholder="Search issues..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="reports-search-input"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#ffffff',
+                fontSize: 11,
+                outline: 'none',
+                width: '100%'
+              }}
             />
           </div>
 
           {/* Filter Funnel Icon */}
           <button
-            className="reports-input-btn"
-            style={{ width: 28, height: 28, padding: 0, justifyContent: 'center' }}
+            className="icon-action-btn"
+            style={{ width: 28, height: 28, backgroundColor: '#091326', border: '1px solid #1a2a47', borderRadius: 6 }}
             title="Filter configuration"
           >
-            <Filter size={13} className="reports-sub-muted" />
+            <Filter size={13} color="#8fa2be" />
           </button>
 
           {/* Sort Dropdown */}
           <div style={{ position: 'relative' }}>
             <button
               onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
-              className="reports-input-btn"
-              style={{ height: 28, padding: '0 8px' }}
+              style={{
+                height: 28,
+                padding: '0 8px',
+                backgroundColor: '#091326',
+                border: '1px solid #1a2a47',
+                borderRadius: 6,
+                color: '#f8fafc',
+                fontSize: 11,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                cursor: 'pointer'
+              }}
             >
               <span>{sortOrder === 'newest' ? 'Newest First' : (sortOrder === 'oldest' ? 'Oldest First' : 'By Severity')}</span>
-              <ChevronDown size={12} className="reports-sub-muted" />
+              <ChevronDown size={12} color="#8fa2be" />
             </button>
 
             {sortDropdownOpen && (
-              <div 
-                className="reports-dropdown"
+              <div
                 style={{
+                  position: 'absolute',
                   top: 'calc(100% + 4px)',
                   right: 0,
-                  width: 130
+                  width: 130,
+                  backgroundColor: '#0c1830',
+                  border: '1px solid #1a2a47',
+                  borderRadius: 6,
+                  padding: 4,
+                  zIndex: 20,
+                  boxShadow: '0 8px 20px rgba(0,0,0,0.7)'
                 }}
               >
-                <div 
+                <div
                   onClick={() => { setSortOrder('newest'); setSortDropdownOpen(false); }}
-                  className="reports-dropdown-item"
+                  style={{ padding: '6px 8px', fontSize: 11, color: '#f8fafc', cursor: 'pointer', borderRadius: 4 }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#16284a'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
                 >
                   Newest First
                 </div>
-                <div 
+                <div
                   onClick={() => { setSortOrder('oldest'); setSortDropdownOpen(false); }}
-                  className="reports-dropdown-item"
+                  style={{ padding: '6px 8px', fontSize: 11, color: '#f8fafc', cursor: 'pointer', borderRadius: 4 }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#16284a'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
                 >
                   Oldest First
                 </div>
-                <div 
+                <div
                   onClick={() => { setSortOrder('severity'); setSortDropdownOpen(false); }}
-                  className="reports-dropdown-item"
+                  style={{ padding: '6px 8px', fontSize: 11, color: '#f8fafc', cursor: 'pointer', borderRadius: 4 }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#16284a'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
                 >
                   By Severity
                 </div>
@@ -359,11 +393,11 @@ export default function IssueTable({
 
           {/* More Options */}
           <button
-            className="reports-input-btn"
-            style={{ width: 28, height: 28, padding: 0, justifyContent: 'center' }}
+            className="icon-action-btn"
+            style={{ width: 28, height: 28, backgroundColor: '#091326', border: '1px solid #1a2a47', borderRadius: 6 }}
             title="More Options"
           >
-            <MoreHorizontal size={14} className="reports-sub-muted" />
+            <MoreHorizontal size={14} color="#8fa2be" />
           </button>
         </div>
       </div>
@@ -372,7 +406,7 @@ export default function IssueTable({
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
           <thead>
-            <tr className="reports-table-header-row">
+            <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#64748b', fontSize: 11, fontWeight: 600 }}>
               <th style={{ padding: '8px 6px', width: 28, textAlign: 'center' }}>#</th>
               <th style={{ padding: '8px 10px', width: 95 }}>Severity</th>
               <th style={{ padding: '8px 10px' }}>Message</th>
@@ -393,10 +427,22 @@ export default function IssueTable({
                 <tr
                   key={item.id}
                   onClick={() => onSelectIssue(item.id)}
-                  className={`reports-table-row ${isSelected ? 'selected' : ''}`}
+                  style={{
+                    backgroundColor: isSelected ? '#0d1e38' : 'transparent',
+                    borderLeft: isSelected ? '3px solid #0070f3' : '3px solid transparent',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSelected) e.currentTarget.style.backgroundColor = '#0a162c';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
                 >
                   {/* # */}
-                  <td className="reports-sub-muted" style={{ padding: '8px 6px', textAlign: 'center', fontSize: 11 }}>
+                  <td style={{ padding: '8px 6px', textAlign: 'center', color: '#64748b', fontSize: 11 }}>
                     {rowNum}
                   </td>
 
@@ -407,18 +453,18 @@ export default function IssueTable({
 
                   {/* Message */}
                   <td style={{ padding: '8px 10px' }}>
-                    <div className="reports-heading" style={{ fontWeight: 600, fontSize: 12 }}>
+                    <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: 12 }}>
                       {item.title}
                     </div>
-                    <div className="reports-text-muted" style={{ fontSize: 10, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 280 }}>
+                    <div style={{ color: '#64748b', fontSize: 10, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 280 }}>
                       {item.detail}
                     </div>
                   </td>
 
                   {/* File */}
                   <td style={{ padding: '8px 10px' }}>
-                    <span 
-                      style={{ color: isLight ? '#0284c7' : '#38bdf8', fontSize: 11, textDecoration: 'none', cursor: 'pointer', fontWeight: 500 }}
+                    <span
+                      style={{ color: '#38bdf8', fontSize: 11, textDecoration: 'none', cursor: 'pointer' }}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (onViewInEditor) onViewInEditor(item.file, item.line);
@@ -430,7 +476,7 @@ export default function IssueTable({
                   </td>
 
                   {/* Line */}
-                  <td className="reports-text-muted" style={{ padding: '8px 6px', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                  <td style={{ padding: '8px 6px', color: '#8fa2be', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
                     {item.line}
                   </td>
 
@@ -453,7 +499,7 @@ export default function IssueTable({
                   </td>
 
                   {/* Detected */}
-                  <td className="reports-sub-muted" style={{ padding: '8px 10px', fontSize: 10, whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '8px 10px', color: '#64748b', fontSize: 10, whiteSpace: 'nowrap' }}>
                     {item.detected || '10 mins ago'}
                   </td>
 
@@ -469,7 +515,7 @@ export default function IssueTable({
                         }}
                         title="View in Editor"
                       >
-                        <Eye size={12} className="reports-sub-muted" />
+                        <Eye size={12} color="#8fa2be" />
                       </button>
 
                       <button
@@ -492,7 +538,7 @@ export default function IssueTable({
                         }}
                         title="Actions"
                       >
-                        <MoreHorizontal size={12} className="reports-sub-muted" />
+                        <MoreHorizontal size={12} color="#8fa2be" />
                       </button>
                     </div>
                   </td>
