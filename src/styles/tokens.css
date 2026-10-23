@@ -1,0 +1,137 @@
+/* Design Tokens & Theme Variables for AutonomusAI */
+:root {
+  /* Fonts */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, Consolas, monospace;
+
+  /* Universal Accent Gradients */
+  --grad-primary: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 35%, #6366f1 70%, #8b5cf6 100%);
+  --grad-ai: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #a855f7 100%);
+  --grad-purple: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+  --grad-glow: radial-gradient(circle at center, rgba(59, 130, 246, 0.25) 0%, transparent 70%);
+
+  /* Status Colors */
+  --color-critical: #ef4444;
+  --color-critical-bg: rgba(239, 68, 68, 0.12);
+  --color-critical-border: rgba(239, 68, 68, 0.35);
+
+  --color-warning: #f97316;
+  --color-warning-bg: rgba(249, 115, 22, 0.12);
+  --color-warning-border: rgba(249, 115, 22, 0.35);
+
+  --color-medium: #06b6d4;
+  --color-medium-bg: rgba(6, 182, 212, 0.12);
+  --color-medium-border: rgba(6, 182, 212, 0.35);
+
+  --color-low: #a855f7;
+  --color-low-bg: rgba(168, 85, 247, 0.12);
+  --color-low-border: rgba(168, 85, 247, 0.35);
+
+  --color-success: #10b981;
+  --color-success-bg: rgba(16, 185, 129, 0.12);
+  --color-success-border: rgba(16, 185, 129, 0.35);
+
+  --color-info: #3b82f6;
+  --color-info-bg: rgba(59, 130, 246, 0.12);
+  --color-info-border: rgba(59, 130, 246, 0.35);
+
+  /* Spacing Scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark Theme (Default) - Matches input_file_0.png */
+[data-theme="dark"] {
+  --bg-app: #080d1a;
+  --bg-activity-bar: #070c17;
+  --bg-sidebar: #0b1220;
+  --bg-editor: #0c1424;
+  --bg-editor-active-tab: #141f35;
+  --bg-editor-inactive-tab: #0b1220;
+  --bg-console: #0b1220;
+  --bg-ai-sidebar: #0d1628;
+  --bg-status-bar: #070c18;
+
+  --bg-card: #111a2e;
+  --bg-card-subtle: #0f182a;
+  --bg-card-hover: #16223c;
+  --bg-input: #090f1d;
+  --bg-badge: #16233d;
+  --bg-dropdown: #0e172a;
+  --bg-popup: #111b2f;
+  --bg-code-block: #080d19;
+
+  --border-subtle: #17233c;
+  --border-focus: #3b82f6;
+  --border-active: #2b3e64;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-accent: #38bdf8;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.7);
+  --shadow-glow: 0 0 16px rgba(59, 130, 246, 0.35);
+
+  --scrollbar-thumb: #1e293b;
+  --scrollbar-thumb-hover: #334155;
+  --scrollbar-track: #090f1d;
+}
+
+/* Light Theme - Matches input_file_1.png */
+[data-theme="light"] {
+  --bg-app: #f1f5f9;
+  --bg-activity-bar: #f8fafc;
+  --bg-sidebar: #ffffff;
+  --bg-editor: #ffffff;
+  --bg-editor-active-tab: #ffffff;
+  --bg-editor-inactive-tab: #f1f5f9;
+  --bg-console: #ffffff;
+  --bg-ai-sidebar: #ffffff;
+  --bg-status-bar: #f8fafc;
+
+  --bg-card: #f8fafc;
+  --bg-card-subtle: #f1f5f9;
+  --bg-card-hover: #e2e8f0;
+  --bg-input: #ffffff;
+  --bg-badge: #e2e8f0;
+  --bg-dropdown: #ffffff;
+  --bg-popup: #ffffff;
+  --bg-code-block: #f8fafc;
+
+  --border-subtle: #e2e8f0;
+  --border-focus: #3b82f6;
+  --border-active: #cbd5e1;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-accent: #0284c7;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 0 16px rgba(59, 130, 246, 0.2);
+
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+  --scrollbar-track: #f1f5f9;
+}
