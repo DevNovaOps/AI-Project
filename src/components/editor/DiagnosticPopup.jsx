@@ -2,33 +2,47 @@ import React from 'react';
 import { AlertCircle, X, Sparkles, Lightbulb, FlaskConical, Check } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 
-export default function DiagnosticPopup() {
+export default function DiagnosticPopup({ style, onMouseEnter, onMouseLeave, onClose }) {
   const { 
-    isDiagnosticPopupOpen, closeDiagnosticPopup, 
+    closeDiagnosticPopup, 
     selectedIssueId, issues, applyFix, 
     setRightSidebarTab, appliedFixes 
   } = useAppStore();
 
-  if (!isDiagnosticPopupOpen) return null;
-
   const issue = issues.find(i => i.id === selectedIssueId) || issues[0];
   const isApplied = appliedFixes.includes(issue.id);
+
+  const handleClose = (e) => {
+    e?.stopPropagation();
+    if (onClose) onClose();
+    closeDiagnosticPopup();
+  };
 
   const handleFixWithAI = () => {
     applyFix(issue.id);
     setRightSidebarTab('fixes');
+    if (onClose) onClose();
   };
 
   const handleExplain = () => {
     setRightSidebarTab('analysis');
+    if (onClose) onClose();
   };
 
   const handleAddTest = () => {
     setRightSidebarTab('tests');
+    if (onClose) onClose();
   };
 
   return (
-    <div className="diagnostic-popup" role="alertdialog" aria-labelledby="diag-title">
+    <div 
+      className="diagnostic-popup" 
+      role="alertdialog" 
+      aria-labelledby="diag-title"
+      style={style}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       {/* Header */}
       <div className="diagnostic-header">
         <div className="diagnostic-tag">
@@ -37,7 +51,7 @@ export default function DiagnosticPopup() {
         </div>
         <button 
           className="editor-tab-close" 
-          onClick={closeDiagnosticPopup}
+          onClick={handleClose}
           title="Dismiss Diagnostic Popup"
         >
           <X size={13} />
@@ -62,27 +76,27 @@ export default function DiagnosticPopup() {
       <div className="diagnostic-actions">
         <button 
           className="btn btn-secondary" 
-          style={{ height: 28, fontSize: 11, padding: '0 8px' }}
+          style={{ height: 28, fontSize: 11, padding: '0 10px', gap: 5 }}
           onClick={handleExplain}
         >
-          <Lightbulb size={12} color="#38bdf8" />
+          <Lightbulb size={13} color="#38bdf8" />
           <span>Explain</span>
         </button>
 
         <button 
           className="btn btn-primary-gradient" 
-          style={{ height: 28, fontSize: 11, padding: '0 10px', flex: 1 }}
+          style={{ height: 28, fontSize: 11, padding: '0 12px', flex: 1.2, gap: 6 }}
           onClick={handleFixWithAI}
           disabled={isApplied}
         >
           {isApplied ? (
             <>
-              <Check size={12} />
+              <Check size={13} />
               <span>Fix Applied</span>
             </>
           ) : (
             <>
-              <Sparkles size={12} />
+              <Sparkles size={13} />
               <span>Fix with AI</span>
             </>
           )}
@@ -90,10 +104,10 @@ export default function DiagnosticPopup() {
 
         <button 
           className="btn btn-secondary" 
-          style={{ height: 28, fontSize: 11, padding: '0 8px' }}
+          style={{ height: 28, fontSize: 11, padding: '0 10px', gap: 5 }}
           onClick={handleAddTest}
         >
-          <FlaskConical size={12} color="#f97316" />
+          <FlaskConical size={13} color="#f97316" />
           <span>Add Test</span>
         </button>
       </div>

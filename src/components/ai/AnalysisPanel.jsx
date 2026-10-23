@@ -153,47 +153,49 @@ export default function AnalysisPanel() {
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div style={{ display: 'flex', gap: 6 }}>
+      {/* Action Buttons matching input_file_0.png and input_file_1.png */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.2fr 1fr', gap: 8 }}>
         {isApplied ? (
           <button 
             className="btn btn-secondary" 
-            style={{ flex: 1.5, height: 32 }}
+            style={{ height: 34, fontSize: 12, padding: '0 8px' }}
             onClick={() => undoFix(issue.id)}
           >
-            <Check size={13} color="var(--color-success)" />
-            <span>Fix Applied (Undo)</span>
+            <Check size={14} color="var(--color-success)" />
+            <span>Fix Applied</span>
           </button>
         ) : (
           <button 
             className="btn btn-primary-gradient" 
-            style={{ flex: 1.5, height: 32 }}
+            style={{ height: 34, fontSize: 12, padding: '0 10px' }}
             onClick={() => applyFix(issue.id)}
           >
-            <Sparkles size={13} />
+            <Sparkles size={14} />
             <span>Apply Fix</span>
           </button>
         )}
 
         <button 
           className="btn btn-secondary" 
-          style={{ flex: 1, height: 32 }}
+          style={{ height: 34, fontSize: 12, padding: '0 8px' }}
           onClick={() => setRightSidebarTab('tests')}
           title="Run test case for this fix"
         >
-          <FlaskConical size={13} color="#f97316" />
+          <FlaskConical size={14} color="#f97316" />
           <span>Add to Tests</span>
         </button>
 
         <button 
           className="btn btn-secondary" 
-          style={{ width: 36, height: 32, padding: 0 }}
+          style={{ height: 34, fontSize: 12, padding: '0 8px' }}
           onClick={() => setRightSidebarTab('chat')}
-          title="Ask AI in Chat"
+          title="Explain issue in Chat"
         >
           <Lightbulb size={14} color="#38bdf8" />
+          <span>Explain</span>
         </button>
       </div>
+
 
       {/* Additional Suggestions */}
       <div className="card" style={{ gap: 8 }}>

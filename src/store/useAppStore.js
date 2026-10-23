@@ -52,7 +52,7 @@ export const useAppStore = create((set, get) => ({
   // Editor State
   cursorPosition: { line: 6, col: 32 },
   setCursorPosition: (pos) => set({ cursorPosition: pos }),
-  isDiagnosticPopupOpen: true,
+  isDiagnosticPopupOpen: false,
   toggleDiagnosticPopup: () => set((state) => ({ isDiagnosticPopupOpen: !state.isDiagnosticPopupOpen })),
   openDiagnosticPopup: (issueId) => {
     const issue = get().issues.find(i => i.id === issueId);

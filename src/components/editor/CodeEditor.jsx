@@ -1,19 +1,25 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { useAppStore } from '../../store/useAppStore';
 import DiagnosticPopup from './DiagnosticPopup';
-import { Play, Check, AlertCircle } from 'lucide-react';
+import { Play } from 'lucide-react';
 
 export default function CodeEditor() {
   const { 
     theme, activeFilePath, files, updateFileContent,
-    cursorPosition, setCursorPosition, openDiagnosticPopup,
-    selectedIssueId, issues, runTests
+    cursorPosition, setCursorPosition,
+    selectedIssueId, issues, runTests,
+    isDiagnosticPopupOpen, closeDiagnosticPopup
   } = useAppStore();
 
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
   const decorationsRef = useRef([]);
+  const hoverTimeoutRef = useRef(null);
+
+  const [isHoveringError, setIsHoveringError] = useState(false);
+  const [isHoveringPopup, setIsHoveringPopup] = useState(false);
+  const [popupPosition, setPopupPosition] = useState({ top: 110, left: 450 });
 
   const currentFile = files[activeFilePath] || {
     name: 'untitled',
@@ -28,8 +34,57 @@ export default function CodeEditor() {
     // Listen to cursor position
     editor.onDidChangeCursorPosition((e) => {
       setCursorPosition({ line: e.position.lineNumber, col: e.position.column });
-      if (activeFilePath === 'backend/main.py' && e.position.lineNumber === 6) {
-        openDiagnosticPopup('ISSUE-01');
+    });
+
+    // Detect mouse move over line 6 or error glyph: only show error popup when hovering on it
+    editor.onMouseMove((e) => {
+      if (activeFilePath !== 'backend/main.py') return;
+
+      const issue = issues.find(i => i.id === 'ISSUE-01');
+      if (issue && issue.status === 'Fixed') {
+        setIsHoveringError(false);
+        return;
+      }
+
+      const targetLine = e.target.position?.lineNumber;
+      const isLine6 = targetLine === 6;
+      const isGutterLine6 = e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN && targetLine === 6;
+
+      if (isLine6 || isGutterLine6) {
+        if (hoverTimeoutRef.current) {
+          clearTimeout(hoverTimeoutRef.current);
+          hoverTimeoutRef.current = null;
+        }
+
+        // Calculate accurate pixel position relative to editor content
+        const lineTop = editor.getTopForLineNumber(6) - editor.getScrollTop();
+        const layout = editor.getLayoutInfo();
+        const leftPos = Math.max(380, Math.min(layout.contentLeft + 360, window.innerWidth - 680));
+
+        setPopupPosition({
+          top: Math.max(30, lineTop - 15),
+          left: leftPos
+        });
+        setIsHoveringError(true);
+      } else {
+        // Moved off line 6: brief grace timeout so user can move mouse into popup
+        if (!isHoveringPopup) {
+          if (!hoverTimeoutRef.current) {
+            hoverTimeoutRef.current = setTimeout(() => {
+              setIsHoveringError(false);
+              hoverTimeoutRef.current = null;
+            }, 300);
+          }
+        }
+      }
+    });
+
+    editor.onMouseLeave(() => {
+      if (!isHoveringPopup) {
+        hoverTimeoutRef.current = setTimeout(() => {
+          setIsHoveringError(false);
+          hoverTimeoutRef.current = null;
+        }, 300);
       }
     });
 
@@ -87,8 +142,28 @@ export default function CodeEditor() {
     if (editorRef.current && cursorPosition) {
       editorRef.current.revealLineInCenter(cursorPosition.line);
       editorRef.current.setPosition({ lineNumber: cursorPosition.line, column: cursorPosition.col || 1 });
+      if (cursorPosition.line === 6 && activeFilePath === 'backend/main.py') {
+        const lineTop = editorRef.current.getTopForLineNumber(6) - editorRef.current.getScrollTop();
+        const layout = editorRef.current.getLayoutInfo();
+        const leftPos = Math.max(380, Math.min(layout.contentLeft + 360, window.innerWidth - 680));
+        setPopupPosition({
+          top: Math.max(30, lineTop - 15),
+          left: leftPos
+        });
+      }
     }
   }, [cursorPosition]);
+
+  // The popup is ONLY shown when hovered on line 6 / glyph, or hovering inside the popup, or opened via click
+  const shouldShowPopup = (isHoveringError || isHoveringPopup || isDiagnosticPopupOpen) && 
+                          activeFilePath === 'backend/main.py' && 
+                          issues.find(i => i.id === 'ISSUE-01')?.status !== 'Fixed';
+
+  const handlePopupClose = () => {
+    setIsHoveringError(false);
+    setIsHoveringPopup(false);
+    closeDiagnosticPopup();
+  };
 
   return (
     <div className="editor-canvas-container">
@@ -120,8 +195,30 @@ export default function CodeEditor() {
         }}
       />
 
-      {/* Floating Diagnostic Card when main.py is active */}
-      {activeFilePath === 'backend/main.py' && <DiagnosticPopup />}
+      {/* Floating Diagnostic Card: ONLY rendered when hovering over the error or popup */}
+      {shouldShowPopup && (
+        <DiagnosticPopup 
+          style={{ 
+            top: `${popupPosition.top}px`, 
+            left: `${popupPosition.left}px` 
+          }}
+          onMouseEnter={() => {
+            setIsHoveringPopup(true);
+            if (hoverTimeoutRef.current) {
+              clearTimeout(hoverTimeoutRef.current);
+              hoverTimeoutRef.current = null;
+            }
+          }}
+          onMouseLeave={() => {
+            setIsHoveringPopup(false);
+            hoverTimeoutRef.current = setTimeout(() => {
+              setIsHoveringError(false);
+              hoverTimeoutRef.current = null;
+            }, 250);
+          }}
+          onClose={handlePopupClose}
+        />
+      )}
 
       {/* Editor Status Bar Footer */}
       <div className="editor-status-bar">
