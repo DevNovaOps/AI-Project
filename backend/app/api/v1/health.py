@@ -27,10 +27,11 @@ def get_health() -> HealthStatusResponse:
         "status": "ready" if ai_configured else "unconfigured: GROQ_API_KEY missing",
     }
 
+    db_type = "mysql" if "mysql" in settings.DATABASE_URL else ("sqlite" if settings.DATABASE_URL.startswith("sqlite") else "postgresql")
     db_status = {
         "connected": db_connected,
         "detail": db_message,
-        "url_type": "sqlite" if settings.DATABASE_URL.startswith("sqlite") else "postgresql",
+        "url_type": db_type,
     }
 
     sandbox_status = execution_boundary.get_status()

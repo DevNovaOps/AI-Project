@@ -94,8 +94,8 @@ APP_NAME=AutonomusAI
 APP_ENV=development
 API_V1_PREFIX=/api/v1
 
-# PostgreSQL Database URL
-DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/autonomusai
+# MySQL Database URL (replace 'YOUR_MYSQL_PASSWORD' with your actual MySQL password)
+DATABASE_URL=mysql+pymysql://root:YOUR_MYSQL_PASSWORD@localhost:3306/autonomusai
 
 # Groq AI Provider
 GROQ_API_KEY=your_groq_api_key_here
@@ -110,7 +110,6 @@ MAX_SESSION_SOURCE_SIZE_BYTES=1000000
 
 # Sandbox Security Boundary
 SANDBOX_ENABLED=false
-SANDBOX_BACKEND=docker
 
 # Frontend CORS
 CORS_ORIGINS=["http://localhost:5173","http://localhost:3000","http://127.0.0.1:5173"]
@@ -118,17 +117,17 @@ CORS_ORIGINS=["http://localhost:5173","http://localhost:3000","http://127.0.0.1:
 
 ---
 
-### Step 3: Database Setup
+### Step 3: MySQL Database Setup
 
-#### Option A: Using Docker Compose (Recommended)
-```powershell
-docker compose up -d
+Ensure MySQL Server is running locally on port 3306, and create the `autonomusai` database in your MySQL client (MySQL Workbench, phpMyAdmin, or MySQL CLI):
+
+```sql
+CREATE DATABASE autonomusai CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-#### Option B: Using an Existing PostgreSQL Installation
-Ensure PostgreSQL is running and create the `autonomusai` database:
-```sql
-CREATE DATABASE autonomusai;
+Update your password in `.env`:
+```ini
+DATABASE_URL=mysql+pymysql://root:your_mysql_password@localhost:3306/autonomusai
 ```
 
 ---

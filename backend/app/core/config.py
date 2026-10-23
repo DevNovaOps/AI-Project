@@ -10,8 +10,8 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     API_V1_PREFIX: str = "/api/v1"
 
-    # Database
-    DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/autonomusai"
+    # Database (MySQL via PyMySQL)
+    DATABASE_URL: str = "mysql+pymysql://root:password@localhost:3306/autonomusai"
     DB_ECHO: bool = False
 
     # Groq AI
