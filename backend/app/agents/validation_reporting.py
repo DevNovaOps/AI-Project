@@ -97,7 +97,7 @@ def final_report_node(state: WorkflowState) -> Dict[str, Any]:
             "command": test_run.get("command_or_config"),
         },
         "unresolved_issues": unresolved,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(timezone.utc),
     }
 
     final_status = "completed" if val_status == "passed" else ("partially_validated" if val_status == "partial" else "completed")

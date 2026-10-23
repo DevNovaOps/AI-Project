@@ -38,8 +38,9 @@ export const useWorkflowStore = create((set, get) => ({
 
     if (openFiles.length > 0) {
       sourceFiles = openFiles.map(f => ({
-        file_path: f.path,
-        content: f.content,
+        filename: f.path || f.filename || 'main.py',
+        file_path: f.path || f.filename || 'main.py',
+        content: f.content || '',
       }));
     }
 
@@ -58,7 +59,11 @@ export const useWorkflowStore = create((set, get) => ({
         const paths = collectFiles(tree);
         for (const p of paths) {
           const contentRes = await apiClient.get(`/projects/${currentProject.id}/files/content?path=${encodeURIComponent(p)}`);
-          sourceFiles.push({ file_path: p, content: contentRes.content });
+          sourceFiles.push({
+            filename: p,
+            file_path: p,
+            content: contentRes.content || '',
+          });
         }
       } catch (err) {
         console.warn('Could not auto-fetch project files for analysis:', err);
@@ -96,6 +101,7 @@ export const useWorkflowStore = create((set, get) => ({
         title: `Analysis: ${currentProject?.name || 'Workspace'}`,
         language: appStore.activeLanguage || 'python',
         task_description: 'Analyze source files, detect runtime and syntax errors, diagnose root causes, and propose verified patches.',
+        files: sourceFiles,
         source_files: sourceFiles,
       });
 
@@ -309,5 +315,15 @@ export const useWorkflowStore = create((set, get) => ({
       message: 'Workflow execution cancelled by user.',
       status: 'warning',
     });
-  }
+  },
+
+  resetWorkflow: () => {
+    set({
+      workflowState: 'idle',
+      activeAgent: null,
+      progress: 0,
+      currentStepIndex: 0,
+      activeSessionId: null,
+    });
+  },
 }));

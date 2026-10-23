@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.schemas.files import SourceFileInput, SourceFileResponse
 
@@ -10,13 +10,22 @@ from app.schemas.files import SourceFileInput, SourceFileResponse
 class DebugSessionCreateRequest(BaseModel):
     title: Optional[str] = Field(default=None, max_length=255)
     language: str = Field(default="python", description="Target programming language")
-    files: List[SourceFileInput] = Field(..., description="Array of source files with relative paths and contents")
+    files: List[SourceFileInput] = Field(default_factory=list, description="Array of source files with relative paths and contents")
     task_description: Optional[str] = Field(default=None, description="Optional user task description or problem statement")
     requested_checks: List[str] = Field(
         default_factory=lambda: ["syntax", "style", "runtime", "security"],
         description="List of requested static or dynamic checks",
     )
     max_repair_attempts: int = Field(default=3, ge=1, le=10, description="Max repair attempts within server limits")
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_request(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Accept source_files as an alias for files
+            if "files" not in data and "source_files" in data:
+                data["files"] = data["source_files"]
+        return data
 
 
 class DebugSessionResponse(BaseModel):

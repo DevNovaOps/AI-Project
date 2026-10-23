@@ -41,7 +41,12 @@ export default function StatusBar() {
         );
       case 'failed':
         return (
-          <div className="status-badge" style={{ color: '#ef4444' }}>
+          <div 
+            className="status-badge cursor-pointer" 
+            style={{ color: '#ef4444' }}
+            title="Click to view Agent Logs in console"
+            onClick={() => setConsoleTab('agentLogs')}
+          >
             <AlertCircle size={12} color="#ef4444" />
             <span>AI Agents: Failed</span>
           </div>
