@@ -52,7 +52,7 @@ export default function AnalysisPanel() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span className="badge badge-critical" style={{ fontSize: 10, padding: '1px 6px' }}>
+          <span className="badge-runtime-error">
             {issue.category || 'Runtime Error'}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -80,7 +80,7 @@ export default function AnalysisPanel() {
       <div className="issue-banner-card">
         <div className="issue-banner-header">
           <div className="issue-banner-icon">
-            <AlertCircle size={18} />
+            <span style={{ fontWeight: 800, fontSize: 16, lineHeight: 1 }}>!</span>
           </div>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -92,20 +92,25 @@ export default function AnalysisPanel() {
           </div>
         </div>
 
-        {/* Badges */}
+        {/* Badges matching Crop 4 */}
         <div className="issue-banner-badges">
           <span className="badge badge-critical">
-            <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: 'currentColor' }} />
-            {issue.severity}
+            <AlertCircle size={11} />
+            <span>{issue.severity}</span>
           </span>
-          <span className="badge badge-warning">
-            {issue.source || 'Runtime Error'}
+          <span className="badge-runtime-error">
+            <Lightbulb size={11} />
+            <span>{issue.category || 'Runtime Error'}</span>
           </span>
-          <span className="badge badge-success" style={{ marginLeft: 'auto' }}>
-            Confidence <span style={{ fontWeight: 700 }}>{issue.confidence}%</span>
-          </span>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+            <span>Confidence</span>
+            <span className="badge badge-success">
+              {issue.confidence}%
+            </span>
+          </div>
         </div>
       </div>
+
 
       {/* Section: Root Cause */}
       <div className="card">
@@ -181,7 +186,7 @@ export default function AnalysisPanel() {
           onClick={() => setRightSidebarTab('tests')}
           title="Run test case for this fix"
         >
-          <FlaskConical size={14} color="#f97316" />
+          <FlaskConical size={14} />
           <span>Add to Tests</span>
         </button>
 
@@ -191,7 +196,7 @@ export default function AnalysisPanel() {
           onClick={() => setRightSidebarTab('chat')}
           title="Explain issue in Chat"
         >
-          <Lightbulb size={14} color="#38bdf8" />
+          <Lightbulb size={14} />
           <span>Explain</span>
         </button>
       </div>

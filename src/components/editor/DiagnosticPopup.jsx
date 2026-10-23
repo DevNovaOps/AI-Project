@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, X, Sparkles, Lightbulb, FlaskConical, Check } from 'lucide-react';
+import { AlertCircle, X, Sparkles, Eye, Plus, Check } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 
 export default function DiagnosticPopup({ style, onMouseEnter, onMouseLeave, onClose }) {
@@ -72,14 +72,14 @@ export default function DiagnosticPopup({ style, onMouseEnter, onMouseLeave, onC
         </span>
       </div>
 
-      {/* Actions */}
+      {/* Actions matching Crop 3 */}
       <div className="diagnostic-actions">
         <button 
           className="btn btn-secondary" 
-          style={{ height: 28, fontSize: 11, padding: '0 10px', gap: 5 }}
+          style={{ height: 28, fontSize: 11, padding: '0 10px', gap: 6 }}
           onClick={handleExplain}
         >
-          <Lightbulb size={13} color="#38bdf8" />
+          <Eye size={13} color="#f8fafc" />
           <span>Explain</span>
         </button>
 
@@ -104,13 +104,14 @@ export default function DiagnosticPopup({ style, onMouseEnter, onMouseLeave, onC
 
         <button 
           className="btn btn-secondary" 
-          style={{ height: 28, fontSize: 11, padding: '0 10px', gap: 5 }}
+          style={{ height: 28, fontSize: 11, padding: '0 10px', gap: 6 }}
           onClick={handleAddTest}
         >
-          <FlaskConical size={13} color="#f97316" />
+          <Plus size={13} color="#f8fafc" />
           <span>Add Test</span>
         </button>
       </div>
+
     </div>
   );
 }

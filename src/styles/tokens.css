@@ -4,37 +4,37 @@
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, Consolas, monospace;
 
-  /* Universal Accent Gradients - Precision Matched to Reference */
-  --grad-primary: linear-gradient(90deg, #1673f8 0%, #2968fe 45%, #6a3bf6 100%);
-  --grad-ai: linear-gradient(90deg, #1673f8 0%, #2968fe 45%, #6a3bf6 100%);
-  --grad-hover: linear-gradient(90deg, #2581ff 0%, #3e7aff 45%, #7a4dfa 100%);
+  /* Universal Accent Gradients - Precision Matched to Reference Screenshot */
+  --grad-primary: linear-gradient(90deg, #0070f3 0%, #2563eb 35%, #7c3aed 70%, #9333ea 100%);
+  --grad-ai: linear-gradient(90deg, #0070f3 0%, #2563eb 35%, #7c3aed 70%, #9333ea 100%);
+  --grad-hover: linear-gradient(90deg, #0080ff 0%, #3b82f6 35%, #8b5cf6 70%, #a855f7 100%);
   --grad-purple: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
-  --grad-glow: radial-gradient(circle at center, rgba(41, 104, 254, 0.3) 0%, transparent 70%);
+  --grad-glow: 0 0 16px rgba(0, 112, 243, 0.45), 0 0 24px rgba(147, 51, 234, 0.3);
 
   /* Status Colors */
   --color-critical: #ef4444;
-  --color-critical-bg: rgba(239, 68, 68, 0.12);
-  --color-critical-border: rgba(239, 68, 68, 0.35);
+  --color-critical-bg: rgba(239, 68, 68, 0.16);
+  --color-critical-border: rgba(239, 68, 68, 0.38);
 
   --color-warning: #f97316;
-  --color-warning-bg: rgba(249, 115, 22, 0.12);
-  --color-warning-border: rgba(249, 115, 22, 0.35);
+  --color-warning-bg: rgba(249, 115, 22, 0.16);
+  --color-warning-border: rgba(249, 115, 22, 0.38);
 
   --color-medium: #06b6d4;
-  --color-medium-bg: rgba(6, 182, 212, 0.12);
-  --color-medium-border: rgba(6, 182, 212, 0.35);
+  --color-medium-bg: rgba(6, 182, 212, 0.16);
+  --color-medium-border: rgba(6, 182, 212, 0.38);
 
   --color-low: #a855f7;
-  --color-low-bg: rgba(168, 85, 247, 0.12);
-  --color-low-border: rgba(168, 85, 247, 0.35);
+  --color-low-bg: rgba(168, 85, 247, 0.16);
+  --color-low-border: rgba(168, 85, 247, 0.38);
 
   --color-success: #10b981;
-  --color-success-bg: rgba(16, 185, 129, 0.12);
-  --color-success-border: rgba(16, 185, 129, 0.35);
+  --color-success-bg: rgba(16, 185, 129, 0.16);
+  --color-success-border: rgba(16, 185, 129, 0.38);
 
-  --color-info: #3b82f6;
-  --color-info-bg: rgba(59, 130, 246, 0.12);
-  --color-info-border: rgba(59, 130, 246, 0.35);
+  --color-info: #06b6d4;
+  --color-info-bg: rgba(6, 182, 212, 0.16);
+  --color-info-border: rgba(6, 182, 212, 0.38);
 
   /* Spacing Scale */
   --space-1: 4px;
@@ -131,6 +131,23 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.12);
   --shadow-glow: 0 0 16px rgba(59, 130, 246, 0.2);
+
+  /* Light Theme Status Overrides for crisp legibility */
+  --color-critical: #dc2626;
+  --color-critical-bg: rgba(220, 38, 38, 0.1);
+  --color-critical-border: rgba(220, 38, 38, 0.3);
+
+  --color-warning: #c2410c;
+  --color-warning-bg: rgba(194, 65, 12, 0.1);
+  --color-warning-border: rgba(194, 65, 12, 0.3);
+
+  --color-success: #059669;
+  --color-success-bg: rgba(5, 150, 105, 0.1);
+  --color-success-border: rgba(5, 150, 105, 0.3);
+
+  --color-info: #0284c7;
+  --color-info-bg: rgba(2, 132, 199, 0.1);
+  --color-info-border: rgba(2, 132, 199, 0.3);
 
   --scrollbar-thumb: #cbd5e1;
   --scrollbar-thumb-hover: #94a3b8;

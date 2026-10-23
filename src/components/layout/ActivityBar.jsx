@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
-  Files, Search, GitBranch, Bug, FlaskConical, Blocks, 
-  Settings, Wrench, BarChart2, MessageSquareCode
+  FolderGit2, Search, GitBranch, Bug, CheckSquare, 
+  Settings, Wrench, BarChart2
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
@@ -9,22 +9,21 @@ import { useAppStore } from '../../store/useAppStore';
 export default function ActivityBar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLeftSidebarOpen, toggleLeftSidebar } = useAppStore();
+  const { toggleLeftSidebar } = useAppStore();
 
   const navItems = [
-    { id: 'explorer', label: 'Explorer', icon: Files, path: '/', isToggle: true },
-    { id: 'search', label: 'Search (Ctrl+Shift+F)', icon: Search, path: '/search' },
+    { id: 'explorer', label: 'Explorer', icon: FolderGit2, path: '/', isToggle: true },
+    { id: 'search', label: 'Search', icon: Search, path: '/search' },
     { id: 'source-control', label: 'Source Control', icon: GitBranch, path: '/source-control' },
-    { id: 'debug', label: 'Run and Debug', icon: Bug, path: '/debug' },
-    { id: 'tests', label: 'Test Suite', icon: FlaskConical, path: '/tests' },
-    { id: 'fixes', label: 'AI Fixes & Diffs', icon: Wrench, path: '/fixes' },
-    { id: 'reports', label: 'Reports & Analytics', icon: BarChart2, path: '/reports' },
-    { id: 'extensions', label: 'Extensions', icon: Blocks, path: '/settings' }
+    { id: 'debug', label: 'Debug', icon: Bug, path: '/debug' },
+    { id: 'tests', label: 'Tests', icon: CheckSquare, path: '/tests' },
+    { id: 'fixes', label: 'Fixes', icon: Wrench, path: '/fixes' },
+    { id: 'reports', label: 'Reports', icon: BarChart2, path: '/reports' }
   ];
 
   const handleNavClick = (item) => {
     if (item.id === 'explorer') {
-      if (location.pathname === '/') {
+      if (location.pathname === '/' || location.pathname === '/editor') {
         toggleLeftSidebar();
       } else {
         navigate('/');
@@ -48,10 +47,11 @@ export default function ActivityBar() {
               key={item.id}
               className={`activity-item ${isActive ? 'active' : ''}`}
               onClick={() => handleNavClick(item)}
-              data-tooltip={item.label}
+              title={item.label}
               aria-label={item.label}
             >
-              <Icon size={19} strokeWidth={isActive ? 2.2 : 1.8} />
+              <Icon size={18} strokeWidth={isActive ? 2 : 1.7} />
+              <span className="activity-label">{item.label}</span>
             </button>
           );
         })}
@@ -61,10 +61,11 @@ export default function ActivityBar() {
         <button
           className={`activity-item ${location.pathname === '/settings' ? 'active' : ''}`}
           onClick={() => navigate('/settings')}
-          data-tooltip="Settings (Ctrl+,)"
+          title="Settings (Ctrl+,)"
           aria-label="Settings"
         >
-          <Settings size={19} strokeWidth={1.8} />
+          <Settings size={18} strokeWidth={1.7} />
+          <span className="activity-label">Settings</span>
         </button>
       </div>
     </aside>
