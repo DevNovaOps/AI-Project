@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, Play, Wrench, FlaskConical, BarChart2, Sun, Moon, 
-  FileCode, Terminal, X, ArrowRight, Sparkles 
+  FileCode, Terminal, X, ArrowRight, Sparkles, FolderGit2, UploadCloud, FilePlus 
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useWorkflowStore } from '../../store/useWorkflowStore';
@@ -12,7 +12,8 @@ export default function CommandPalette() {
   const { 
     isCommandPaletteOpen, setCommandPalette, 
     toggleTheme, setActiveFile, setRightSidebarTab, setConsoleTab,
-    applyFix, issues
+    setConnectRepoModalOpen, setUploadModalOpen, setActiveModal,
+    files
   } = useAppStore();
   const { startAutonomousWorkflow } = useWorkflowStore();
 
@@ -35,7 +36,7 @@ export default function CommandPalette() {
 
   if (!isCommandPaletteOpen) return null;
 
-  const commands = [
+  const baseCommands = [
     {
       id: 'cmd-run-ai',
       title: 'Run with AI Agents',
@@ -48,20 +49,42 @@ export default function CommandPalette() {
       }
     },
     {
-      id: 'cmd-apply-fix',
-      title: 'Apply AI Fix: Division by zero',
-      subtitle: 'Patch main.py line 6 with zero-guard validation',
-      icon: Wrench,
+      id: 'cmd-connect-github',
+      title: 'Connect GitHub Repository',
+      subtitle: 'Import a public GitHub repository into your workspace',
+      icon: FolderGit2,
+      color: '#a855f7',
+      action: () => {
+        setConnectRepoModalOpen(true);
+        setCommandPalette(false);
+      }
+    },
+    {
+      id: 'cmd-upload-files',
+      title: 'Upload Project Files or ZIP',
+      subtitle: 'Upload local source files or extract an archive into the workspace',
+      icon: UploadCloud,
+      color: '#38bdf8',
+      action: () => {
+        setUploadModalOpen(true);
+        setCommandPalette(false);
+      }
+    },
+    {
+      id: 'cmd-new-file',
+      title: 'Create New File',
+      subtitle: 'Add a new file to the current workspace',
+      icon: FilePlus,
       color: '#10b981',
       action: () => {
-        applyFix('ISSUE-01');
+        setActiveModal({ type: 'new_file' });
         setCommandPalette(false);
       }
     },
     {
       id: 'cmd-run-tests',
-      title: 'Run Pytest Unit Suite',
-      subtitle: 'Execute test_main.py against current workspace',
+      title: 'Run Test Suite',
+      subtitle: 'Execute test suite in isolated sandbox environment',
       icon: FlaskConical,
       color: '#f97316',
       action: () => {
@@ -77,18 +100,6 @@ export default function CommandPalette() {
       color: '#a855f7',
       action: () => {
         navigate('/reports');
-        setCommandPalette(false);
-      }
-    },
-    {
-      id: 'cmd-file-main',
-      title: 'Open backend/main.py',
-      subtitle: 'Target file containing runtime division by zero',
-      icon: FileCode,
-      color: '#38bdf8',
-      action: () => {
-        setActiveFile('backend/main.py');
-        navigate('/');
         setCommandPalette(false);
       }
     },
@@ -116,74 +127,86 @@ export default function CommandPalette() {
     }
   ];
 
-  const filtered = commands.filter(c => 
+  // Dynamic file commands from loaded workspace files
+  const fileCommands = Object.values(files).map((f) => ({
+    id: `file-${f.path}`,
+    title: `Open ${f.name}`,
+    subtitle: f.path,
+    icon: FileCode,
+    color: '#38bdf8',
+    action: () => {
+      setActiveFile(f.path);
+      navigate('/');
+      setCommandPalette(false);
+    }
+  }));
+
+  const allCommands = [...baseCommands, ...fileCommands];
+
+  const filtered = allCommands.filter(c => 
     c.title.toLowerCase().includes(query.toLowerCase()) || 
     c.subtitle.toLowerCase().includes(query.toLowerCase())
   );
 
   return (
     <div className="modal-overlay" onClick={() => setCommandPalette(false)}>
-      <div className="palette-box" onClick={(e) => e.stopPropagation()}>
-        {/* Input */}
-        <div className="palette-input-row">
-          <Search size={18} color="var(--text-muted)" />
+      <div 
+        className="palette-box"
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: 560 }}
+      >
+        {/* Search input field */}
+        <div className="palette-input-box">
+          <Search size={16} color="#38bdf8" />
           <input
             type="text"
             className="palette-input"
-            placeholder="Type a command or search files, symbols, issues..."
+            placeholder="Type a command, file name, or search..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
           />
-          <button 
-            className="icon-action-btn" 
-            style={{ width: 24, height: 24 }}
-            onClick={() => setCommandPalette(false)}
-          >
-            <X size={15} />
-          </button>
+          <span className="kbd-badge">ESC</span>
         </div>
 
-        {/* List */}
-        <div className="palette-list">
+        {/* Results List */}
+        <div className="palette-results">
           {filtered.length === 0 ? (
-            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-              No matching commands found for "{query}"
+            <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+              No matching commands found.
             </div>
           ) : (
-            filtered.map((item) => {
-              const Icon = item.icon;
+            filtered.map((cmd) => {
+              const Icon = cmd.icon;
               return (
-                <div 
-                  key={item.id} 
+                <div
+                  key={cmd.id}
                   className="palette-item"
-                  onClick={item.action}
+                  onClick={cmd.action}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ 
-                      width: 28, height: 28, borderRadius: 'var(--radius-sm)', 
-                      backgroundColor: 'rgba(255,255,255,0.06)', 
+                      width: 26, height: 26, borderRadius: 'var(--radius-sm)', 
+                      backgroundColor: 'var(--bg-card-subtle)', 
                       display: 'flex', alignItems: 'center', justifyContent: 'center' 
                     }}>
-                      <Icon size={16} color={item.color} />
+                      <Icon size={14} color={cmd.color || 'var(--text-primary)'} />
                     </div>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--text-primary)' }}>{item.title}</div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{item.subtitle}</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {cmd.title}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                        {cmd.subtitle}
+                      </div>
                     </div>
                   </div>
+
                   <ArrowRight size={13} color="var(--text-muted)" />
                 </div>
               );
             })
           )}
-        </div>
-
-        {/* Footer */}
-        <div style={{ padding: '6px 14px', background: 'var(--bg-card-subtle)', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)' }}>
-          <span>Navigation: <kbd className="kbd-badge">↑</kbd> <kbd className="kbd-badge">↓</kbd></span>
-          <span>Select: <kbd className="kbd-badge">Enter</kbd></span>
-          <span>Dismiss: <kbd className="kbd-badge">Esc</kbd></span>
         </div>
       </div>
     </div>

@@ -8,8 +8,25 @@ import CodeDiff from '../editor/CodeDiff';
 
 export default function FixesPanel() {
   const { issues, selectedIssueId, applyFix, undoFix, appliedFixes, files } = useAppStore();
-  const [activeSubTab, setActiveSubTab] = useState('suggestions'); // 'suggestions' | 'autofix' | 'refactor' | 'optimize' | 'explain'
+  const [activeSubTab, setActiveSubTab] = useState('suggestions');
   const [copied, setCopied] = useState(false);
+
+  if (issues.length === 0) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '40px 20px', textAlign: 'center', gap: 12, color: 'var(--text-muted)'
+      }}>
+        <Wrench size={32} color="var(--border-focus)" />
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+          No Fix Proposals Available
+        </div>
+        <div style={{ fontSize: 11 }}>
+          Run code analysis to discover bugs and generate automated patch proposals.
+        </div>
+      </div>
+    );
+  }
 
   const issue = issues.find(i => i.id === selectedIssueId) || issues[0];
   const isApplied = appliedFixes.includes(issue.id) || issue.status === 'Fixed';
@@ -18,12 +35,11 @@ export default function FixesPanel() {
     { id: 'suggestions', label: 'Fix Suggestions' },
     { id: 'autofix', label: 'Auto Fix' },
     { id: 'refactor', label: 'Refactor' },
-    { id: 'optimize', label: 'Optimize' },
-    { id: 'explain', label: 'Explain' }
+    { id: 'optimize', label: 'Optimize' }
   ];
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(issue.appliedFixSnippet || issue.suggestedFix);
+    navigator.clipboard.writeText(issue.suggestedFix || '');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -53,13 +69,17 @@ export default function FixesPanel() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700 }}>
             <span>{issue.title}</span>
-            <span className="badge badge-critical" style={{ fontSize: 9 }}>{issue.severity}</span>
+            <span className={`badge badge-${(issue.severity || 'medium').toLowerCase()}`} style={{ fontSize: 9 }}>
+              {issue.severity}
+            </span>
           </div>
-          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{issue.file}:{issue.line}</span>
+          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+            {issue.file || issue.filePath}:{issue.line}
+          </span>
         </div>
 
         <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-          {issue.detail}
+          {issue.detail || issue.message}
         </div>
       </div>
 
@@ -68,42 +88,47 @@ export default function FixesPanel() {
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase' }}>
           Interactive Code Diff
         </div>
-        <CodeDiff issueId={issue.id} originalSnippet={issue.codeSnippet} fixedSnippet={issue.suggestedFix} />
+        <CodeDiff 
+          issueId={issue.id} 
+          originalSnippet={issue.codeSnippet} 
+          fixedSnippet={issue.suggestedFix} 
+        />
       </div>
 
-      {/* Fix Preview Card */}
-      <div className="card" style={{ gap: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
-            Result Preview
+      {/* Result Preview Card */}
+      {issue.suggestedFix && (
+        <div className="card" style={{ gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
+              Result Preview
+            </div>
+            <button 
+              className="icon-action-btn" 
+              style={{ width: 22, height: 22 }}
+              onClick={handleCopy}
+              title="Copy resulting code"
+            >
+              {copied ? <Check size={11} color="var(--color-success)" /> : <Copy size={11} />}
+            </button>
           </div>
-          <button 
-            className="icon-action-btn" 
-            style={{ width: 22, height: 22 }}
-            onClick={handleCopy}
-            title="Copy resulting code"
-          >
-            {copied ? <Check size={11} color="var(--color-success)" /> : <Copy size={11} />}
-          </button>
-        </div>
 
-        <div style={{ 
-          backgroundColor: 'var(--bg-code-block)', 
-          border: '1px solid var(--border-subtle)', 
-          borderRadius: 'var(--radius-sm)', 
-          padding: '8px 10px', 
-          fontFamily: 'var(--font-mono)', 
-          fontSize: 10,
-          color: 'var(--text-secondary)',
-          lineHeight: 1.5
-        }}>
-          <div><span className="token-keyword">def</span> <span className="token-function">calculate_average</span>(numbers):</div>
-          <div>    <span className="token-comment"># Guard against empty list or invalid inputs</span></div>
-          <div>    <span className="token-keyword">if not</span> numbers <span className="token-keyword">or</span> <span className="token-function">len</span>(numbers) == <span className="token-number">0</span>:</div>
-          <div>        <span className="token-keyword">return</span> <span className="token-number">0</span></div>
-          <div>    <span className="token-keyword">return</span> <span className="token-function">sum</span>(numbers) / <span className="token-function">len</span>(numbers)</div>
+          <div style={{ 
+            backgroundColor: 'var(--bg-code-block)', 
+            border: '1px solid var(--border-subtle)', 
+            borderRadius: 'var(--radius-sm)', 
+            padding: '8px 10px', 
+            fontFamily: 'var(--font-mono)', 
+            fontSize: 11,
+            color: 'var(--text-secondary)',
+            lineHeight: 1.5,
+            whiteSpace: 'pre-wrap',
+            maxHeight: 120,
+            overflowY: 'auto'
+          }}>
+            {issue.suggestedFix}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Primary Actions Bar */}
       <div style={{ display: 'flex', gap: 6 }}>
@@ -121,28 +146,12 @@ export default function FixesPanel() {
             className="btn btn-primary-gradient" 
             style={{ flex: 1, height: 32 }}
             onClick={() => applyFix(issue.id)}
+            disabled={!issue.suggestedFix}
           >
             <Sparkles size={13} />
             <span>Apply Fix to Workspace</span>
           </button>
         )}
-      </div>
-
-      {/* Additional Improvements */}
-      <div className="card" style={{ gap: 6 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
-          Optional Improvements
-        </div>
-        {[
-          { label: 'Add input type validation (list/tuple check)', tag: 'Recommended' },
-          { label: 'Add Google-style docstrings (PEP 257)', tag: 'Best Practice' },
-          { label: 'Add parameterized edge-case unit tests', tag: 'Testing' }
-        ].map((opt, idx) => (
-          <div key={idx} className="palette-item" style={{ padding: '6px 8px', background: 'var(--bg-card-subtle)', border: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: 11, color: 'var(--text-primary)' }}>{opt.label}</span>
-            <span className="badge badge-info" style={{ fontSize: 9 }}>{opt.tag}</span>
-          </div>
-        ))}
       </div>
     </div>
   );

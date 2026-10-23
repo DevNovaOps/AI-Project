@@ -1,30 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Folder, FolderOpen, FileCode, FileText, ChevronRight, ChevronDown, 
   RotateCw, Minimize2, Plus, GitBranch, Layers, Sparkles, MoreHorizontal,
-  FilePlus, FolderPlus, Trash2, Edit2, Search
+  FilePlus, FolderPlus, Trash2, Edit2, Search, UploadCloud, FolderGit2
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 
 export default function ProjectExplorer() {
   const { 
-    project, selectedBranch, setSelectedBranch,
+    projects, currentProject, selectProject, loadProjects,
+    selectedBranch, setSelectedBranch,
     fileTree, activeFilePath, setActiveFile,
-    isLeftSidebarOpen
+    isLeftSidebarOpen, loadProjectFiles,
+    setConnectRepoModalOpen, setUploadModalOpen,
+    setActiveModal, issues
   } = useAppStore();
 
-  const [expandedFolders, setExpandedFolders] = useState({
-    'backend': true,
-    'backend/app': true,
-    'backend/app/agents': true,
-    'frontend': true,
-    'frontend/src': true
-  });
-
+  const [expandedFolders, setExpandedFolders] = useState({});
   const [filterText, setFilterText] = useState('');
   const [contextMenu, setContextMenu] = useState(null); // { x, y, item }
   const [isBranchMenuOpen, setIsBranchMenuOpen] = useState(false);
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
+
+  // Load projects on initial mount
+  useEffect(() => {
+    loadProjects();
+  }, []);
 
   if (!isLeftSidebarOpen) return null;
 
@@ -37,24 +38,26 @@ export default function ProjectExplorer() {
   };
 
   const expandAll = () => {
-    setExpandedFolders({
-      'backend': true,
-      'backend/app': true,
-      'backend/app/agents': true,
-      'backend/app/core': true,
-      'backend/app/tools': true,
-      'backend/app/prompts': true,
-      'frontend': true,
-      'frontend/src': true,
-      'tests': true,
-      'docs': true
-    });
+    const all = {};
+    const traverse = (nodes) => {
+      nodes.forEach(n => {
+        if (n.type === 'folder') {
+          all[n.id] = true;
+          if (n.children) traverse(n.children);
+        }
+      });
+    };
+    traverse(fileTree);
+    setExpandedFolders(all);
   };
 
   const getFileIcon = (ext, fileName) => {
     if (ext === 'py') return <span style={{ color: '#38bdf8', fontSize: 13, fontWeight: 700 }}>🐍</span>;
     if (ext === 'jsx' || ext === 'js') return <span style={{ color: '#06b6d4', fontSize: 13, fontWeight: 700 }}>⚛</span>;
+    if (ext === 'ts' || ext === 'tsx') return <span style={{ color: '#3b82f6', fontSize: 13, fontWeight: 700 }}>🔷</span>;
     if (ext === 'css') return <span style={{ color: '#38bdf8', fontSize: 12 }}>🎨</span>;
+    if (ext === 'html') return <span style={{ color: '#f97316', fontSize: 12 }}>🌐</span>;
+    if (ext === 'json') return <span style={{ color: '#fbbf24', fontSize: 12 }}>📋</span>;
     if (ext === 'md') return <FileText size={14} style={{ color: '#94a3b8' }} />;
     if (ext === 'env') return <span style={{ color: '#fbbf24', fontSize: 12 }}>⚙</span>;
     return <FileCode size={14} style={{ color: '#94a3b8' }} />;
@@ -91,6 +94,8 @@ export default function ProjectExplorer() {
       }
 
       const isActive = activeFilePath === node.id;
+      const fileHasIssue = issues.some(iss => iss.filePath === node.id || iss.file === node.id);
+
       return (
         <div 
           key={node.id}
@@ -104,12 +109,22 @@ export default function ProjectExplorer() {
         >
           {getFileIcon(node.ext, node.name)}
           <span>{node.name}</span>
-          {node.hasIssue && <span className="tree-node-issue-dot" title="Runtime Error: Division by zero" />}
-          {node.hasFailedTest && <span className="tree-node-issue-dot" style={{ backgroundColor: 'var(--color-critical)' }} title="Failed Unit Test" />}
+          {fileHasIssue && <span className="tree-node-issue-dot" title="Code finding detected in this file" />}
         </div>
       );
     });
   };
+
+  // Count total files recursively
+  const countFiles = (nodes) => {
+    let count = 0;
+    nodes.forEach(n => {
+      if (n.type === 'file') count += 1;
+      if (n.children) count += countFiles(n.children);
+    });
+    return count;
+  };
+  const totalFilesCount = countFiles(fileTree);
 
   return (
     <aside className="project-explorer" aria-label="Project Explorer">
@@ -117,6 +132,22 @@ export default function ProjectExplorer() {
       <div className="explorer-header">
         <span>Project Explorer</span>
         <div style={{ display: 'flex', gap: 4 }}>
+          <button 
+            className="icon-action-btn" 
+            style={{ width: 22, height: 22 }}
+            onClick={() => setActiveModal({ type: 'new_file' })}
+            title="New File"
+          >
+            <FilePlus size={13} />
+          </button>
+          <button 
+            className="icon-action-btn" 
+            style={{ width: 22, height: 22 }}
+            onClick={() => setActiveModal({ type: 'new_folder' })}
+            title="New Folder"
+          >
+            <FolderPlus size={13} />
+          </button>
           <button 
             className="icon-action-btn" 
             style={{ width: 22, height: 22 }}
@@ -136,7 +167,7 @@ export default function ProjectExplorer() {
           <button 
             className="icon-action-btn" 
             style={{ width: 22, height: 22 }}
-            onClick={() => {}}
+            onClick={() => loadProjectFiles()}
             title="Refresh Files"
           >
             <RotateCw size={13} />
@@ -155,23 +186,51 @@ export default function ProjectExplorer() {
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               <Layers size={12} color="#38bdf8" />
-              <span>{project.name}</span>
+              <span>{currentProject?.name || 'No Project'}</span>
             </span>
             <ChevronDown size={11} color="var(--text-muted)" />
           </button>
 
           {isProjectMenuOpen && (
-            <div className="popover-menu" style={{ width: 170, left: 0 }}>
-              {project.projects.map((p) => (
+            <div className="popover-menu" style={{ width: 200, left: 0 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', padding: '4px 8px', textTransform: 'uppercase' }}>
+                Your Projects
+              </div>
+              {projects.map((p) => (
                 <div 
-                  key={p} 
+                  key={p.id} 
                   className="palette-item"
-                  onClick={() => setIsProjectMenuOpen(false)}
+                  onClick={() => {
+                    selectProject(p.id);
+                    setIsProjectMenuOpen(false);
+                  }}
                 >
-                  <span>{p}</span>
-                  {p === project.name && <span style={{ color: 'var(--color-success)', fontSize: 10 }}>Active</span>}
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                  {p.id === currentProject?.id && <span style={{ color: 'var(--color-success)', fontSize: 10 }}>Active</span>}
                 </div>
               ))}
+              <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '4px 0' }} />
+              <div
+                className="palette-item"
+                style={{ color: '#38bdf8' }}
+                onClick={() => {
+                  setIsProjectMenuOpen(false);
+                  setConnectRepoModalOpen(true);
+                }}
+              >
+                <FolderGit2 size={12} />
+                <span>Connect GitHub...</span>
+              </div>
+              <div
+                className="palette-item"
+                onClick={() => {
+                  setIsProjectMenuOpen(false);
+                  setUploadModalOpen(true);
+                }}
+              >
+                <UploadCloud size={12} />
+                <span>Upload Project...</span>
+              </div>
             </div>
           )}
         </div>
@@ -192,7 +251,7 @@ export default function ProjectExplorer() {
 
           {isBranchMenuOpen && (
             <div className="popover-menu" style={{ width: 160, right: 0 }}>
-              {project.branches.map((b) => (
+              {['main', 'master', 'dev'].map((b) => (
                 <div 
                   key={b} 
                   className="palette-item"
@@ -224,9 +283,35 @@ export default function ProjectExplorer() {
         </div>
       </div>
 
-      {/* File Tree */}
+      {/* File Tree or Empty State */}
       <div className="file-tree-container">
-        {renderTree(fileTree)}
+        {fileTree.length > 0 ? (
+          renderTree(fileTree)
+        ) : (
+          <div style={{ padding: '24px 16px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              No files in workspace yet.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button 
+                className="btn btn-primary-gradient" 
+                style={{ height: 28, fontSize: 11, justifyContent: 'center' }}
+                onClick={() => setConnectRepoModalOpen(true)}
+              >
+                <FolderGit2 size={12} />
+                <span>Connect GitHub</span>
+              </button>
+              <button 
+                className="btn btn-secondary" 
+                style={{ height: 28, fontSize: 11, justifyContent: 'center' }}
+                onClick={() => setUploadModalOpen(true)}
+              >
+                <UploadCloud size={12} />
+                <span>Upload Files</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Context Menu Modal/Dropdown if right clicked */}
@@ -236,19 +321,48 @@ export default function ProjectExplorer() {
           onMouseLeave={() => setContextMenu(null)}
         >
           <div className="popover-menu" style={{ width: 160 }}>
-            <div className="palette-item" onClick={() => setContextMenu(null)}>
+            <div 
+              className="palette-item" 
+              onClick={() => {
+                const item = contextMenu.item;
+                setContextMenu(null);
+                setActiveModal({ type: 'new_file', targetItem: item });
+              }}
+            >
               <FilePlus size={13} />
               <span>New File</span>
             </div>
-            <div className="palette-item" onClick={() => setContextMenu(null)}>
+            <div 
+              className="palette-item" 
+              onClick={() => {
+                const item = contextMenu.item;
+                setContextMenu(null);
+                setActiveModal({ type: 'new_folder', targetItem: item });
+              }}
+            >
               <FolderPlus size={13} />
               <span>New Folder</span>
             </div>
-            <div className="palette-item" onClick={() => setContextMenu(null)}>
+            <div 
+              className="palette-item" 
+              onClick={() => {
+                const item = contextMenu.item;
+                setContextMenu(null);
+                setActiveModal({ type: 'rename', targetItem: item });
+              }}
+            >
               <Edit2 size={13} />
               <span>Rename</span>
             </div>
-            <div className="palette-item" style={{ color: 'var(--color-critical)' }} onClick={() => setContextMenu(null)}>
+            <div 
+              className="palette-item" 
+              style={{ color: 'var(--color-critical)' }} 
+              onClick={() => {
+                const item = contextMenu.item;
+                setContextMenu(null);
+                setActiveModal({ type: 'delete', targetItem: item });
+              }}
+            >
               <Trash2 size={13} />
               <span>Delete</span>
             </div>
@@ -264,11 +378,10 @@ export default function ProjectExplorer() {
               <Sparkles size={14} />
             </div>
             <div>
-              <div className="overview-name">{project.name}</div>
-              <div className="overview-sub">{project.subtitle}</div>
+              <div className="overview-name">{currentProject?.name || 'Workspace'}</div>
+              <div className="overview-sub">{currentProject?.source_type === 'github' ? 'GitHub Repository' : 'Managed Workspace'}</div>
             </div>
           </div>
-          {/* Decorative Sparkline Wave */}
           <svg width="48" height="24" viewBox="0 0 48 24" fill="none">
             <path d="M2 18C8 12 14 20 20 14C26 8 32 16 38 10C42 6 46 8 46 8" stroke="#a855f7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
             <path d="M2 18C8 12 14 20 20 14C26 8 32 16 38 10C42 6 46 8 46 8" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6"/>
@@ -277,22 +390,17 @@ export default function ProjectExplorer() {
 
         <div className="overview-stats-grid">
           <div>
-            <div className="stat-item-val">{project.stats.files}</div>
+            <div className="stat-item-val">{totalFilesCount}</div>
             <div className="stat-item-lbl">Files</div>
           </div>
           <div>
-            <div className="stat-item-val" style={{ color: '#a855f7' }}>{project.stats.agents}</div>
+            <div className="stat-item-val" style={{ color: '#a855f7' }}>5</div>
             <div className="stat-item-lbl">Agents</div>
           </div>
           <div>
-            <div className="stat-item-val" style={{ color: '#10b981' }}>{project.stats.tools}</div>
-            <div className="stat-item-lbl">Tools</div>
+            <div className="stat-item-val" style={{ color: '#10b981' }}>{issues.length}</div>
+            <div className="stat-item-lbl">Issues</div>
           </div>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)' }}>
-          <span>Coverage: {project.stats.coverage}</span>
-          <span>{project.stats.lastSync}</span>
         </div>
       </div>
     </aside>

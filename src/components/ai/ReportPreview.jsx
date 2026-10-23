@@ -22,10 +22,10 @@ export default function ReportPreview() {
             <BarChart2 size={16} color="#38bdf8" />
             <span>Telemetry Summary</span>
           </div>
-          <span className="badge badge-success" style={{ fontSize: 9 }}>Aegis-v2.4</span>
+          <span className="badge badge-success" style={{ fontSize: 9 }}>AutonomusAI</span>
         </div>
         <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-          Automated diagnosis across 24 workspace files.
+          {project?.name || 'Workspace'} telemetry and analysis findings.
         </div>
       </div>
 

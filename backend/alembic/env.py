@@ -24,10 +24,10 @@ def get_database_url() -> str:
     x_args = context.get_x_argument(as_dictionary=True)
     if "db_url" in x_args:
         return x_args["db_url"]
-    url = os.environ.get("DATABASE_URL")
-    if url:
-        return url
-    return settings.DATABASE_URL
+    url = os.environ.get("DATABASE_URL") or settings.DATABASE_URL
+    if "YOUR_MYSQL_PASSWORD" in url:
+        return "sqlite:///./autonomusai.db"
+    return url
 
 
 def run_migrations_offline() -> None:

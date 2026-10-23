@@ -12,6 +12,14 @@ from app.core.logging import logger
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.APP_NAME} in {settings.APP_ENV} mode...")
+    try:
+        from app.db.base import Base
+        from app.db.session import engine
+        import app.models  # ensure models are registered
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables initialized successfully.")
+    except Exception as exc:
+        logger.warning(f"Could not initialize database tables: {exc}")
     yield
     logger.info(f"Shutting down {settings.APP_NAME}...")
 

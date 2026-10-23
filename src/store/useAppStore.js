@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import { initialFiles } from '../data/fileData';
-import { initialFileTree, currentProject } from '../data/projectData';
-import { initialIssues } from '../data/issueData';
-import { initialTestCases } from '../data/testData';
+import { projectsApi } from '../api/projects';
+import { filesApi } from '../api/files';
+import { githubApi } from '../api/github';
+import { normalizeError } from '../api/client';
 
 const getInitialTheme = () => {
   const saved = localStorage.getItem('aetherion_theme') || localStorage.getItem('autonomusai_theme');
@@ -22,35 +22,40 @@ export const useAppStore = create((set, get) => ({
     get().setTheme(next);
   },
 
-  // Project & Navigation
-  project: currentProject,
-  activeLanguage: 'python',
-  setLanguage: (lang) => set({ activeLanguage: lang }),
+  // Projects State
+  projects: [],
+  currentProject: null,
+  project: { name: 'Workspace', default_branch: 'main', branches: ['main', 'master', 'dev'] },
+  isLoadingProjects: false,
   selectedBranch: 'main',
   setSelectedBranch: (branch) => set({ selectedBranch: branch }),
+  activeLanguage: 'python',
+  setLanguage: (lang) => set({ activeLanguage: lang }),
 
-  // Explorer & Files
-  fileTree: initialFileTree,
-  files: initialFiles,
-  activeFilePath: 'backend/main.py',
-  openTabs: ['backend/main.py', 'backend/utils.py', 'tests/test_main.py', 'backend/app/agents/planner.py'],
-  
-  // Sidebar & Layout Toggles
+  // Explorer & Workspace Files
+  fileTree: [],
+  files: {}, // { [path]: { name, path, content, originalContent, language, version, isDirty } }
+  activeFilePath: null,
+  openTabs: [],
+  isLoadingFiles: false,
+  isSavingFile: false,
+
+  // Layout & Sidebar Toggles
   isLeftSidebarOpen: true,
   toggleLeftSidebar: () => set((state) => ({ isLeftSidebarOpen: !state.isLeftSidebarOpen })),
   isRightSidebarOpen: true,
   toggleRightSidebar: () => set((state) => ({ isRightSidebarOpen: !state.isRightSidebarOpen })),
   rightSidebarTab: 'analysis', // 'chat' | 'analysis' | 'tests' | 'fixes' | 'report'
   setRightSidebarTab: (tab) => set({ rightSidebarTab: tab, isRightSidebarOpen: true }),
-  
+
   // Console Panels
   isConsoleOpen: true,
   toggleConsole: () => set((state) => ({ isConsoleOpen: !state.isConsoleOpen })),
-  consoleTab: 'problems', // 'problems' | 'terminal' | 'testResults' | 'output' | 'debugConsole' | 'agentLogs'
+  consoleTab: 'problems', // 'problems' | 'terminal' | 'testResults' | 'output' | 'agentLogs'
   setConsoleTab: (tab) => set({ consoleTab: tab, isConsoleOpen: true }),
 
   // Editor State
-  cursorPosition: { line: 6, col: 32 },
+  cursorPosition: { line: 1, col: 1 },
   setCursorPosition: (pos) => set({ cursorPosition: pos }),
   isDiagnosticPopupOpen: false,
   toggleDiagnosticPopup: () => set((state) => ({ isDiagnosticPopupOpen: !state.isDiagnosticPopupOpen })),
@@ -61,15 +66,15 @@ export const useAppStore = create((set, get) => ({
         selectedIssueId: issueId,
         cursorPosition: { line: issue.line, col: issue.col || 1 },
         isDiagnosticPopupOpen: true,
-        activeFilePath: issue.fullPath || 'backend/main.py'
+        activeFilePath: issue.filePath || issue.file || get().activeFilePath,
       });
     }
   },
   closeDiagnosticPopup: () => set({ isDiagnosticPopupOpen: false }),
 
   // Issues & Diagnostics
-  issues: initialIssues,
-  selectedIssueId: 'ISSUE-01',
+  issues: [],
+  selectedIssueId: null,
   selectIssue: (id) => {
     const issue = get().issues.find(i => i.id === id);
     if (issue) {
@@ -77,118 +82,189 @@ export const useAppStore = create((set, get) => ({
         selectedIssueId: id,
         cursorPosition: { line: issue.line, col: issue.col || 1 },
         isDiagnosticPopupOpen: true,
-        activeFilePath: issue.fullPath || get().activeFilePath,
-        rightSidebarTab: 'analysis'
+        activeFilePath: issue.filePath || issue.file || get().activeFilePath,
+        rightSidebarTab: 'analysis',
       });
     }
   },
 
-  // Applied Fixes tracking
+  // Applied Fixes & Repairs
   appliedFixes: [],
-  applyFix: (issueId) => {
-    const state = get();
-    const issue = state.issues.find(i => i.id === issueId);
-    if (!issue) return;
+  repairs: [],
 
-    // Update file content with the fixed version
-    const currentFile = state.files['backend/main.py'];
-    const updatedContent = currentFile.fixedContent || currentFile.content;
-
-    // Update issues status
-    const updatedIssues = state.issues.map(iss => 
-      iss.id === issueId ? { ...iss, status: 'Fixed' } : iss
-    );
-
-    // Update tests so test_average_empty_list passes
-    const updatedTests = state.testCases.map(t => 
-      t.id === 'test-3' ? { ...t, status: 'passed', error: null, stdout: 'Fixed: empty list returns 0 safely.' } : t
-    );
-
-    set((s) => ({
-      files: {
-        ...s.files,
-        'backend/main.py': {
-          ...s.files['backend/main.py'],
-          content: updatedContent
-        }
-      },
-      issues: updatedIssues,
-      testCases: updatedTests,
-      appliedFixes: [...s.appliedFixes, issueId],
-      isDiagnosticPopupOpen: false
-    }));
-
-    // Add notification
-    get().addNotification({
-      id: Date.now(),
-      title: 'Fix Applied',
-      message: `Applied fix for ${issue.title} in main.py`,
-      type: 'success',
-      timestamp: 'Just now'
-    });
-  },
-
-  undoFix: (issueId) => {
-    const state = get();
-    const currentFile = state.files['backend/main.py'];
-    
-    // Revert issues
-    const updatedIssues = state.issues.map(iss => 
-      iss.id === issueId ? { ...iss, status: 'Open' } : iss
-    );
-
-    // Revert tests
-    const updatedTests = state.testCases.map(t => 
-      t.id === 'test-3' ? {
-        ...t,
-        status: 'failed',
-        error: 'ZeroDivisionError: division by zero',
-        traceback: `Traceback (most recent call last):\n  File "tests/test_main.py", line 14, in test_average_empty_list\n    self.assertEqual(calculate_average([]), 0)\n  File "backend/main.py", line 6, in calculate_average\n    return sum(numbers) / len(numbers)\nZeroDivisionError: division by zero`
-      } : t
-    );
-
-    set((s) => ({
-      files: {
-        ...s.files,
-        'backend/main.py': {
-          ...s.files['backend/main.py'],
-          content: initialFiles['backend/main.py'].content
-        }
-      },
-      issues: updatedIssues,
-      testCases: updatedTests,
-      appliedFixes: s.appliedFixes.filter(id => id !== issueId),
-      isDiagnosticPopupOpen: true
-    }));
-
-    get().addNotification({
-      id: Date.now(),
-      title: 'Fix Reverted',
-      message: `Reverted fix for ${issueId}`,
-      type: 'info',
-      timestamp: 'Just now'
-    });
-  },
-
-  // Test Runner
-  testCases: initialTestCases,
+  // Test Runner State
+  testCases: [],
   isTestingRunning: false,
-  runTests: async () => {
-    set({ isTestingRunning: true });
-    // Simulate test execution delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    set({ isTestingRunning: false });
+  lastTestOutput: null,
+
+  // Reports
+  finalReport: null,
+
+  // Modals & Dialogs
+  isConnectRepoModalOpen: false,
+  setConnectRepoModalOpen: (open) => set({ isConnectRepoModalOpen: open }),
+  isUploadModalOpen: false,
+  setUploadModalOpen: (open) => set({ isUploadModalOpen: open }),
+  activeModal: null, // null | { type: 'new_file' | 'new_folder' | 'rename' | 'delete', targetItem: ... }
+  setActiveModal: (modal) => set({ activeModal: modal }),
+
+  // Command Palette & Notifications
+  isCommandPaletteOpen: false,
+  setCommandPalette: (open) => set({ isCommandPaletteOpen: open }),
+  notifications: [],
+  isNotificationsOpen: false,
+  toggleNotifications: () => set((s) => ({ isNotificationsOpen: !s.isNotificationsOpen })),
+  markNotificationsAsRead: () => set((s) => ({
+    notifications: s.notifications.map(n => ({ ...n, read: true }))
+  })),
+  addNotification: (item) => set((s) => ({
+    notifications: [
+      { id: Date.now() + Math.random(), timestamp: 'Just now', read: false, ...item },
+      ...s.notifications
+    ]
+  })),
+
+  // ==========================================
+  // ASYNC ACTIONS (Connected to real backend)
+  // ==========================================
+
+  // 1. Initialize / Fetch Projects
+  loadProjects: async () => {
+    set({ isLoadingProjects: true });
+    try {
+      const response = await projectsApi.list();
+      const projectsList = response?.projects || [];
+      set({ projects: projectsList, isLoadingProjects: false });
+
+      const current = get().currentProject;
+      if (!current && projectsList.length > 0) {
+        // Select first project
+        await get().selectProject(projectsList[0].id);
+      } else if (projectsList.length === 0) {
+        // Create an initial default project if empty
+        const created = await projectsApi.create({
+          name: 'My Workspace',
+          description: 'Default managed development project',
+          source_type: 'managed',
+          default_branch: 'main',
+        });
+        set({ projects: [created] });
+        await get().selectProject(created.id);
+      }
+    } catch (err) {
+      set({ isLoadingProjects: false });
+      get().addNotification({
+        title: 'Backend Connection Warning',
+        message: normalizeError(err),
+        type: 'warning',
+      });
+    }
   },
 
-  // Open/Close tabs
-  openTab: (filePath) => {
-    const { openTabs } = get();
+  // 2. Select Project
+  selectProject: async (projectId) => {
+    const proj = get().projects.find(p => p.id === projectId) || null;
+    set({
+      currentProject: proj,
+      project: proj ? { ...proj, branches: ['main', 'master', 'dev'] } : { name: 'Workspace', default_branch: 'main', branches: ['main', 'master', 'dev'] },
+      selectedBranch: proj?.default_branch || 'main',
+      files: {},
+      fileTree: [],
+      openTabs: [],
+      activeFilePath: null,
+      issues: [],
+      repairs: [],
+      appliedFixes: [],
+      testCases: [],
+      finalReport: null,
+    });
+
+    if (projectId) {
+      await get().loadProjectFiles(projectId);
+    }
+  },
+
+  // 3. Load Project Files Tree
+  loadProjectFiles: async (projectId) => {
+    const pid = projectId || get().currentProject?.id;
+    if (!pid) return;
+
+    set({ isLoadingFiles: true });
+    try {
+      const tree = await filesApi.getTree(pid);
+      set({ fileTree: Array.isArray(tree) ? tree : [], isLoadingFiles: false });
+
+      // If active file is null and there are files in tree, open the first file
+      if (!get().activeFilePath && Array.isArray(tree) && tree.length > 0) {
+        const findFirstFile = (nodes) => {
+          for (const n of nodes) {
+            if (n.type === 'file') return n.id;
+            if (n.children) {
+              const res = findFirstFile(n.children);
+              if (res) return res;
+            }
+          }
+          return null;
+        };
+        const firstFile = findFirstFile(tree);
+        if (firstFile) {
+          await get().openTab(firstFile);
+        }
+      }
+    } catch (err) {
+      set({ isLoadingFiles: false, fileTree: [] });
+      console.error('Failed to load project files:', err);
+    }
+  },
+
+  // 4. Open File in Editor
+  openTab: async (filePath) => {
+    if (!filePath) return;
+    const { openTabs, files, currentProject } = get();
+
     if (!openTabs.includes(filePath)) {
       set({ openTabs: [...openTabs, filePath], activeFilePath: filePath });
     } else {
       set({ activeFilePath: filePath });
     }
+
+    // Load content if not already loaded
+    if (!files[filePath] && currentProject?.id) {
+      try {
+        const res = await filesApi.getContent(currentProject.id, filePath);
+        const ext = res.extension || filePath.split('.').pop();
+        const getLang = (e) => {
+          if (e === 'py') return 'python';
+          if (e === 'js' || e === 'jsx') return 'javascript';
+          if (e === 'ts' || e === 'tsx') return 'typescript';
+          if (e === 'css') return 'css';
+          if (e === 'html') return 'html';
+          if (e === 'json') return 'json';
+          if (e === 'md') return 'markdown';
+          if (e === 'sql') return 'sql';
+          return 'plaintext';
+        };
+
+        set((state) => ({
+          files: {
+            ...state.files,
+            [filePath]: {
+              name: res.filename,
+              path: res.path,
+              content: res.content,
+              originalContent: res.content,
+              language: getLang(ext),
+              version: res.version,
+              isDirty: false,
+            }
+          }
+        }));
+      } catch (err) {
+        console.error(`Failed to load file ${filePath}:`, err);
+      }
+    }
   },
+
   closeTab: (filePath) => {
     const { openTabs, activeFilePath } = get();
     const nextTabs = openTabs.filter(p => p !== filePath);
@@ -198,35 +274,319 @@ export const useAppStore = create((set, get) => ({
     }
     set({ openTabs: nextTabs, activeFilePath: nextActive });
   },
+
   setActiveFile: (filePath) => {
     get().openTab(filePath);
   },
+
   updateFileContent: (path, newContent) => {
-    set((state) => ({
-      files: {
-        ...state.files,
-        [path]: {
-          ...(state.files[path] || { name: path.split('/').pop(), path, language: 'plaintext' }),
-          content: newContent
+    set((state) => {
+      const current = state.files[path] || {
+        name: path.split('/').pop(),
+        path,
+        content: '',
+        originalContent: '',
+        language: 'plaintext',
+        version: 1,
+      };
+      const isDirty = newContent !== current.originalContent;
+      return {
+        files: {
+          ...state.files,
+          [path]: {
+            ...current,
+            content: newContent,
+            isDirty,
+          }
         }
-      }
-    }));
+      };
+    });
   },
 
-  // Notifications
-  notifications: [
-    { id: 1, title: 'Analysis Completed', message: 'Planner identified 1 critical error in main.py', type: 'warning', timestamp: '2m ago', read: false },
-    { id: 2, title: 'Test Failed', message: 'test_average_empty_list failed with ZeroDivisionError', type: 'critical', timestamp: '3m ago', read: false },
-    { id: 3, title: 'Workspace Ready', message: 'AegisVault repository indexed (24 files scanned)', type: 'info', timestamp: '10m ago', read: true }
-  ],
-  isNotificationsOpen: false,
-  toggleNotifications: () => set((s) => ({ isNotificationsOpen: !s.isNotificationsOpen })),
-  markNotificationsAsRead: () => set((s) => ({
-    notifications: s.notifications.map(n => ({ ...n, read: true }))
-  })),
-  addNotification: (item) => set((s) => ({ notifications: [item, ...s.notifications] })),
+  // 5. Save File to Backend
+  saveActiveFile: async () => {
+    const { activeFilePath, files, currentProject } = get();
+    if (!activeFilePath || !files[activeFilePath] || !currentProject?.id) return;
 
-  // Command Palette
-  isCommandPaletteOpen: false,
-  setCommandPalette: (open) => set({ isCommandPaletteOpen: open })
+    const file = files[activeFilePath];
+    set({ isSavingFile: true });
+
+    try {
+      const res = await filesApi.saveContent(
+        currentProject.id,
+        activeFilePath,
+        file.content,
+        file.version
+      );
+
+      set((state) => ({
+        isSavingFile: false,
+        files: {
+          ...state.files,
+          [activeFilePath]: {
+            ...state.files[activeFilePath],
+            originalContent: file.content,
+            isDirty: false,
+            version: res.version,
+          }
+        }
+      }));
+
+      get().addNotification({
+        title: 'File Saved',
+        message: `Saved ${file.name} to workspace`,
+        type: 'success',
+      });
+    } catch (err) {
+      set({ isSavingFile: false });
+      const msg = normalizeError(err);
+      get().addNotification({
+        title: 'Save Failed',
+        message: msg,
+        type: 'critical',
+      });
+    }
+  },
+
+  // 6. Create File
+  createFile: async (filePath, content = '') => {
+    const { currentProject } = get();
+    if (!currentProject?.id) return;
+
+    try {
+      await filesApi.createFile(currentProject.id, filePath, content);
+      await get().loadProjectFiles(currentProject.id);
+      await get().openTab(filePath);
+      get().addNotification({
+        title: 'File Created',
+        message: `Created file ${filePath}`,
+        type: 'success',
+      });
+    } catch (err) {
+      get().addNotification({
+        title: 'Create File Failed',
+        message: normalizeError(err),
+        type: 'critical',
+      });
+      throw err;
+    }
+  },
+
+  // 7. Create Folder
+  createFolder: async (folderPath) => {
+    const { currentProject } = get();
+    if (!currentProject?.id) return;
+
+    try {
+      await filesApi.createFolder(currentProject.id, folderPath);
+      await get().loadProjectFiles(currentProject.id);
+      get().addNotification({
+        title: 'Folder Created',
+        message: `Created folder ${folderPath}`,
+        type: 'success',
+      });
+    } catch (err) {
+      get().addNotification({
+        title: 'Create Folder Failed',
+        message: normalizeError(err),
+        type: 'critical',
+      });
+      throw err;
+    }
+  },
+
+  // 8. Rename File
+  renameFile: async (oldPath, newPath) => {
+    const { currentProject, openTabs, activeFilePath } = get();
+    if (!currentProject?.id) return;
+
+    try {
+      await filesApi.rename(currentProject.id, oldPath, newPath);
+      // Update tabs if old was open
+      const updatedTabs = openTabs.map(p => (p === oldPath ? newPath : p));
+      const nextActive = activeFilePath === oldPath ? newPath : activeFilePath;
+
+      set({ openTabs: updatedTabs, activeFilePath: nextActive });
+      await get().loadProjectFiles(currentProject.id);
+      if (nextActive === newPath) {
+        await get().openTab(newPath);
+      }
+      get().addNotification({
+        title: 'Renamed',
+        message: `Renamed ${oldPath} to ${newPath}`,
+        type: 'info',
+      });
+    } catch (err) {
+      get().addNotification({
+        title: 'Rename Failed',
+        message: normalizeError(err),
+        type: 'critical',
+      });
+      throw err;
+    }
+  },
+
+  // 9. Delete File or Folder
+  deleteFile: async (filePath) => {
+    const { currentProject, openTabs, activeFilePath } = get();
+    if (!currentProject?.id) return;
+
+    try {
+      await filesApi.delete(currentProject.id, filePath);
+      get().closeTab(filePath);
+      await get().loadProjectFiles(currentProject.id);
+      get().addNotification({
+        title: 'Deleted',
+        message: `Deleted ${filePath}`,
+        type: 'info',
+      });
+    } catch (err) {
+      get().addNotification({
+        title: 'Delete Failed',
+        message: normalizeError(err),
+        type: 'critical',
+      });
+      throw err;
+    }
+  },
+
+  // 10. Upload Files
+  uploadFiles: async (formData) => {
+    const { currentProject } = get();
+    if (!currentProject?.id) return;
+
+    try {
+      const res = await filesApi.uploadFiles(currentProject.id, formData);
+      await get().loadProjectFiles(currentProject.id);
+      get().addNotification({
+        title: 'Upload Complete',
+        message: `Successfully uploaded ${res.uploaded_count} file(s)`,
+        type: 'success',
+      });
+    } catch (err) {
+      get().addNotification({
+        title: 'Upload Failed',
+        message: normalizeError(err),
+        type: 'critical',
+      });
+      throw err;
+    }
+  },
+
+  // 11. Apply Proposed Fix to Workspace
+  applyFix: async (issueId) => {
+    const state = get();
+    const issue = state.issues.find(i => i.id === issueId);
+    if (!issue) return;
+
+    const targetPath = issue.filePath || issue.file || state.activeFilePath;
+    const patchContent = issue.suggestedFix || issue.suggested_fix || issue.fixedCode;
+
+    if (!patchContent) {
+      get().addNotification({
+        title: 'Fix Unavailable',
+        message: 'No code patch proposal found for this finding.',
+        type: 'warning',
+      });
+      return;
+    }
+
+    try {
+      // Save updated code to workspace
+      if (state.currentProject?.id && targetPath) {
+        await filesApi.saveContent(state.currentProject.id, targetPath, patchContent);
+      }
+
+      // Update in-memory state
+      const updatedIssues = state.issues.map(iss =>
+        iss.id === issueId ? { ...iss, status: 'Fixed' } : iss
+      );
+
+      set((s) => ({
+        files: {
+          ...s.files,
+          [targetPath]: {
+            ...(s.files[targetPath] || {}),
+            content: patchContent,
+            originalContent: patchContent,
+            isDirty: false,
+          }
+        },
+        issues: updatedIssues,
+        appliedFixes: [...s.appliedFixes, issueId],
+        isDiagnosticPopupOpen: false,
+      }));
+
+      get().addNotification({
+        title: 'Fix Applied',
+        message: `Applied fix for ${issue.title} in ${targetPath}`,
+        type: 'success',
+      });
+    } catch (err) {
+      get().addNotification({
+        title: 'Failed to Apply Fix',
+        message: normalizeError(err),
+        type: 'critical',
+      });
+    }
+  },
+
+  undoFix: async (issueId) => {
+    const state = get();
+    const issue = state.issues.find(i => i.id === issueId);
+    if (!issue) return;
+
+    const targetPath = issue.filePath || issue.file || state.activeFilePath;
+    const original = issue.codeSnippet || issue.originalCode;
+
+    if (original && state.currentProject?.id && targetPath) {
+      try {
+        await filesApi.saveContent(state.currentProject.id, targetPath, original);
+        set((s) => ({
+          files: {
+            ...s.files,
+            [targetPath]: {
+              ...(s.files[targetPath] || {}),
+              content: original,
+              originalContent: original,
+              isDirty: false,
+            }
+          },
+          issues: s.issues.map(iss => iss.id === issueId ? { ...iss, status: 'Open' } : iss),
+          appliedFixes: s.appliedFixes.filter(id => id !== issueId),
+        }));
+
+        get().addNotification({
+          title: 'Fix Reverted',
+          message: `Reverted fix for ${issue.title}`,
+          type: 'info',
+        });
+      } catch (err) {
+        console.error('Failed to revert fix:', err);
+      }
+    }
+  },
+
+  // 12. Run Tests
+  runTests: async () => {
+    set({ isTestingRunning: true });
+    // In our architecture, tests run via debug sessions or test execution service
+    // If sandbox is not enabled, inform user gracefully
+    try {
+      // Simulate/Check sandbox status
+      await new Promise(res => setTimeout(res, 600));
+      set({
+        isTestingRunning: false,
+        lastTestOutput: {
+          executed: false,
+          reason: 'Test execution unavailable: sandbox is not configured.',
+          stdout: '',
+          stderr: '',
+          durationMs: 0,
+        }
+      });
+    } catch (err) {
+      set({ isTestingRunning: false });
+    }
+  },
 }));

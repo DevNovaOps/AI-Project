@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     MAX_EXECUTION_SECONDS: int = Field(default=10, ge=1, le=120)
     MAX_STDOUT_BYTES: int = Field(default=50_000, ge=1000)
 
+    # GitHub Integration
+    GITHUB_TOKEN: Optional[str] = Field(default=None, description="Optional GitHub Personal Access Token for rate limits")
+    MAX_REPO_FILES: int = Field(default=150, ge=1, le=500)
+    MAX_REPO_SIZE_BYTES: int = Field(default=5_000_000, ge=10_000)  # 5 MB max total
+    WORKSPACE_ROOT: str = "./workspaces"
+
     # Sandbox
     SANDBOX_ENABLED: bool = False
     SANDBOX_BACKEND: str = "docker"  # docker, gvisor, or mock

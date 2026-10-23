@@ -1,6 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Copy, Check, ChevronDown, ChevronUp, Sparkles, Undo2 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
+
+function computeSimpleDiff(original = '', modified = '') {
+  const origLines = (original || '').split('\n');
+  const modLines = (modified || '').split('\n');
+  const result = [];
+
+  // If identical
+  if (original === modified && original) {
+    return origLines.map((line, idx) => ({
+      type: 'neutral',
+      oldNo: idx + 1,
+      newNo: idx + 1,
+      text: line,
+    }));
+  }
+
+  // Generate unified style lines
+  let oldIdx = 1;
+  let newIdx = 1;
+
+  origLines.forEach((line) => {
+    if (!modLines.includes(line)) {
+      result.push({
+        type: 'removed',
+        oldNo: oldIdx++,
+        newNo: null,
+        text: `- ${line}`,
+      });
+    } else {
+      result.push({
+        type: 'neutral',
+        oldNo: oldIdx++,
+        newNo: newIdx++,
+        text: `  ${line}`,
+      });
+    }
+  });
+
+  modLines.forEach((line) => {
+    if (!origLines.includes(line)) {
+      result.push({
+        type: 'added',
+        oldNo: null,
+        newNo: newIdx++,
+        text: `+ ${line}`,
+      });
+    }
+  });
+
+  return result.length > 0 ? result : [
+    { type: 'neutral', oldNo: 1, newNo: 1, text: 'No differences detected.' }
+  ];
+}
 
 export default function CodeDiff({ originalSnippet, fixedSnippet, issueId }) {
   const { applyFix, undoFix, appliedFixes } = useAppStore();
@@ -9,19 +62,12 @@ export default function CodeDiff({ originalSnippet, fixedSnippet, issueId }) {
 
   const isApplied = appliedFixes.includes(issueId);
 
-  const diffLines = [
-    { type: 'neutral', oldNo: 1, newNo: 1, text: 'def calculate_average(numbers):' },
-    { type: 'removed', oldNo: 2, newNo: null, text: '-   if len(numbers) == 0:' },
-    { type: 'added', oldNo: null, newNo: 2, text: '+   # Guard against empty list or invalid inputs' },
-    { type: 'added', oldNo: null, newNo: 3, text: '+   if not numbers or len(numbers) == 0:' },
-    { type: 'neutral', oldNo: 3, newNo: 4, text: '        return 0' },
-    { type: 'neutral', oldNo: 4, newNo: 5, text: '' },
-    { type: 'neutral', oldNo: 5, newNo: 6, text: '    return sum(numbers) / len(numbers)' }
-  ];
+  const diffLines = useMemo(() => {
+    return computeSimpleDiff(originalSnippet, fixedSnippet);
+  }, [originalSnippet, fixedSnippet]);
 
   const handleCopy = () => {
-    const code = fixedSnippet || `def calculate_average(numbers):\n    if not numbers or len(numbers) == 0:\n        return 0\n    return sum(numbers) / len(numbers)`;
-    navigator.clipboard.writeText(code);
+    navigator.clipboard.writeText(fixedSnippet || '');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -63,7 +109,7 @@ export default function CodeDiff({ originalSnippet, fixedSnippet, issueId }) {
 
       {/* Diff Body */}
       {isExpanded && (
-        <div className="code-diff-container" style={{ border: 'none', borderRadius: 0 }}>
+        <div className="code-diff-container" style={{ border: 'none', borderRadius: 0, maxHeight: 220, overflowY: 'auto' }}>
           {diffLines.map((line, idx) => (
             <div key={idx} className={`diff-line ${line.type}`}>
               <div className="diff-gutter">
@@ -72,7 +118,7 @@ export default function CodeDiff({ originalSnippet, fixedSnippet, issueId }) {
               <div className="diff-gutter" style={{ color: line.type === 'added' ? '#10b981' : undefined }}>
                 {line.newNo ? line.newNo : ' '}
               </div>
-              <div style={{ flex: 1, whiteSpace: 'pre', overflowX: 'auto' }}>
+              <div style={{ flex: 1, whiteSpace: 'pre', overflowX: 'auto', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
                 {line.text}
               </div>
             </div>
@@ -83,7 +129,7 @@ export default function CodeDiff({ originalSnippet, fixedSnippet, issueId }) {
       {/* Diff Footer Actions */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderTop: '1px solid var(--border-subtle)' }}>
         <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-          Target: backend/main.py:6 • Replaces unsafe division
+          {isApplied ? 'Patch applied to workspace file' : 'Click Apply Fix to patch workspace file'}
         </span>
 
         <div style={{ display: 'flex', gap: 6 }}>
@@ -91,7 +137,7 @@ export default function CodeDiff({ originalSnippet, fixedSnippet, issueId }) {
             <button 
               className="btn btn-secondary" 
               style={{ height: 26, fontSize: 11 }}
-              onClick={() => undoFix(issueId || 'ISSUE-01')}
+              onClick={() => undoFix(issueId)}
             >
               <Undo2 size={12} />
               <span>Undo Fix</span>
@@ -100,7 +146,7 @@ export default function CodeDiff({ originalSnippet, fixedSnippet, issueId }) {
             <button 
               className="btn btn-primary-gradient" 
               style={{ height: 26, fontSize: 11 }}
-              onClick={() => applyFix(issueId || 'ISSUE-01')}
+              onClick={() => applyFix(issueId)}
             >
               <Sparkles size={12} />
               <span>Apply Fix</span>

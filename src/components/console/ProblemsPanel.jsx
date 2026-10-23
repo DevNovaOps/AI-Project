@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lightbulb, ExternalLink, Filter, Search, CheckCircle } from 'lucide-react';
+import { Lightbulb, ExternalLink, Filter, Search, CheckCircle, CheckCircle2 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 
 export default function ProblemsPanel() {
@@ -23,9 +23,9 @@ export default function ProblemsPanel() {
     if (severityFilter === 'Warnings' && item.severity !== 'Medium') return false;
     if (severityFilter === 'Info' && item.severity !== 'Low') return false;
     if (filterText) {
-      const match = item.message.toLowerCase().includes(filterText.toLowerCase()) || 
-                    item.file.toLowerCase().includes(filterText.toLowerCase()) ||
-                    item.source.toLowerCase().includes(filterText.toLowerCase());
+      const match = (item.message || item.title || '').toLowerCase().includes(filterText.toLowerCase()) || 
+                    (item.file || item.filePath || '').toLowerCase().includes(filterText.toLowerCase()) ||
+                    (item.source || '').toLowerCase().includes(filterText.toLowerCase());
       if (!match) return false;
     }
     return true;
@@ -91,88 +91,78 @@ export default function ProblemsPanel() {
             placeholder="Filter problems..."
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
-            style={{ width: '100%', background: 'transparent', border: 'none', fontSize: 11, outline: 'none' }}
+            style={{ width: '100%', background: 'transparent', border: 'none', fontSize: 11, outline: 'none', color: 'var(--text-primary)' }}
           />
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table or Empty State */}
       <div className="ide-table-wrapper" style={{ flex: 1 }}>
-        <table className="ide-table">
-          <thead>
-            <tr>
-              <th style={{ width: 30 }}>#</th>
-              <th style={{ width: 100 }}>Severity</th>
-              <th>Message</th>
-              <th style={{ width: 90 }}>File</th>
-              <th style={{ width: 50 }}>Line</th>
-              <th style={{ width: 100 }}>Source</th>
-              <th style={{ width: 80, textAlign: 'center' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredIssues.map((issue) => {
-              const isSelected = selectedIssueId === issue.id;
-              const isFixed = appliedFixes.includes(issue.id) || issue.status === 'Fixed';
+        {issues.length === 0 ? (
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            height: '100%', gap: 8, color: 'var(--text-muted)', padding: '24px'
+          }}>
+            <CheckCircle2 size={32} color="var(--color-success)" opacity={0.8} />
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+              No problems detected in workspace
+            </div>
+            <div style={{ fontSize: 11 }}>
+              Click "Run with AI Agents" in the top bar to run full multi-agent code analysis.
+            </div>
+          </div>
+        ) : (
+          <table className="ide-table">
+            <thead>
+              <tr>
+                <th style={{ width: 80 }}>Severity</th>
+                <th style={{ width: 140 }}>File &amp; Line</th>
+                <th>Diagnostic Message</th>
+                <th style={{ width: 100 }}>Rule / Tool</th>
+                <th style={{ width: 80, textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredIssues.map((item) => {
+                const isSelected = selectedIssueId === item.id;
+                const isFixed = appliedFixes.includes(item.id) || item.status === 'Fixed';
 
-              return (
-                <tr 
-                  key={issue.id}
-                  className={isSelected ? 'selected' : ''}
-                  onClick={() => selectIssue(issue.id)}
-                >
-                  <td style={{ fontWeight: 600, color: 'var(--text-muted)' }}>{issue.num}</td>
-                  <td>{getSeverityBadge(issue.severity, isFixed)}</td>
-                  <td>
-                    <div style={{ fontWeight: 600, color: isFixed ? 'var(--text-muted)' : 'var(--text-primary)' }}>
-                      {issue.title}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      {issue.detail}
-                    </div>
-                  </td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{issue.file}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{issue.line}</td>
-                  <td>
-                    <span style={{ 
-                      fontSize: 11, 
-                      color: issue.source === 'Runtime' ? 'var(--color-critical)' : 'var(--text-secondary)' 
-                    }}>
-                      {issue.source}
-                    </span>
-                  </td>
-                  <td style={{ textAlign: 'center' }}>
-                    <div style={{ display: 'inline-flex', gap: 6 }}>
-                      <button 
-                        className="icon-action-btn" 
-                        style={{ width: 22, height: 22 }}
+                return (
+                  <tr 
+                    key={item.id} 
+                    className={isSelected ? 'selected' : ''}
+                    onClick={() => selectIssue(item.id)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <td>{getSeverityBadge(item.severity, isFixed)}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-primary)' }}>
+                      {item.file || item.filePath}:{item.line}
+                    </td>
+                    <td style={{ fontSize: 11, color: isFixed ? 'var(--text-muted)' : 'var(--text-primary)' }}>
+                      {item.title || item.message}
+                    </td>
+                    <td style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      {item.source || 'AutonomusAI'}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button
+                        className="btn btn-secondary"
+                        style={{ height: 20, fontSize: 10, padding: '0 6px' }}
                         onClick={(e) => {
                           e.stopPropagation();
-                          selectIssue(issue.id);
+                          selectIssue(item.id);
                           setRightSidebarTab('analysis');
                         }}
-                        title="Explain in AI Assistant"
                       >
-                        <Lightbulb size={13} color="#eab308" />
+                        Inspect
                       </button>
-                      <button 
-                        className="icon-action-btn" 
-                        style={{ width: 22, height: 22 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          selectIssue(issue.id);
-                        }}
-                        title="Jump to code location"
-                      >
-                        <ExternalLink size={13} color="#38bdf8" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

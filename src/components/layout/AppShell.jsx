@@ -5,6 +5,9 @@ import ActivityBar from './ActivityBar';
 import StatusBar from './StatusBar';
 import CommandPalette from './CommandPalette';
 import PlasmaCursor from '../common/PlasmaCursor';
+import ConnectRepoModal from '../common/ConnectRepoModal';
+import UploadProjectModal from '../common/UploadProjectModal';
+import FileActionModal from '../common/FileActionModal';
 import { useAppStore } from '../../store/useAppStore';
 
 export default function AppShell() {
@@ -35,6 +38,11 @@ export default function AppShell() {
 
       {/* Global Command & Search Palette (Ctrl+K) */}
       <CommandPalette />
+
+      {/* Modals */}
+      <ConnectRepoModal />
+      <UploadProjectModal />
+      <FileActionModal />
 
       {/* Animated Futuristic Plasma Orb Cursor */}
       <PlasmaCursor />

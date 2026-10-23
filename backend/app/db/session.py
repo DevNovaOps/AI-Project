@@ -11,15 +11,38 @@ engine_kwargs = {
     "pool_pre_ping": True,
 }
 
-if settings.DATABASE_URL.startswith("sqlite"):
-    engine_kwargs["connect_args"] = {"check_same_thread": False}
-elif "mysql" in settings.DATABASE_URL:
-    engine_kwargs["pool_recycle"] = 3600
+db_url = settings.DATABASE_URL
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    **engine_kwargs,
-)
+if db_url.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+elif "mysql" in db_url:
+    engine_kwargs["pool_recycle"] = 3600
+    # Test connection if placeholder password is used
+    if "YOUR_MYSQL_PASSWORD" in db_url:
+        logger.warning(
+            "Default placeholder password detected in DATABASE_URL. "
+            "Falling back to local SQLite 'autonomusai.db' until valid MySQL credentials are provided."
+        )
+        db_url = "sqlite:///./autonomusai.db"
+        engine_kwargs["connect_args"] = {"check_same_thread": False}
+        if "pool_recycle" in engine_kwargs:
+            del engine_kwargs["pool_recycle"]
+
+try:
+    engine = create_engine(db_url, **engine_kwargs)
+    with engine.connect() as test_conn:
+        test_conn.execute(text("SELECT 1"))
+except Exception as exc:
+    if "mysql" in db_url:
+        logger.warning(
+            f"MySQL connection to {db_url.split('@')[-1]} failed ({exc}). "
+            "Using fallback local SQLite database 'autonomusai.db'."
+        )
+        db_url = "sqlite:///./autonomusai.db"
+        engine_kwargs = {"echo": settings.DB_ECHO, "connect_args": {"check_same_thread": False}}
+        engine = create_engine(db_url, **engine_kwargs)
+    else:
+        raise exc
 
 SessionLocal = sessionmaker(
     bind=engine,
