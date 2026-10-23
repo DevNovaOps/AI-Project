@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { 
-  Sparkles, X, Maximize2, Minimize2, Send, CornerDownLeft, 
-  MessageSquare, Search, FlaskConical, Wrench, BarChart2, MoreHorizontal 
+import {
+  Sparkles, X, Maximize2, Minimize2, Send, CornerDownLeft,
+  MessageSquare, Search, FlaskConical, Wrench, BarChart2, MoreHorizontal
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import AnalysisPanel from './AnalysisPanel';
@@ -9,15 +9,13 @@ import ChatPanel from './ChatPanel';
 import TestsPanel from './TestsPanel';
 import FixesPanel from './FixesPanel';
 import ReportPreview from './ReportPreview';
-import logoDark from '../../assets/images/logo-dark.png';
-import logoLight from '../../assets/images/logo-light.png';
+import aetherionLogo from '../../assets/images/aetherion-logo.png';
 
 export default function AISidebar() {
-  const { 
-    theme,
-    isRightSidebarOpen, toggleRightSidebar, 
-    rightSidebarTab, setRightSidebarTab, 
-    activeFilePath 
+  const {
+    isRightSidebarOpen, toggleRightSidebar,
+    rightSidebarTab, setRightSidebarTab,
+    activeFilePath
   } = useAppStore();
 
   const [bottomInput, setBottomInput] = useState('');
@@ -45,38 +43,38 @@ export default function AISidebar() {
   };
 
   return (
-    <aside 
-      className="ai-sidebar" 
+    <aside
+      className="ai-sidebar"
       style={{ width: isExpanded ? '520px' : '380px' }}
-      aria-label="Autonomous AI Assistant"
+      aria-label="AETHERION AI Assistant"
     >
       {/* Header */}
       <div className="ai-sidebar-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div className="brand-logo-container" style={{ width: 24, height: 24, borderRadius: 6 }}>
+          <div className="brand-logo-container" style={{ width: 32, height: 32, borderRadius: 7 }}>
             <img 
-              src={theme === 'dark' ? logoDark : logoLight} 
-              alt="AutonomusAI" 
+              src={aetherionLogo} 
+              alt="AETHERION" 
               className="brand-logo-img" 
             />
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>AutonomusAI</div>
+            <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.5px', color: 'var(--text-primary)', textTransform: 'uppercase' }}>AETHERION</div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Your autonomous debugging partner</div>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <button 
-            className="icon-action-btn" 
+          <button
+            className="icon-action-btn"
             style={{ width: 24, height: 24 }}
             onClick={() => setIsExpanded(!isExpanded)}
             title={isExpanded ? 'Restore Sidebar Size' : 'Expand Sidebar'}
           >
             {isExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
           </button>
-          <button 
-            className="icon-action-btn" 
+          <button
+            className="icon-action-btn"
             style={{ width: 24, height: 24 }}
             onClick={toggleRightSidebar}
             title="Close AI Sidebar"
@@ -115,10 +113,10 @@ export default function AISidebar() {
       {rightSidebarTab !== 'chat' && (
         <div className="ai-chat-input-bar">
           <form onSubmit={handleBottomSubmit} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ 
-              flex: 1, display: 'flex', alignItems: 'center', gap: 6, 
-              background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', 
-              borderRadius: 'var(--radius-md)', padding: '0 8px', height: 32 
+            <div style={{
+              flex: 1, display: 'flex', alignItems: 'center', gap: 6,
+              background: 'var(--bg-input)', border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)', padding: '0 8px', height: 32
             }}>
               <input
                 type="text"
@@ -130,9 +128,9 @@ export default function AISidebar() {
               <span className="kbd-badge" style={{ fontSize: 9 }}>Ctrl ↵</span>
             </div>
 
-            <button 
-              type="submit" 
-              className="btn btn-primary-gradient" 
+            <button
+              type="submit"
+              className="btn btn-primary-gradient"
               style={{ width: 32, height: 32, padding: 0 }}
               title="Send to AI Assistant"
             >

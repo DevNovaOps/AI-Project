@@ -8,7 +8,7 @@ export default function ChatPanel() {
     {
       id: 1,
       sender: 'assistant',
-      text: "Hello! I'm AutonomusAI, your autonomous debugging partner. I've analyzed `backend/main.py` and detected an unchecked `ZeroDivisionError` on line 6. Would you like me to explain the root cause or generate a unit test?",
+      text: "Hello! I'm AETHERION, your autonomous debugging partner. I've analyzed `backend/main.py` and detected an unchecked `ZeroDivisionError` on line 6. Would you like me to explain the root cause or generate a unit test?",
       time: '13:28'
     }
   ]);
@@ -101,7 +101,7 @@ def calculate_average(numbers):
                 {isBot ? (
                   <>
                     <Bot size={12} color="#38bdf8" />
-                    <span>AutonomusAI</span>
+                    <span>AETHERION</span>
                   </>
                 ) : (
                   <>
@@ -134,7 +134,7 @@ def calculate_average(numbers):
         {isTyping && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-muted)', padding: '6px 8px' }}>
             <span className="animate-spin" style={{ width: 10, height: 10, border: '1.5px solid #38bdf8', borderTopColor: 'transparent', borderRadius: '50%' }} />
-            <span>AutonomusAI is thinking...</span>
+            <span>AETHERION is thinking...</span>
           </div>
         )}
       </div>

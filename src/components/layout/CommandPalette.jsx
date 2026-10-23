@@ -105,7 +105,7 @@ export default function CommandPalette() {
     },
     {
       id: 'cmd-open-chat',
-      title: 'Ask AutonomusAI in Chat',
+      title: 'Ask AETHERION in Chat',
       subtitle: 'Conversational coding assistant and prompt suggestions',
       icon: Terminal,
       color: '#6366f1',

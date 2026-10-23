@@ -5,7 +5,7 @@ import { initialIssues } from '../data/issueData';
 import { initialTestCases } from '../data/testData';
 
 const getInitialTheme = () => {
-  const saved = localStorage.getItem('autonomusai_theme');
+  const saved = localStorage.getItem('aetherion_theme') || localStorage.getItem('autonomusai_theme');
   return saved || 'dark';
 };
 
@@ -13,7 +13,7 @@ export const useAppStore = create((set, get) => ({
   // Theme
   theme: getInitialTheme(),
   setTheme: (theme) => {
-    localStorage.setItem('autonomusai_theme', theme);
+    localStorage.setItem('aetherion_theme', theme);
     document.documentElement.setAttribute('data-theme', theme);
     set({ theme });
   },

@@ -6,7 +6,7 @@ export default function TerminalPanel() {
   const { appliedFixes, applyFix, runTests } = useAppStore();
   const [inputVal, setInputVal] = useState('');
   const [history, setHistory] = useState([
-    { type: 'output', text: 'AutonomusAI Sandbox Terminal v2.4 (Python 3.11.5 Virtualenv active)' },
+    { type: 'output', text: 'AETHERION Sandbox Terminal v2.4 (Python 3.11.5 Virtualenv active)' },
     { type: 'cmd', text: 'python backend/main.py' },
     { type: 'output', text: 'Average: 30.0' },
     { type: 'error', text: 'Traceback (most recent call last):\n  File "backend/main.py", line 15, in <module>\n    print("Empty list average:", calculate_average(empty_list))\n  File "backend/main.py", line 6, in calculate_average\n    return sum(numbers) / len(numbers)\nZeroDivisionError: division by zero' },

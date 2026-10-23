@@ -1,4 +1,4 @@
-// Complete telemetry, metrics, and issue records for the AutonomusAI Reports Page
+// Complete telemetry, metrics, and issue records for the AETHERION Reports Page
 
 export const summaryMetricsData = [
   {

@@ -121,7 +121,7 @@ export default function ReportsPage() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `AutonomusAI_Quality_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `AETHERION_Quality_Report_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -424,7 +424,7 @@ export default function ReportsPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <FileText size={18} color="#38bdf8" />
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#ffffff' }}>AutonomusAI Quality &amp; Audit Report</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#ffffff' }}>AETHERION Quality &amp; Audit Report</span>
               </div>
               <button className="editor-tab-close" onClick={() => setReportModalOpen(false)}>
                 <X size={14} />

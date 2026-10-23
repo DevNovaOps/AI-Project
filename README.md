@@ -1,8 +1,8 @@
-# AutonomusAI — Autonomous Debugging, Testing & Validation
+# AETHERION — Autonomous Debugging, Testing & Validation
 
 > **A Next-Generation AI-Powered Developer IDE built with React, Monaco Editor, Zustand, and Recharts.**
 
-AutonomusAI is an enterprise-grade autonomous debugging, testing, and code repair IDE designed to diagnose root causes, synthesize guarded patches, execute automated test suites, and generate comprehensive diagnostics telemetry.
+AETHERION is an enterprise-grade autonomous debugging, testing, and code repair IDE designed to diagnose root causes, synthesize guarded patches, execute automated test suites, and generate comprehensive diagnostics telemetry.
 
 ---
 

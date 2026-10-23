@@ -1,17 +1,16 @@
 import React from 'react';
-import { 
-  FolderGit2, Search, GitBranch, Bug, CheckSquare, 
+import {
+  FolderGit2, Search, GitBranch, Bug, CheckSquare,
   Settings, Wrench, BarChart2
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
-import logoDark from '../../assets/images/logo-dark.png';
-import logoLight from '../../assets/images/logo-light.png';
+import aetherionLogo from '../../assets/images/aetherion-logo.png';
 
 export default function ActivityBar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { toggleLeftSidebar, theme } = useAppStore();
+  const { toggleLeftSidebar } = useAppStore();
 
   const navItems = [
     { id: 'explorer', label: 'Explorer', icon: FolderGit2, path: '/', isToggle: true },
@@ -40,7 +39,7 @@ export default function ActivityBar() {
       <div className="activity-bar-group">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = item.id === 'explorer' 
+          const isActive = item.id === 'explorer'
             ? (location.pathname === '/' || location.pathname === '/editor')
             : location.pathname === item.path;
 
@@ -71,7 +70,7 @@ export default function ActivityBar() {
         </button>
 
         {/* AegisVault mini card widget at bottom */}
-        <div 
+        <div
           style={{
             width: 48,
             borderRadius: 6,
@@ -86,17 +85,17 @@ export default function ActivityBar() {
             cursor: 'pointer'
           }}
           onClick={() => navigate('/')}
-          title="AegisVault - Multi-agent debugging system"
+          title="AETHERION - Autonomous multi-agent debugging system"
         >
-          <div className="brand-logo-container" style={{ width: 22, height: 22, borderRadius: 5 }}>
+          <div className="brand-logo-container" style={{ width: 28, height: 28, borderRadius: 6 }}>
             <img 
-              src={theme === 'dark' ? logoDark : logoLight} 
-              alt="AegisVault" 
+              src={aetherionLogo} 
+              alt="AETHERION" 
               className="brand-logo-img" 
             />
           </div>
-          <span style={{ fontSize: 8, fontWeight: 700, color: '#f8fafc', lineHeight: 1 }}>
-            AegisVault
+          <span style={{ fontSize: 8, fontWeight: 800, color: '#f8fafc', lineHeight: 1, letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+            Aetherion
           </span>
           <span style={{ fontSize: 7, color: '#64748b', lineHeight: 1 }}>
             System
