@@ -5,11 +5,8 @@ export default function CategoryBreakdown({ data }) {
 
   return (
     <div 
-      className="card"
+      className="reports-card"
       style={{
-        backgroundColor: '#061326',
-        border: '1px solid #12243e',
-        borderRadius: 10,
         padding: '14px 16px',
         display: 'flex',
         flexDirection: 'column',
@@ -18,7 +15,7 @@ export default function CategoryBreakdown({ data }) {
       }}
     >
       {/* Header */}
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', marginBottom: 10 }}>
+      <div className="reports-heading" style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>
         Issues by Category
       </div>
 
@@ -39,20 +36,12 @@ export default function CategoryBreakdown({ data }) {
               }}
             >
               {/* Category Name */}
-              <span style={{ color: '#8fa2be', fontWeight: 500, whiteSpace: 'nowrap' }}>
+              <span className="reports-text-muted" style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
                 {cat.name}
               </span>
 
               {/* Progress Bar Track */}
-              <div 
-                style={{ 
-                  height: 8, 
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)', 
-                  borderRadius: 999, 
-                  overflow: 'hidden',
-                  position: 'relative'
-                }}
-              >
+              <div className="reports-progress-track">
                 <div 
                   style={{
                     height: '100%',
@@ -66,7 +55,7 @@ export default function CategoryBreakdown({ data }) {
               </div>
 
               {/* Count */}
-              <span style={{ fontWeight: 700, color: '#ffffff', textAlign: 'right' }}>
+              <span className="reports-heading" style={{ fontWeight: 700, textAlign: 'right' }}>
                 {cat.count}
               </span>
             </div>

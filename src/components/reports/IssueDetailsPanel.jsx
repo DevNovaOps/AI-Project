@@ -69,10 +69,8 @@ export default function IssueDetailsPanel({
 
   return (
     <div 
-      className="card"
+      className="reports-card"
       style={{
-        backgroundColor: '#061326',
-        border: '1px solid #12243e',
         borderRadius: 10,
         padding: '10px 12px',
         display: 'flex',
@@ -90,34 +88,34 @@ export default function IssueDetailsPanel({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 10.5, color: '#8fa2be', userSelect: 'none' }}>
+          <span className="reports-text-muted" style={{ fontSize: 10.5, userSelect: 'none' }}>
             {currentIndex} of {totalCount}
           </span>
           <button 
-            className="icon-action-btn"
-            style={{ width: 20, height: 20, backgroundColor: '#0b1930', border: '1px solid #1a2a47', borderRadius: 4 }}
+            className="icon-action-btn reports-input-btn"
+            style={{ width: 20, height: 20, borderRadius: 4, padding: 0, justifyContent: 'center' }}
             onClick={onPrev}
             title="Previous issue"
           >
-            <ChevronLeft size={12} color="#8fa2be" />
+            <ChevronLeft size={12} className="reports-sub-muted" />
           </button>
           <button 
-            className="icon-action-btn"
-            style={{ width: 20, height: 20, backgroundColor: '#0b1930', border: '1px solid #1a2a47', borderRadius: 4 }}
+            className="icon-action-btn reports-input-btn"
+            style={{ width: 20, height: 20, borderRadius: 4, padding: 0, justifyContent: 'center' }}
             onClick={onNext}
             title="Next issue"
           >
-            <ChevronRight size={12} color="#8fa2be" />
+            <ChevronRight size={12} className="reports-sub-muted" />
           </button>
         </div>
       </div>
 
       {/* Title & Description */}
       <div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', lineHeight: 1.2 }}>
+        <div className="reports-heading" style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>
           {issue.title}
         </div>
-        <div style={{ fontSize: 10.5, color: '#8fa2be', marginTop: 2, lineHeight: 1.35 }}>
+        <div className="reports-text-muted" style={{ fontSize: 10.5, marginTop: 2, lineHeight: 1.35 }}>
           {issue.detail}
         </div>
       </div>
@@ -125,17 +123,16 @@ export default function IssueDetailsPanel({
       {/* Metadata Pill Row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 10.5 }}>
         {/* Python File */}
-        <div style={{ 
+        <div className="reports-file-pill" style={{ 
           display: 'flex', alignItems: 'center', gap: 4, 
-          padding: '1px 6px', backgroundColor: '#0b1930', 
-          border: '1px solid #1a2a47', borderRadius: 4, color: '#f8fafc' 
+          fontSize: 10.5
         }}>
           <span>🐍</span>
           <span style={{ fontWeight: 600 }}>{issue.file}</span>
         </div>
 
         {/* Line */}
-        <span style={{ color: '#8fa2be' }}>
+        <span className="reports-text-muted">
           Line {issue.line}
         </span>
 
@@ -169,32 +166,25 @@ export default function IssueDetailsPanel({
 
           {statusDropdownOpen && (
             <div 
+              className="reports-dropdown"
               style={{
-                position: 'absolute',
                 top: 'calc(100% + 4px)',
                 right: 0,
                 width: 90,
-                backgroundColor: '#0c1830',
-                border: '1px solid #1a2a47',
-                borderRadius: 6,
-                padding: 4,
-                zIndex: 20,
-                boxShadow: '0 8px 20px rgba(0,0,0,0.7)'
+                zIndex: 20
               }}
             >
               <div 
+                className="reports-dropdown-item"
                 onClick={() => { setStatusDropdownOpen(false); }}
-                style={{ padding: '4px 6px', fontSize: 10, color: '#ef4444', cursor: 'pointer', borderRadius: 4 }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#16284a'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                style={{ padding: '4px 6px', fontSize: 10, color: '#ef4444' }}
               >
                 ● Open
               </div>
               <div 
+                className="reports-dropdown-item"
                 onClick={() => { setStatusDropdownOpen(false); if (onApplyFix) onApplyFix(issue.id); }}
-                style={{ padding: '4px 6px', fontSize: 10, color: '#10b981', cursor: 'pointer', borderRadius: 4 }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#16284a'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                style={{ padding: '4px 6px', fontSize: 10, color: '#10b981' }}
               >
                 ● Fixed
               </div>
@@ -206,13 +196,14 @@ export default function IssueDetailsPanel({
       {/* Code Snippet Box */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: '#ffffff' }}>Code Snippet</span>
+          <span className="reports-heading" style={{ fontSize: 10.5, fontWeight: 700 }}>Code Snippet</span>
           <button 
             onClick={handleCopyCode}
+            className="reports-text-muted"
             style={{ 
               display: 'flex', alignItems: 'center', gap: 3, 
               background: 'transparent', border: 'none', 
-              color: '#8fa2be', fontSize: 9.5, cursor: 'pointer' 
+              fontSize: 9.5, cursor: 'pointer' 
             }}
           >
             {copiedCode ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
@@ -220,16 +211,7 @@ export default function IssueDetailsPanel({
           </button>
         </div>
 
-        <div style={{
-          backgroundColor: '#040a16',
-          border: '1px solid #132744',
-          borderRadius: 4,
-          padding: '4px 8px',
-          fontFamily: 'var(--font-mono)',
-          fontSize: 10,
-          lineHeight: 1.45,
-          color: '#cbd5e1'
-        }}>
+        <div className="reports-code-box" style={{ padding: '4px 8px' }}>
           {(issue.codeSnippet || [
             { lineNum: 3, text: 'def calculate_average(numbers):' },
             { lineNum: 4, text: '    if len(numbers) == 0:' },
@@ -242,17 +224,16 @@ export default function IssueDetailsPanel({
                 display: 'flex',
                 backgroundColor: line.isError ? 'rgba(239, 68, 68, 0.16)' : 'transparent',
                 borderRadius: 2,
-                padding: '0 2px',
-                color: line.isError ? '#fca5a5' : '#cbd5e1'
+                padding: '0 2px'
               }}
             >
-              <span style={{ color: '#64748b', width: 20, userSelect: 'none' }}>
+              <span className="reports-code-gutter" style={{ width: 20 }}>
                 {line.lineNum}
               </span>
               <span style={{ color: line.isError ? '#ef4444' : 'transparent', width: 10, userSelect: 'none' }}>
                 {line.isError ? '>' : ''}
               </span>
-              <span style={{ flex: 1, whiteSpace: 'pre' }}>
+              <span style={{ flex: 1, whiteSpace: 'pre', color: line.isError ? '#ef4444' : 'inherit' }}>
                 {line.text}
               </span>
             </div>
@@ -264,9 +245,9 @@ export default function IssueDetailsPanel({
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
           <Info size={12} color="#38bdf8" />
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: '#ffffff' }}>Explanation</span>
+          <span className="reports-heading" style={{ fontSize: 10.5, fontWeight: 700 }}>Explanation</span>
         </div>
-        <div style={{ fontSize: 10, color: '#8fa2be', lineHeight: 1.4 }}>
+        <div className="reports-text-muted" style={{ fontSize: 10, lineHeight: 1.4 }}>
           {issue.explanation || "The function doesn't handle the case when the input list is empty. When len(numbers) is 0, division by zero occurs."}
         </div>
       </div>
@@ -277,19 +258,20 @@ export default function IssueDetailsPanel({
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <span style={{ 
               width: 12, height: 12, borderRadius: '50%', backgroundColor: '#10b981', 
-              color: '#061326', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 900 
+              color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 900 
             }}>
               ✓
             </span>
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: '#ffffff' }}>Suggested Fix</span>
+            <span className="reports-heading" style={{ fontSize: 10.5, fontWeight: 700 }}>Suggested Fix</span>
           </div>
 
           <button 
             onClick={handleCopyFix}
+            className="reports-text-muted"
             style={{ 
               display: 'flex', alignItems: 'center', gap: 3, 
               background: 'transparent', border: 'none', 
-              color: '#8fa2be', fontSize: 9.5, cursor: 'pointer' 
+              fontSize: 9.5, cursor: 'pointer' 
             }}
           >
             {copiedFix ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
@@ -297,16 +279,7 @@ export default function IssueDetailsPanel({
           </button>
         </div>
 
-        <div style={{
-          backgroundColor: '#040a16',
-          border: '1px solid #132744',
-          borderRadius: 4,
-          padding: '4px 8px',
-          fontFamily: 'var(--font-mono)',
-          fontSize: 10,
-          lineHeight: 1.45,
-          color: '#cbd5e1'
-        }}>
+        <div className="reports-code-box" style={{ padding: '4px 8px' }}>
           {(issue.suggestedFixLines || [
             { lineNum: 3, text: '    def calculate_average(numbers):', prefix: '+' },
             { lineNum: 4, text: '        if len(numbers) == 0:', prefix: '+' },
@@ -317,16 +290,16 @@ export default function IssueDetailsPanel({
               key={idx}
               style={{
                 display: 'flex',
-                color: line.prefix === '+' ? '#6ee7b7' : (line.prefix === '>' ? '#fca5a5' : '#cbd5e1'),
-                backgroundColor: line.prefix === '+' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                color: line.prefix === '+' ? '#10b981' : (line.prefix === '>' ? '#ef4444' : 'inherit'),
+                backgroundColor: line.prefix === '+' ? 'rgba(16, 185, 129, 0.12)' : (line.prefix === '>' ? 'rgba(239, 68, 68, 0.12)' : 'transparent'),
                 borderRadius: 2,
                 padding: '0 2px'
               }}
             >
-              <span style={{ color: '#64748b', width: 20, userSelect: 'none' }}>
+              <span className="reports-code-gutter" style={{ width: 20 }}>
                 {line.lineNum}
               </span>
-              <span style={{ color: line.prefix === '+' ? '#10b981' : '#ef4444', width: 10, userSelect: 'none' }}>
+              <span style={{ color: line.prefix === '+' ? '#10b981' : '#ef4444', width: 10, userSelect: 'none', fontWeight: 700 }}>
                 {line.prefix}
               </span>
               <span style={{ flex: 1, whiteSpace: 'pre' }}>

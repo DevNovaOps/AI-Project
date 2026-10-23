@@ -1,19 +1,23 @@
 import React from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
+import { useAppStore } from '../../store/useAppStore';
 
 export default function IssueDistributionChart({ data, totalCount = 24 }) {
+  const { theme } = useAppStore();
+  const isLight = theme === 'light';
+
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const entry = payload[0];
       return (
         <div style={{
-          backgroundColor: '#0a1628',
-          border: '1px solid #1e355b',
+          backgroundColor: isLight ? '#ffffff' : '#0a1628',
+          border: isLight ? '1px solid #cbd5e1' : '1px solid #1e355b',
           borderRadius: 6,
           padding: '6px 10px',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6)',
+          boxShadow: isLight ? '0 4px 14px rgba(0, 0, 0, 0.1)' : '0 8px 24px rgba(0, 0, 0, 0.6)',
           fontSize: 11,
-          color: '#ffffff'
+          color: isLight ? '#0f172a' : '#ffffff'
         }}>
           <span style={{ color: entry.payload.color, fontWeight: 700 }}>
             {entry.name}:
@@ -27,11 +31,8 @@ export default function IssueDistributionChart({ data, totalCount = 24 }) {
 
   return (
     <div 
-      className="card"
+      className="reports-card"
       style={{
-        backgroundColor: '#061326',
-        border: '1px solid #12243e',
-        borderRadius: 10,
         padding: '14px 16px',
         display: 'flex',
         flexDirection: 'column',
@@ -39,7 +40,7 @@ export default function IssueDistributionChart({ data, totalCount = 24 }) {
       }}
     >
       {/* Header */}
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', marginBottom: 6 }}>
+      <div className="reports-heading" style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
         Issue Distribution
       </div>
 
@@ -76,10 +77,10 @@ export default function IssueDistributionChart({ data, totalCount = 24 }) {
             textAlign: 'center',
             pointerEvents: 'none'
           }}>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#ffffff', lineHeight: 1 }}>
+            <div className="reports-heading" style={{ fontSize: 20, fontWeight: 800, lineHeight: 1 }}>
               {totalCount}
             </div>
-            <div style={{ fontSize: 10, color: '#8fa2be', marginTop: 2 }}>
+            <div className="reports-text-muted" style={{ fontSize: 10, marginTop: 2 }}>
               Issues
             </div>
           </div>
@@ -108,14 +109,14 @@ export default function IssueDistributionChart({ data, totalCount = 24 }) {
                     boxShadow: `0 0 6px ${item.color}80` 
                   }} 
                 />
-                <span style={{ color: '#c5d2e7', fontWeight: 500 }}>{item.name}</span>
+                <span className="reports-text-muted" style={{ fontWeight: 500 }}>{item.name}</span>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontWeight: 600, color: '#ffffff', minWidth: 12, textAlign: 'right' }}>
+                <span className="reports-heading" style={{ fontWeight: 600, minWidth: 12, textAlign: 'right' }}>
                   {item.value}
                 </span>
-                <span style={{ color: '#8fa2be', minWidth: 28, textAlign: 'right', fontSize: 10 }}>
+                <span className="reports-sub-muted" style={{ minWidth: 28, textAlign: 'right', fontSize: 10 }}>
                   {item.percentage}
                 </span>
               </div>

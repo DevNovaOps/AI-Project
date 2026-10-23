@@ -29,13 +29,11 @@ export default function MetricCard({
 
   return (
     <div 
-      className="card"
+      className="reports-card"
       onClick={onClick}
       style={{
-        backgroundColor: '#061326',
-        border: isSelected ? `1px solid ${color}` : '1px solid #12243e',
-        boxShadow: isSelected ? `0 0 14px ${color}33` : 'none',
-        borderRadius: 10,
+        border: isSelected ? `1px solid ${color}` : undefined,
+        boxShadow: isSelected ? `0 0 14px ${color}33` : undefined,
         padding: '12px 14px',
         display: 'flex',
         flexDirection: 'row',
@@ -65,11 +63,11 @@ export default function MetricCard({
 
       {/* Metric Content */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-        <span style={{ fontSize: 11, color: '#8fa2be', fontWeight: 500, whiteSpace: 'nowrap' }}>
+        <span className="reports-text-muted" style={{ fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap' }}>
           {title}
         </span>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-          <span style={{ fontSize: 22, fontWeight: 700, color: '#ffffff', lineHeight: 1.1 }}>
+          <span className="reports-heading" style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.1 }}>
             {value}
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
@@ -86,7 +84,7 @@ export default function MetricCard({
               <span>{change.startsWith('-') ? '▼' : '▲'}</span>
               <span>{change}</span>
             </span>
-            <span style={{ fontSize: 9, color: '#64748b', marginTop: 2 }}>
+            <span className="reports-sub-muted" style={{ fontSize: 9, marginTop: 2 }}>
               {subtitle || 'vs last run'}
             </span>
           </div>

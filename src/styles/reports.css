@@ -1,0 +1,323 @@
+/* Reports Page Styles for AETHERION with full Dark & Light Theme support */
+
+/* Root page container */
+.reports-page {
+  flex: 1;
+  overflow-y: auto;
+  background-color: #030b18;
+  padding: 16px 22px 24px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .reports-page {
+  background-color: #f1f5f9;
+}
+
+/* Header */
+.reports-header-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.3px;
+  margin: 0;
+}
+
+[data-theme="light"] .reports-header-title {
+  color: #0f172a;
+}
+
+.reports-header-desc {
+  font-size: 11px;
+  color: #91a6c6;
+  margin: 2px 0 0 0;
+}
+
+[data-theme="light"] .reports-header-desc {
+  color: #64748b;
+}
+
+/* Reports Card Container */
+.reports-card {
+  background-color: #061326;
+  border: 1px solid #12243e;
+  border-radius: 10px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="light"] .reports-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Headings and labels inside reports */
+.reports-heading {
+  color: #ffffff;
+}
+
+[data-theme="light"] .reports-heading {
+  color: #0f172a !important;
+}
+
+.reports-text-muted {
+  color: #8fa2be;
+}
+
+[data-theme="light"] .reports-text-muted {
+  color: #64748b !important;
+}
+
+.reports-sub-muted {
+  color: #64748b;
+}
+
+[data-theme="light"] .reports-sub-muted {
+  color: #94a3b8 !important;
+}
+
+/* Input Buttons (Date range, Branch selector, Sort dropdowns, Funnel) */
+.reports-input-btn {
+  height: 32px;
+  padding: 0 12px;
+  background-color: #0b1930;
+  border: 1px solid #1a2a47;
+  border-radius: 6px;
+  color: #f8fafc;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.reports-input-btn:hover {
+  border-color: #2b3e64;
+  background-color: #112240;
+}
+
+[data-theme="light"] .reports-input-btn {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .reports-input-btn:hover {
+  background-color: #f8fafc !important;
+  border-color: #94a3b8 !important;
+}
+
+/* Dropdown popups */
+.reports-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  background-color: #0c1830;
+  border: 1px solid #1a2a47;
+  border-radius: 6px;
+  padding: 4px;
+  z-index: 50;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="light"] .reports-dropdown {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+}
+
+.reports-dropdown-item {
+  padding: 6px 10px;
+  font-size: 11px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  color: #f8fafc;
+  transition: background-color 0.15s ease;
+}
+
+.reports-dropdown-item:hover {
+  background-color: #16284a;
+}
+
+[data-theme="light"] .reports-dropdown-item {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .reports-dropdown-item:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* Filter pills */
+.reports-pill {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background-color: #0b1930;
+  border: 1px solid #1a2b47;
+  color: #f8fafc;
+}
+
+.reports-pill:hover {
+  border-color: #3b82f6;
+}
+
+[data-theme="light"] .reports-pill {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .reports-pill:hover {
+  background-color: #f8fafc !important;
+  border-color: #94a3b8 !important;
+}
+
+/* Search input box */
+.reports-search-box {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #0b1930;
+  border: 1px solid #1a2a47;
+  border-radius: 6px;
+  padding: 0 8px;
+}
+
+[data-theme="light"] .reports-search-box {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.reports-search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 11px;
+  color: #ffffff;
+  width: 140px;
+}
+
+[data-theme="light"] .reports-search-input {
+  color: #0f172a !important;
+}
+
+.reports-search-input::placeholder {
+  color: #64748b;
+}
+
+/* Table styling */
+.reports-table-header-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+[data-theme="light"] .reports-table-header-row {
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+  background-color: #f8fafc !important;
+}
+
+.reports-table-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  color: #f8fafc;
+}
+
+.reports-table-row:hover {
+  background-color: #0a162c;
+}
+
+.reports-table-row.selected {
+  background-color: #0d1e38;
+  border-left: 3px solid #0070f3;
+}
+
+[data-theme="light"] .reports-table-row {
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .reports-table-row:hover {
+  background-color: #f1f5f9 !important;
+}
+
+[data-theme="light"] .reports-table-row.selected {
+  background-color: #e0f2fe !important;
+  border-left: 3px solid #0284c7 !important;
+}
+
+/* Code Snippet Box inside Issue Details */
+.reports-code-box {
+  background-color: #040c1a;
+  border: 1px solid #12223a;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+  color: #cbd5e1;
+  overflow-x: auto;
+}
+
+[data-theme="light"] .reports-code-box {
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+.reports-code-gutter {
+  color: #64748b;
+  user-select: none;
+}
+
+[data-theme="light"] .reports-code-gutter {
+  color: #94a3b8 !important;
+}
+
+/* Python file pill in details */
+.reports-file-pill {
+  padding: 1px 6px;
+  background-color: #0b1930;
+  border: 1px solid #1a2a47;
+  border-radius: 4px;
+  color: #f8fafc;
+}
+
+[data-theme="light"] .reports-file-pill {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+/* Progress track in category breakdown */
+.reports-progress-track {
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+[data-theme="light"] .reports-progress-track {
+  background-color: #e2e8f0 !important;
+}

@@ -69,21 +69,9 @@ export default function ActivityBar() {
           <span className="activity-label">Settings</span>
         </button>
 
-        {/* AegisVault mini card widget at bottom */}
+        {/* AegisVault / AETHERION mini card widget at bottom */}
         <div
-          style={{
-            width: 48,
-            borderRadius: 6,
-            padding: '6px 2px',
-            backgroundColor: '#091326',
-            border: '1px solid #1a2a47',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 2,
-            marginTop: 4,
-            cursor: 'pointer'
-          }}
+          className="activity-brand-card"
           onClick={() => navigate('/')}
           title="AETHERION - Autonomous multi-agent debugging system"
         >
@@ -94,13 +82,13 @@ export default function ActivityBar() {
               className="brand-logo-img" 
             />
           </div>
-          <span style={{ fontSize: 8, fontWeight: 800, color: '#f8fafc', lineHeight: 1, letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+          <span className="activity-brand-name">
             Aetherion
           </span>
-          <span style={{ fontSize: 7, color: '#64748b', lineHeight: 1 }}>
+          <span className="activity-brand-sub">
             System
           </span>
-          <div style={{ display: 'flex', gap: 3, fontSize: 7, color: '#38bdf8', marginTop: 2, fontWeight: 600 }}>
+          <div className="activity-brand-stats">
             <span>24</span>
             <span style={{ color: '#a855f7' }}>6</span>
             <span style={{ color: '#10b981' }}>12</span>
