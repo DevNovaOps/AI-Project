@@ -7,13 +7,14 @@ import { useAppStore } from '../../store/useAppStore';
 import { useWorkflowStore } from '../../store/useWorkflowStore';
 import { useNavigate } from 'react-router-dom';
 import aetherionLogo from '../../assets/images/aetherion-logo.png';
-import { LANGUAGE_REGISTRY, getLanguageInfo } from '../../utils/languages';
+import { LANGUAGE_REGISTRY, getLanguageInfo, detectLanguageFromFilename } from '../../utils/languages';
 
 export default function TopBar() {
   const navigate = useNavigate();
   const {
     theme, toggleTheme,
     activeLanguage, setLanguage,
+    activeFilePath,
     project, selectedBranch,
     notifications, isNotificationsOpen, toggleNotifications, markNotificationsAsRead,
     setCommandPalette
@@ -84,16 +85,39 @@ export default function TopBar() {
               setIsLangMenuOpen(!isLangMenuOpen);
               setLangSearch('');
             }}
-            title={`Active Language: ${currentLang.label} (${currentLang.runtime})`}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px' }}
+            title={`Language is automatically detected from the open file: ${currentLang.label} (${currentLang.runtime}). Click only if you wish to override.`}
           >
+            <span style={{ 
+              fontSize: 9, 
+              background: 'rgba(56, 189, 248, 0.15)', 
+              color: '#38bdf8', 
+              borderRadius: 3, 
+              padding: '1px 5px', 
+              fontWeight: 700,
+              letterSpacing: '0.04em'
+            }}>
+              AUTO
+            </span>
             <span>{currentLang.icon}</span>
-            <span>{currentLang.label.split(' ')[0]}</span>
-            <ChevronDown size={13} />
+            <span style={{ fontWeight: 500 }}>{currentLang.label.split(' ')[0]}</span>
+            <ChevronDown size={12} style={{ opacity: 0.6 }} />
           </button>
 
           {isLangMenuOpen && (
-            <div className="popover-menu" style={{ width: 260, maxHeight: 360, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ padding: '6px 8px 4px 8px', borderBottom: '1px solid var(--border-subtle)' }}>
+            <div className="popover-menu" style={{ width: 280, maxHeight: 380, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '8px 10px 6px 10px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Language Mode
+                  </span>
+                  <span style={{ fontSize: 9, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '1px 5px', borderRadius: 3, fontWeight: 700 }}>
+                    100% AUTO-DETECT
+                  </span>
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.4 }}>
+                  Auto-detects HTML, CSS, JS, React, Python, SQL on file click. Manual override optional:
+                </div>
                 <input
                   type="text"
                   placeholder="Filter 25+ languages & frameworks..."
@@ -114,6 +138,36 @@ export default function TopBar() {
               </div>
 
               <div style={{ overflowY: 'auto', flex: 1, padding: '4px 0' }}>
+                <div
+                  className="palette-item"
+                  onClick={() => {
+                    const detected = detectLanguageFromFilename(activeFilePath);
+                    setLanguage(detected.id);
+                    setIsLangMenuOpen(false);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '6px 10px',
+                    margin: '2px 6px 6px 6px',
+                    borderRadius: 4,
+                    background: 'rgba(56, 189, 248, 0.08)',
+                    cursor: 'pointer'
+                  }}
+                  title="Reset to 100% automatic detection based on active file"
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 13 }}>⚡</span>
+                    <span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#38bdf8' }}>Auto-Detect (Active File)</span>
+                      <span style={{ display: 'block', fontSize: 9, color: 'var(--text-muted)' }}>
+                        {activeFilePath ? `Matches ${activeFilePath.split('/').pop()}` : 'Default auto mode'}
+                      </span>
+                    </span>
+                  </span>
+                </div>
+
                 {filteredLanguages.length === 0 ? (
                   <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--text-muted)' }}>
                     No matching language found

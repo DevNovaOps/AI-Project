@@ -19,7 +19,8 @@ from app.models.workspace_file import WorkspaceFile
 IGNORED_DIRS = {
     ".git", ".github", "node_modules", "venv", ".venv", "env",
     "__pycache__", ".pytest_cache", ".ruff_cache", "dist", "build",
-    ".idea", ".vscode", "target", "vendor", "bin", "obj"
+    ".idea", ".vscode", "target", "vendor", "bin", "obj",
+    ".next", ".nuxt", "coverage", ".cache"
 }
 
 IGNORED_EXTENSIONS = {
@@ -28,8 +29,40 @@ IGNORED_EXTENSIONS = {
     ".zip", ".tar", ".gz", ".7z", ".rar",
     ".exe", ".dll", ".so", ".dylib", ".bin",
     ".pdf", ".doc", ".docx", ".mp3", ".mp4", ".mov", ".avi",
-    ".pyc", ".pyo", ".pyd", ".class", ".jar"
+    ".pyc", ".pyo", ".pyd", ".class", ".jar",
+    ".faiss", ".pkl", ".pickle", ".parquet", ".npy", ".npz",
+    ".h5", ".onnx", ".pt", ".pth", ".db", ".sqlite", ".sqlite3"
 }
+
+PRIMARY_CODE_EXTENSIONS = {
+    ".html", ".htm", ".css", ".scss", ".sass", ".less",
+    ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".vue", ".svelte",
+    ".py", ".pyw", ".java", ".go", ".rs", ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp",
+    ".cs", ".php", ".rb", ".kt", ".kts", ".swift", ".dart",
+    ".sql", ".graphql", ".gql"
+}
+
+CONFIG_DOC_EXTENSIONS = {
+    ".json", ".yaml", ".yml", ".xml", ".toml", ".ini",
+    ".md", ".markdown", ".sh", ".bash", ".zsh", ".ps1"
+}
+
+SPECIAL_CODE_NAMES = {
+    "dockerfile", "procfile", ".env.example", ".gitignore", "makefile"
+}
+
+
+def get_file_priority(path: str) -> int:
+    clean = path.replace("\\", "/").lower()
+    filename = clean.split("/")[-1]
+    dot_idx = filename.rfind(".")
+    ext = filename[dot_idx:] if dot_idx != -1 else ""
+
+    if filename in SPECIAL_CODE_NAMES or ext in PRIMARY_CODE_EXTENSIONS:
+        return 0  # Priority 0: Source code & Web markup (HTML, CSS, JS, Python, etc.)
+    if ext in CONFIG_DOC_EXTENSIONS:
+        return 1  # Priority 1: Configurations, scripts, documentation
+    return 2      # Priority 2: Datasets, raw text, logs
 
 
 def parse_and_validate_github_url(url: str) -> Tuple[str, str]:
@@ -194,15 +227,24 @@ class GitHubService:
                 items = tree_data.get("tree", [])
 
                 # Filter eligible files
-                file_items = [
+                eligible_items = [
                     item for item in items
                     if item.get("type") == "blob" and is_eligible_file(item.get("path", ""))
                 ]
 
-                # Cap file count
+                # Separate by priority so real code (HTML, CSS, JS, JSX, TS, Python, etc.)
+                # is never crowded out by hundreds of raw dataset/text files
+                code_items = [i for i in eligible_items if get_file_priority(i.get("path", "")) == 0]
+                config_items = [i for i in eligible_items if get_file_priority(i.get("path", "")) == 1]
+                dataset_items = [i for i in eligible_items if get_file_priority(i.get("path", "")) == 2]
+
+                # Prioritize all real code and config, limit bulk raw text to 35 files
+                file_items = code_items + config_items + dataset_items[:35]
+
+                # Cap file count if exceeding settings
                 if len(file_items) > settings.MAX_REPO_FILES:
                     logger.info(
-                        f"Repo {owner}/{repo_name} has {len(file_items)} files, "
+                        f"Repo {owner}/{repo_name} has {len(file_items)} priority files, "
                         f"capping import to {settings.MAX_REPO_FILES} files."
                     )
                     file_items = file_items[:settings.MAX_REPO_FILES]

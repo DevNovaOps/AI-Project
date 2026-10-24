@@ -254,6 +254,15 @@ export const LANGUAGE_REGISTRY = {
     category: 'Documentation',
     extensions: ['md', 'markdown']
   },
+  plaintext: {
+    id: 'plaintext',
+    label: 'Plain Text',
+    monacoLang: 'plaintext',
+    runtime: 'Text Document',
+    icon: '📄',
+    category: 'Documentation',
+    extensions: ['txt', 'text', 'log']
+  },
 
   // DevOps & Shell
   shell: {
