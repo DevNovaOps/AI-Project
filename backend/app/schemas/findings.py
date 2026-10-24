@@ -34,6 +34,8 @@ class FindingResponse(BaseModel):
                 or self.metadata_info.get("file_path")
                 or self.metadata_info.get("source_file_path")
             )
+        if not self.suggested_fix and self.metadata_info:
+            self.suggested_fix = self.metadata_info.get("suggested_fix")
         return self
 
     # Frontend convenience aliases

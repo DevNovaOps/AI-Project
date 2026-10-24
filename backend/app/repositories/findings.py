@@ -12,19 +12,49 @@ class FindingRepository:
         self.db = db
 
     def create(self, finding_data: dict) -> Finding:
-        finding = Finding(**finding_data)
+        valid_cols = {
+            "id", "session_id", "source_file_id", "category",
+            "severity", "title", "description", "line_number",
+            "column_number", "evidence", "origin", "status",
+            "metadata_info"
+        }
+        meta = dict(finding_data.get("metadata_info") or {})
+        cleaned = {}
+        for k, v in finding_data.items():
+            if k in valid_cols:
+                cleaned[k] = v
+            else:
+                meta[k] = v
+        cleaned["metadata_info"] = meta
+        finding = Finding(**cleaned)
         self.db.add(finding)
         self.db.commit()
         self.db.refresh(finding)
         return finding
 
     def create_bulk(self, findings_list: List[dict]) -> List[Finding]:
-        findings = [Finding(**data) for data in findings_list]
-        self.db.add_all(findings)
+        valid_cols = {
+            "id", "session_id", "source_file_id", "category",
+            "severity", "title", "description", "line_number",
+            "column_number", "evidence", "origin", "status",
+            "metadata_info"
+        }
+        cleaned_list = []
+        for finding_data in findings_list:
+            meta = dict(finding_data.get("metadata_info") or {})
+            cleaned = {}
+            for k, v in finding_data.items():
+                if k in valid_cols:
+                    cleaned[k] = v
+                else:
+                    meta[k] = v
+            cleaned["metadata_info"] = meta
+            cleaned_list.append(Finding(**cleaned))
+        self.db.add_all(cleaned_list)
         self.db.commit()
-        for f in findings:
+        for f in cleaned_list:
             self.db.refresh(f)
-        return findings
+        return cleaned_list
 
     def get_by_session(
         self,
