@@ -30,9 +30,19 @@ export default function CodeEditor() {
   const currentFile = activeFilePath ? files[activeFilePath] : null;
 
   // Filter issues for current active file
-  const activeFileIssues = issues.filter(
-    (i) => i.filePath === activeFilePath || i.fullPath === activeFilePath || i.file === (currentFile?.name || activeFilePath)
-  );
+  const activeFileIssues = issues.filter((i) => {
+    if (!activeFilePath) return false;
+    const currentName = currentFile?.name || activeFilePath.split('/').pop();
+    const issueFile = i.file || i.filePath;
+    const issueBaseName = issueFile ? issueFile.split('/').pop() : '';
+    return (
+      i.filePath === activeFilePath ||
+      i.fullPath === activeFilePath ||
+      i.file === activeFilePath ||
+      i.file === currentName ||
+      issueBaseName === currentName
+    );
+  });
 
   const handlePopupClose = () => {
     if (hoverTimeoutRef.current) {
@@ -103,6 +113,21 @@ export default function CodeEditor() {
       if (saveActiveFile) saveActiveFile();
     });
 
+    // If an initial line or cursor position was requested, reveal and position
+    if (cursorPosition?.line) {
+      setTimeout(() => {
+        editor.revealLineInCenter(cursorPosition.line);
+        editor.setPosition({ lineNumber: cursorPosition.line, column: cursorPosition.col || 1 });
+        const lineTop = editor.getTopForLineNumber(cursorPosition.line) - editor.getScrollTop();
+        const layout = editor.getLayoutInfo();
+        const leftPos = Math.max(380, Math.min((layout?.contentLeft || 60) + 360, window.innerWidth - 680));
+        setPopupPosition({
+          top: Math.max(30, lineTop - 15),
+          left: leftPos
+        });
+      }, 60);
+    }
+
     // Clicking anywhere in the code or editor dismisses the diagnostic popup
     editor.onMouseDown((e) => {
       const targetLine = e.target.position?.lineNumber || e.target.detail?.lineNumber;
@@ -110,10 +135,11 @@ export default function CodeEditor() {
         e.target.element.classList.contains('monaco-error-glyph') || 
         e.target.element.classList.contains('monaco-error-line-highlight')
       );
-      const isGutterLine6 = (e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN || 
-                             e.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS) && targetLine === 6;
+      const isGutterIssue = (e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN || 
+                             e.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS) && 
+                             activeFileIssues.some(i => i.line === targetLine);
 
-      if (isGlyphElem || isGutterLine6) {
+      if (isGlyphElem || isGutterIssue) {
         // Clicking specifically on the gutter error glyph toggles the popup
         if (isDiagnosticPopupOpen || isHoveringError) {
           handlePopupClose();
@@ -127,38 +153,31 @@ export default function CodeEditor() {
       }
     });
 
-    // Detect mouse move over line 6 or error glyph: only show error popup when hovering on it
+    // Detect mouse move over issue line or error glyph: show error popup when hovering on it
     editor.onMouseMove((e) => {
-      if (activeFilePath !== 'backend/main.py') return;
-
-      const issue = issues.find(i => i.id === 'ISSUE-01');
-      if (issue && issue.status === 'Fixed') {
-        setIsHoveringError(false);
-        return;
-      }
-
       const targetLine = e.target.position?.lineNumber || e.target.detail?.lineNumber;
-      const isLine6 = targetLine === 6;
-      const isGutterLine6 = (e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN || 
-                             e.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS) && targetLine === 6;
+      const matchingIssue = activeFileIssues.find(i => i.line === targetLine);
+      const isTargetIssue = !!matchingIssue && matchingIssue.status !== 'Fixed';
+      const isGutterIssue = (e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN || 
+                             e.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS) && isTargetIssue;
       const isGlyphElem = e.target.element && e.target.element.classList && e.target.element.classList.contains('monaco-error-glyph');
 
-      // If user recently dismissed the popup by clicking in code, don't re-trigger while mouse is still on line 6
+      // If user recently dismissed the popup by clicking in code, don't re-trigger while mouse is still on issue line
       if (isDismissedRef.current) {
-        if (!isLine6 && !isGutterLine6 && !isGlyphElem) {
+        if (!isTargetIssue && !isGutterIssue && !isGlyphElem) {
           isDismissedRef.current = false;
         }
         return;
       }
 
-      if (isLine6 || isGutterLine6 || isGlyphElem) {
+      if (isTargetIssue || isGutterIssue || isGlyphElem) {
         if (hoverTimeoutRef.current) {
           clearTimeout(hoverTimeoutRef.current);
           hoverTimeoutRef.current = null;
         }
 
-        // Calculate accurate pixel position relative to editor content
-        const lineTop = editor.getTopForLineNumber(6) - editor.getScrollTop();
+        const effectiveLine = targetLine || cursorPosition?.line || 1;
+        const lineTop = editor.getTopForLineNumber(effectiveLine) - editor.getScrollTop();
         const layout = editor.getLayoutInfo();
         const leftPos = Math.max(380, Math.min((layout?.contentLeft || 60) + 360, window.innerWidth - 680));
 
@@ -168,7 +187,7 @@ export default function CodeEditor() {
         });
         setIsHoveringError(true);
       } else {
-        // Moved off line 6: brief grace timeout (500ms) so user can comfortably move mouse into popup
+        // Moved off issue line: brief grace timeout (500ms) so user can comfortably move mouse into popup
         if (!isHoveringPopupRef.current) {
           if (!hoverTimeoutRef.current) {
             hoverTimeoutRef.current = setTimeout(() => {

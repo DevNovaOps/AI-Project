@@ -88,11 +88,19 @@ async def run_workflow_for_session(session_id: uuid.UUID) -> None:
 
                 elif node_name == "code_analysis":
                     findings = state_patch.get("findings", [])
+                    file_map = {sf.filename: sf.id for sf in session.files}
                     # Persist findings to database
                     for finding_data in findings:
                         f_copy = dict(finding_data)
                         f_copy["session_id"] = session_id
-                        f_copy.pop("file", None)  # Relation via source_file or metadata
+                        target_file = f_copy.pop("file", None) or f_copy.get("source_file_path")
+                        if target_file and target_file in file_map:
+                            f_copy["source_file_id"] = file_map[target_file]
+                        meta = dict(f_copy.get("metadata_info") or {})
+                        if target_file:
+                            meta["file"] = target_file
+                            meta["source_file_path"] = target_file
+                        f_copy["metadata_info"] = meta
                         finding_repo.create(f_copy)
 
                     await event_manager.broadcast_event(

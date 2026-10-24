@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   AlertCircle, Lightbulb, CheckCircle2, ChevronRight, Copy, Check, 
-  Sparkles, FlaskConical, ExternalLink, ShieldCheck, ChevronLeft, Play
+  Sparkles, FlaskConical, ExternalLink, ShieldCheck, ChevronLeft, Play, FileCode
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useWorkflowStore } from '../../store/useWorkflowStore';
 
 export default function AnalysisPanel() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { 
     selectedIssueId, issues, selectIssue, 
     applyFix, undoFix, appliedFixes, 
-    setRightSidebarTab 
+    setRightSidebarTab, openFileAtLine
   } = useAppStore();
 
   const { startAutonomousWorkflow, workflowState } = useWorkflowStore();
@@ -72,6 +75,17 @@ export default function AnalysisPanel() {
     }
   };
 
+  const handleOpenFile = async () => {
+    const targetFile = issue.filePath || issue.file || 'file.py';
+    if (location.pathname !== '/' && location.pathname !== '/editor') {
+      navigate('/');
+    }
+    if (openFileAtLine) {
+      await openFileAtLine(targetFile, issue.line || 1, issue.col || 1);
+    }
+    selectIssue(issue.id);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Context Pill */}
@@ -80,12 +94,39 @@ export default function AnalysisPanel() {
         padding: '6px 10px', background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', 
         border: '1px solid var(--border-subtle)', fontSize: 11 
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+        <button
+          onClick={handleOpenFile}
+          className="context-file-pill-btn"
+          title={`Click to open ${issue.file || issue.filePath} at line ${issue.line} in Monaco Editor`}
+          style={{ 
+            display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden',
+            background: 'rgba(56, 189, 248, 0.08)',
+            border: '1px solid rgba(56, 189, 248, 0.25)',
+            padding: '3px 8px',
+            borderRadius: 'var(--radius-sm)',
+            cursor: 'pointer',
+            textAlign: 'left',
+            color: 'var(--text-primary)',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(56, 189, 248, 0.18)';
+            e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.5)';
+            e.currentTarget.style.boxShadow = '0 0 10px rgba(56, 189, 248, 0.25)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(56, 189, 248, 0.08)';
+            e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.25)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        >
+          <FileCode size={13} color="#38bdf8" />
           <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
             {issue.file || issue.filePath}
           </span>
           <span style={{ color: 'var(--text-muted)' }}>Line {issue.line}</span>
-        </div>
+          <ExternalLink size={10} color="#38bdf8" style={{ opacity: 0.8, marginLeft: 2 }} />
+        </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span className="badge-runtime-error">

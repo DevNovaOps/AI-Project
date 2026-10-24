@@ -135,8 +135,13 @@ export default function ProblemsPanel() {
                     style={{ cursor: 'pointer' }}
                   >
                     <td>{getSeverityBadge(item.severity, isFixed)}</td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-primary)' }}>
-                      {item.file || item.filePath}:{item.line}
+                    <td 
+                      style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#38bdf8' }}
+                      title={`Open ${item.file || item.filePath} at line ${item.line} in Editor`}
+                    >
+                      <span style={{ textDecoration: 'underline', textUnderlineOffset: 3 }}>
+                        {item.file || item.filePath}:{item.line}
+                      </span>
                     </td>
                     <td style={{ fontSize: 11, color: isFixed ? 'var(--text-muted)' : 'var(--text-primary)' }}>
                       {item.title || item.message}

@@ -26,4 +26,17 @@ def get_session_findings(
         raise ResourceNotFoundException("DebugSession", str(session_id))
 
     findings = finding_repo.get_by_session(session_id, severity=severity, category=category)
-    return [FindingResponse.model_validate(f) for f in findings]
+    results: List[FindingResponse] = []
+    for f in findings:
+        item = FindingResponse.model_validate(f)
+        resolved_file = None
+        if f.source_file and f.source_file.filename:
+            resolved_file = f.source_file.filename
+        elif f.metadata_info and isinstance(f.metadata_info, dict):
+            resolved_file = f.metadata_info.get("file") or f.metadata_info.get("source_file_path")
+        
+        if resolved_file:
+            item.file = resolved_file
+            item.source_file_path = resolved_file
+        results.append(item)
+    return results

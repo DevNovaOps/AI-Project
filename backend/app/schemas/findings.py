@@ -10,6 +10,7 @@ class FindingResponse(BaseModel):
     session_id: uuid.UUID
     source_file_id: Optional[uuid.UUID] = None
     file: Optional[str] = None
+    source_file_path: Optional[str] = None
     category: str
     severity: str
     title: str
