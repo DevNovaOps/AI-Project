@@ -107,7 +107,7 @@ export const useWorkflowStore = create((set, get) => ({
           for (const n of nodes) {
             if (n.type === 'file' && !existingPaths.has(n.id)) {
               const lower = n.id.toLowerCase();
-              if (codeExtensions.some(ext => lower.endsWith(ext)) && acc.length < 3) {
+              if (codeExtensions.some(ext => lower.endsWith(ext)) && acc.length < 20) {
                 acc.push(n.id);
               }
             }

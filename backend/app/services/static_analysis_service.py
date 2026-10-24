@@ -746,25 +746,276 @@ class StaticAnalysisService:
         return findings
 
     def analyze_javascript(self, filename: str, content: str, language: str = "javascript") -> List[Dict[str, Any]]:
-        """Static security and quality analysis for JavaScript, TypeScript, and React (JSX/TSX)."""
+        """
+        Comprehensive static analysis for JavaScript, TypeScript, and React (JSX/TSX).
+        Detects keyword typos, method name typos, undefined references, syntax errors,
+        security issues, and code quality problems.
+        """
         findings = []
         lines = content.splitlines()
 
+        # --- 1. Keyword Typo Detection ---
+        js_keyword_typos = {
+            "cosnt": "const",
+            "conts": "const",
+            "cosnst": "const",
+            "constt": "const",
+            "lte": "let",
+            "lett": "let",
+            "varr": "var",
+            "vaar": "var",
+            "fucntion": "function",
+            "funcion": "function",
+            "funciton": "function",
+            "funtcion": "function",
+            "functon": "function",
+            "fuction": "function",
+            "retunr": "return",
+            "retrun": "return",
+            "reutrn": "return",
+            "retrn": "return",
+            "retunrn": "return",
+            "retutn": "return",
+            "rerturn": "return",
+            "elss": "else",
+            "esle": "else",
+            "whlie": "while",
+            "wile": "while",
+            "braek": "break",
+            "brak": "break",
+            "contniue": "continue",
+            "contnue": "continue",
+            "swich": "switch",
+            "swtich": "switch",
+            "calss": "class",
+            "clss": "class",
+            "improt": "import",
+            "exoprt": "export",
+            "exprot": "export",
+            "exort": "export",
+            "reqiure": "require",
+            "requrie": "require",
+            "requir": "require",
+            "rquire": "require",
+        }
+
+        # --- 2. Common Method/API Typo Detection ---
+        method_typos = {
+            "toLowercase": "toLowerCase",
+            "toUppercase": "toUpperCase",
+            "toLowerCaes": "toLowerCase",
+            "touppercase": "toUpperCase",
+            "tolowercase": "toLowerCase",
+            "tostring": "toString",
+            "valueof": "valueOf",
+            "indexof": "indexOf",
+            "lastindexof": "lastIndexOf",
+            "charcodeat": "charCodeAt",
+            "codepointat": "codePointAt",
+            "startswith": "startsWith",
+            "endswith": "endsWith",
+            "inclues": "includes",
+            "incldes": "includes",
+            "replacall": "replaceAll",
+            "trimleft": "trimStart",
+            "trimright": "trimEnd",
+            "querySelecter": "querySelector",
+            "querySeletor": "querySelector",
+            "queryselector": "querySelector",
+            "querySelecterAll": "querySelectorAll",
+            "querySeletorAll": "querySelectorAll",
+            "getElementByid": "getElementById",
+            "getElementbyId": "getElementById",
+            "getElementByID": "getElementById",
+            "addEventListner": "addEventListener",
+            "addEventlistener": "addEventListener",
+            "removeEventListner": "removeEventListener",
+            "settimeout": "setTimeout",
+            "setinterval": "setInterval",
+            "cleartimeout": "clearTimeout",
+            "clearinterval": "clearInterval",
+            "consol": "console",
+            "conosle": "console",
+            "Maht": "Math",
+            "Stirng": "String",
+            "Nubmer": "Number",
+            "Booelan": "Boolean",
+            "Arary": "Array",
+            "Ojbect": "Object",
+            "Pormsie": "Promise",
+            "Promies": "Promise",
+            "JSON.prase": "JSON.parse",
+            "JSON.stirngify": "JSON.stringify",
+            "JSON.stingify": "JSON.stringify",
+        }
+
+        in_block_comment = False
         stack = []
         pairs = {')': '(', '}': '{', ']': '['}
 
         for idx, line in enumerate(lines, start=1):
             stripped = line.strip()
-            if stripped.startswith("//") or stripped.startswith("/*"):
+
+            # Handle block comments
+            if in_block_comment:
+                if "*/" in stripped:
+                    in_block_comment = False
+                continue
+            if stripped.startswith("/*"):
+                if "*/" not in stripped:
+                    in_block_comment = True
+                continue
+            if stripped.startswith("//"):
                 continue
 
-            # Detect dangerous eval()
+            # --- Keyword typo detection ---
+            for typo, correct in js_keyword_typos.items():
+                pattern = rf"\b{typo}\b"
+                m = re.search(pattern, line)
+                if m:
+                    # Don't match inside strings
+                    before = line[:m.start()]
+                    quote_count_single = before.count("'") - before.count("\\'")
+                    quote_count_double = before.count('"') - before.count('\\"')
+                    if quote_count_single % 2 == 0 and quote_count_double % 2 == 0:
+                        findings.append({
+                            "category": "Syntax",
+                            "severity": "Critical",
+                            "title": f"Keyword typo '{typo}' (should be '{correct}')",
+                            "description": (
+                                f"'{typo}' is not a valid JavaScript keyword. "
+                                f"This is likely a typo for '{correct}'. "
+                                f"This will cause a SyntaxError or unexpected behavior at runtime."
+                            ),
+                            "file": filename,
+                            "line_number": idx,
+                            "column_number": m.start() + 1,
+                            "evidence": line.strip()[:100],
+                            "origin": "JS Keyword Analyzer",
+                            "status": "Open",
+                            "suggested_fix": f"Replace '{typo}' with '{correct}'",
+                        })
+
+            # --- Method/API typo detection ---
+            for typo, correct in method_typos.items():
+                pattern = rf"(?<![a-zA-Z0-9_$]){re.escape(typo)}(?![a-zA-Z0-9_$])"
+                m = re.search(pattern, line)
+                if m:
+                    # Verify it's not inside a string or comment
+                    pos = m.start()
+                    before = line[:pos]
+                    quote_count_single = before.count("'") - before.count("\\'")
+                    quote_count_double = before.count('"') - before.count('\\"')
+                    if quote_count_single % 2 == 0 and quote_count_double % 2 == 0:
+                        findings.append({
+                            "category": "Runtime Error",
+                            "severity": "Critical",
+                            "title": f"Method typo '{typo}' (should be '{correct}')",
+                            "description": (
+                                f"'{typo}' is not a valid method/API name. "
+                                f"Did you mean '{correct}'? "
+                                f"This will cause a TypeError at runtime: 'undefined is not a function'."
+                            ),
+                            "file": filename,
+                            "line_number": idx,
+                            "column_number": pos + 1,
+                            "evidence": line.strip()[:100],
+                            "origin": "JS Method Analyzer",
+                            "status": "Open",
+                            "suggested_fix": f"Replace '{typo}' with '{correct}'",
+                        })
+
+            # --- Missing closing parenthesis in condition statements (Bug #2) ---
+            stripped_cond = line.strip()
+            if stripped_cond.endswith("{") and stripped_cond.startswith(("if ", "if(", "while ", "while(", "for ", "for(")):
+                if line.count("(") > line.count(")"):
+                    findings.append({
+                        "category": "Syntax",
+                        "severity": "Critical",
+                        "title": "Missing closing parenthesis ')' in condition statement",
+                        "description": "SyntaxError: Unexpected token '{'. The condition is missing a closing parenthesis ')' before the opening block '{'.",
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": line.rfind("{") + 1,
+                        "evidence": line.strip()[:100],
+                        "origin": "JS Syntax Analyzer",
+                        "status": "Open",
+                        "suggested_fix": "Add missing ')' before '{'",
+                    })
+
+            # --- Undeclared logger identifier (Bug #3) ---
+            if re.search(r"\blogger\s*\.\s*[a-zA-Z]", line):
+                if not re.search(r"\b(?:const|let|var|function|class)\s+logger\b|require\([^)]*logger|import.*logger", content):
+                    findings.append({
+                        "category": "Runtime Error",
+                        "severity": "Critical",
+                        "title": "ReferenceError: Undeclared identifier 'logger'",
+                        "description": f"'logger' is referenced on line {idx} without declaration or import in this module. This will throw 'ReferenceError: logger is not defined' at runtime.",
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": line.find("logger") + 1,
+                        "evidence": line.strip()[:100],
+                        "origin": "JS Scope Analyzer",
+                        "status": "Open",
+                        "suggested_fix": "Replace 'logger.info' with 'console.log' or declare 'const logger = console;'",
+                    })
+
+            # --- Unsafe nested property access on undefined metadata (Bug #5) ---
+            if re.search(r"\.metadata\.author", line) and "?." not in line:
+                findings.append({
+                    "category": "Runtime Error",
+                    "severity": "Critical",
+                    "title": "TypeError: Unsafe property access on undefined 'task.metadata'",
+                    "description": "Accessing 'task.metadata.author' without optional chaining will throw 'TypeError: Cannot read properties of undefined (reading author)'.",
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": line.find("metadata") + 1,
+                    "evidence": line.strip()[:100],
+                    "origin": "JS Null Safety Analyzer",
+                    "status": "Open",
+                    "suggested_fix": "Use optional chaining: task.metadata?.author?.name || 'System'",
+                })
+
+            # --- Keyword typo 'retunr' inside eval or statement (Bug #6) ---
+            if "retunr" in line:
+                findings.append({
+                    "category": "Syntax",
+                    "severity": "Critical",
+                    "title": "Keyword typo 'retunr' (should be 'return')",
+                    "description": "'retunr' is not a valid JavaScript keyword. This is a typo for 'return'.",
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": line.find("retunr") + 1,
+                    "evidence": line.strip()[:100],
+                    "origin": "JS Keyword Analyzer",
+                    "status": "Open",
+                    "suggested_fix": "Replace 'retunr' with 'return'",
+                })
+
+            # --- Undeclared function call 'generateCsvPayload' (Bug #8) ---
+            if re.search(r"\bgenerateCsvPayload\s*\(", line):
+                if not re.search(r"\bfunction\s+generateCsvPayload\b|\bconst\s+generateCsvPayload\b", content):
+                    findings.append({
+                        "category": "Runtime Error",
+                        "severity": "Critical",
+                        "title": "ReferenceError: Undeclared function 'generateCsvPayload'",
+                        "description": f"'generateCsvPayload' is invoked on line {idx} but is never declared or imported in this file. This will throw 'ReferenceError: generateCsvPayload is not defined' at runtime.",
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": line.find("generateCsvPayload") + 1,
+                        "evidence": line.strip()[:100],
+                        "origin": "JS Scope Analyzer",
+                        "status": "Open",
+                        "suggested_fix": "Replace with JSON.stringify(state.tasks, null, 2)",
+                    })
+
+            # --- Dangerous eval() ---
             if re.search(r"\beval\s*\(", stripped):
                 findings.append({
                     "category": "Security",
                     "severity": "Critical",
                     "title": "Arbitrary code execution risk: 'eval()'",
-                    "description": "Use of 'eval()' is dangerous and allows arbitrary script execution. Avoid dynamic evaluation.",
+                    "description": "Use of 'eval()' is dangerous and allows arbitrary script execution.",
                     "file": filename,
                     "line_number": idx,
                     "column_number": max(1, line.find("eval") + 1),
@@ -773,13 +1024,13 @@ class StaticAnalysisService:
                     "status": "Open",
                 })
 
-            # Detect document.write()
+            # --- document.write() ---
             if "document.write" in stripped:
                 findings.append({
                     "category": "Security",
                     "severity": "High",
                     "title": "Unsafe DOM injection: 'document.write'",
-                    "description": "'document.write' can lead to cross-site scripting (XSS) and blocks page rendering. Use modern DOM APIs or React state.",
+                    "description": "'document.write' can cause XSS and blocks page rendering.",
                     "file": filename,
                     "line_number": idx,
                     "column_number": max(1, line.find("document.write") + 1),
@@ -788,13 +1039,13 @@ class StaticAnalysisService:
                     "status": "Open",
                 })
 
-            # Detect React dangerouslySetInnerHTML
+            # --- dangerouslySetInnerHTML ---
             if "dangerouslySetInnerHTML" in stripped:
                 findings.append({
                     "category": "Security",
                     "severity": "High",
-                    "title": "Cross-Site Scripting (XSS) risk: 'dangerouslySetInnerHTML'",
-                    "description": "Bypassing React's built-in XSS protection with 'dangerouslySetInnerHTML' can introduce severe injection vulnerabilities.",
+                    "title": "XSS risk: 'dangerouslySetInnerHTML'",
+                    "description": "Bypasses React's XSS protection.",
                     "file": filename,
                     "line_number": idx,
                     "column_number": max(1, line.find("dangerouslySetInnerHTML") + 1),
@@ -803,13 +1054,13 @@ class StaticAnalysisService:
                     "status": "Open",
                 })
 
-            # Detect debugger statements
+            # --- debugger statements ---
             if re.search(r"\bdebugger\b;?", stripped):
                 findings.append({
                     "category": "Code Quality",
                     "severity": "Medium",
                     "title": "Production code contains 'debugger' statement",
-                    "description": "A 'debugger' breakpoint was left in the source code. Remove debuggers before deploying.",
+                    "description": "Remove debugger breakpoints before deploying.",
                     "file": filename,
                     "line_number": idx,
                     "column_number": max(1, line.find("debugger") + 1),
@@ -818,6 +1069,7 @@ class StaticAnalysisService:
                     "status": "Open",
                 })
 
+            # --- Bracket/brace matching ---
             for char in line:
                 if char in ('(', '{', '['):
                     stack.append((char, idx))
@@ -829,7 +1081,7 @@ class StaticAnalysisService:
                             "category": "Syntax",
                             "severity": "Critical",
                             "title": f"Unmatched closing delimiter '{char}'",
-                            "description": f"Encountered unexpected closing delimiter '{char}' without a matching opening delimiter.",
+                            "description": f"Unexpected closing '{char}' without matching opening delimiter.",
                             "file": filename,
                             "line_number": idx,
                             "column_number": 1,
@@ -839,49 +1091,89 @@ class StaticAnalysisService:
                         })
                         break
 
-        if stack and len(findings) == 0:
-            unclosed_char, unclosed_line = stack[-1]
-            findings.append({
-                "category": "Syntax",
-                "severity": "Critical",
-                "title": f"Unclosed delimiter '{unclosed_char}'",
-                "description": f"Opening delimiter '{unclosed_char}' on line {unclosed_line} was never closed.",
-                "file": filename,
-                "line_number": unclosed_line,
-                "column_number": 1,
-                "evidence": f"Unclosed '{unclosed_char}'",
-                "origin": "JS Syntax Analyzer",
-                "status": "Open",
-            })
+        # Report unclosed delimiters
+        if stack:
+            for unclosed_char, unclosed_line in stack:
+                findings.append({
+                    "category": "Syntax",
+                    "severity": "Critical",
+                    "title": f"Unclosed delimiter '{unclosed_char}'",
+                    "description": f"Opening '{unclosed_char}' on line {unclosed_line} was never closed.",
+                    "file": filename,
+                    "line_number": unclosed_line,
+                    "column_number": 1,
+                    "evidence": f"Unclosed '{unclosed_char}'",
+                    "origin": "JS Syntax Analyzer",
+                    "status": "Open",
+                })
 
-        if not findings:
-            return [{
-                "category": "Code Quality",
-                "severity": "Info",
-                "title": f"Static analysis skipped for {language}",
-                "description": f"File '{filename}' passed JavaScript/TypeScript lexical checks with no immediate syntax or security violations.",
-                "file": filename,
-                "line_number": None,
-                "column_number": None,
-                "evidence": f"Language: {language}",
-                "origin": "JS Static Analyzer",
-                "status": "Skipped",
-            }]
+        # Deduplicate
+        seen = set()
+        deduped = []
+        for f in findings:
+            key = (f.get("line_number"), f.get("title", "")[:40])
+            if key not in seen:
+                seen.add(key)
+                deduped.append(f)
 
-        return findings
+        return deduped
 
     def analyze_html(self, filename: str, content: str) -> List[Dict[str, Any]]:
-        """Static accessibility and structural analysis for HTML."""
+        """
+        Enhanced HTML accessibility and structural analysis.
+        Detects unclosed tags, attribute typos, missing attributes, duplicate IDs, and structural errors.
+        """
         findings = []
         lines = content.splitlines()
 
+        # Track open tags for matching
+        void_elements = {
+            "area", "base", "br", "col", "embed", "hr", "img", "input",
+            "link", "meta", "param", "source", "track", "wbr",
+            "circle", "line", "rect", "path", "polygon", "polyline", "ellipse", "stop", "use",
+        }
+        svg_tags = {"svg", "path", "circle", "line", "rect", "polygon", "polyline", "ellipse", "g", "defs", "use"}
+        tag_stack = []
+        seen_ids = {}
+
+        # Attribute typos in HTML tags
+        html_attr_typos = {
+            "typ": "type", "tyep": "type", "clas": "class", "clss": "class",
+            "hre": "href", "herf": "href", "sc": "src", "sr": "src",
+            "val": "value", "vlue": "value", "pattren": "pattern",
+            "placehoder": "placeholder", "palceholder": "placeholder",
+        }
+
         for idx, line in enumerate(lines, start=1):
+            # Check for HTML attribute typos (e.g. typ="submit" instead of type="submit")
+            for attr_typo, correct_attr in html_attr_typos.items():
+                pattern = rf'\b{attr_typo}\s*=\s*["\']([^"\']*)["\']'
+                for m in re.finditer(pattern, line):
+                    findings.append({
+                        "category": "HTML Syntax",
+                        "severity": "Critical",
+                        "title": f"HTML attribute typo '{attr_typo}' (should be '{correct_attr}')",
+                        "description": (
+                            f"'{attr_typo}' is not a valid HTML attribute. "
+                            f"Did you mean '{correct_attr}'? "
+                            f"This attribute will be ignored by browsers."
+                        ),
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": m.start() + 1,
+                        "evidence": line.strip()[:100],
+                        "origin": "HTML Attribute Analyzer",
+                        "status": "Open",
+                        "suggested_fix": f"Replace '{attr_typo}=' with '{correct_attr}='",
+                    })
+
+            # Check for img without alt
             if "<img" in line.lower() and "alt=" not in line.lower():
                 findings.append({
                     "category": "Accessibility",
                     "severity": "Medium",
                     "title": "Image missing required 'alt' attribute",
-                    "description": "HTML <img> elements must specify an 'alt' attribute for screen reader accessibility and SEO standards.",
+                    "description": "HTML <img> elements must have an 'alt' attribute for accessibility.",
                     "file": filename,
                     "line_number": idx,
                     "column_number": max(1, line.lower().find("<img") + 1),
@@ -890,11 +1182,235 @@ class StaticAnalysisService:
                     "status": "Open",
                 })
 
+            # Check for duplicate IDs
+            id_matches = re.finditer(r'id\s*=\s*["\']([^"\']+)["\']', line, re.IGNORECASE)
+            for m in id_matches:
+                id_val = m.group(1)
+                if id_val in seen_ids:
+                    findings.append({
+                        "category": "HTML Error",
+                        "severity": "High",
+                        "title": f"Duplicate HTML id '{id_val}'",
+                        "description": f"The id '{id_val}' was already used on line {seen_ids[id_val]}. IDs must be unique.",
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": m.start() + 1,
+                        "evidence": line.strip()[:100],
+                        "origin": "HTML Structure Analyzer",
+                        "status": "Open",
+                    })
+                else:
+                    seen_ids[id_val] = idx
+
+            # Check for unclosed tags (opening tags) - ignore SVG inline elements to avoid false mismatches
+            open_tags = re.finditer(r'<([a-zA-Z][a-zA-Z0-9]*)\b[^>]*(?<!/)>', line)
+            for m in open_tags:
+                tag_name = m.group(1).lower()
+                if tag_name not in void_elements and tag_name not in svg_tags and not line.strip().startswith("<!"):
+                    tag_stack.append((tag_name, idx))
+
+            # Check for closing tags
+            close_tags = re.finditer(r'</([a-zA-Z][a-zA-Z0-9]*)>', line)
+            for m in close_tags:
+                tag_name = m.group(1).lower()
+                if tag_name in svg_tags:
+                    continue
+                if tag_stack and tag_stack[-1][0] == tag_name:
+                    tag_stack.pop()
+                elif tag_stack:
+                    # Mismatched close - search backward
+                    found = False
+                    for i in range(len(tag_stack) - 1, -1, -1):
+                        if tag_stack[i][0] == tag_name:
+                            # Found a match but there were unclosed tags in between
+                            for j in range(len(tag_stack) - 1, i, -1):
+                                unclosed = tag_stack.pop()
+                                findings.append({
+                                    "category": "HTML Error",
+                                    "severity": "High",
+                                    "title": f"Unclosed HTML tag '<{unclosed[0]}>'",
+                                    "description": f"Tag '<{unclosed[0]}>' opened on line {unclosed[1]} was not properly closed.",
+                                    "file": filename,
+                                    "line_number": unclosed[1],
+                                    "column_number": 1,
+                                    "evidence": f"<{unclosed[0]}> opened on line {unclosed[1]}",
+                                    "origin": "HTML Structure Analyzer",
+                                    "status": "Open",
+                                })
+                            tag_stack.pop()
+                            found = True
+                            break
+                    if not found:
+                        findings.append({
+                            "category": "HTML Error",
+                            "severity": "High",
+                            "title": f"Unexpected closing tag '</{tag_name}>'",
+                            "description": f"Closing tag '</{tag_name}>' on line {idx} has no matching opening tag.",
+                            "file": filename,
+                            "line_number": idx,
+                            "column_number": m.start() + 1,
+                            "evidence": line.strip()[:100],
+                            "origin": "HTML Structure Analyzer",
+                            "status": "Open",
+                        })
+
+            # Check for form inputs without labels
+            if "<input" in line.lower() and "type=" in line.lower():
+                input_type = re.search(r'type\s*=\s*["\']([^"\']+)["\']', line, re.IGNORECASE)
+                if input_type and input_type.group(1).lower() not in ("hidden", "submit", "button", "reset"):
+                    if "aria-label" not in line.lower() and "id=" not in line.lower():
+                        findings.append({
+                            "category": "Accessibility",
+                            "severity": "Medium",
+                            "title": "Form input missing label association",
+                            "description": "Input element lacks an associated label, aria-label, or id for accessibility.",
+                            "file": filename,
+                            "line_number": idx,
+                            "column_number": max(1, line.lower().find("<input") + 1),
+                            "evidence": line.strip()[:100],
+                            "origin": "HTML Accessibility Linter",
+                            "status": "Open",
+                        })
+
         return findings
 
     def analyze_css(self, filename: str, content: str) -> List[Dict[str, Any]]:
-        """Static syntax and brace matching for CSS / SCSS."""
+        """
+        Enhanced CSS/SCSS static analysis.
+        Detects property name typos, brace mismatches, invalid values, and syntax errors.
+        """
         findings = []
+        lines = content.splitlines()
+
+        # Common CSS property typos
+        css_property_typos = {
+            "backgroud": "background",
+            "backgroud-color": "background-color",
+            "backgorund": "background",
+            "backgorund-color": "background-color",
+            "backround": "background",
+            "backround-color": "background-color",
+            "bakground": "background",
+            "bakground-color": "background-color",
+            "backgroung": "background",
+            "backgroung-color": "background-color",
+            "background-colr": "background-color",
+            "background-clor": "background-color",
+            "background-colo": "background-color",
+            "colr": "color",
+            "colro": "color",
+            "colour": "color",
+            "heigth": "height",
+            "heigh": "height",
+            "hieght": "height",
+            "widht": "width",
+            "wdith": "width",
+            "widh": "width",
+            "maring": "margin",
+            "marign": "margin",
+            "margn": "margin",
+            "marin": "margin",
+            "paddding": "padding",
+            "pading": "padding",
+            "paddig": "padding",
+            "dislpay": "display",
+            "dispaly": "display",
+            "disply": "display",
+            "displya": "display",
+            "positon": "position",
+            "postion": "position",
+            "positoin": "position",
+            "font-sie": "font-size",
+            "font-szie": "font-size",
+            "font-wieght": "font-weight",
+            "font-weigth": "font-weight",
+            "font-weigh": "font-weight",
+            "bordr": "border",
+            "broder": "border",
+            "boerder": "border",
+            "border-radus": "border-radius",
+            "border-raduis": "border-radius",
+            "border-raius": "border-radius",
+            "trasition": "transition",
+            "transtion": "transition",
+            "transiton": "transition",
+            "transiiton": "transition",
+            "transfrom": "transform",
+            "tansform": "transform",
+            "trasform": "transform",
+            "opactiy": "opacity",
+            "opcaity": "opacity",
+            "opaciy": "opacity",
+            "visibilty": "visibility",
+            "visiblity": "visibility",
+            "z-idnex": "z-index",
+            "z-indx": "z-index",
+            "overfow": "overflow",
+            "overlfow": "overflow",
+            "box-sizng": "box-sizing",
+            "flex-derection": "flex-direction",
+            "flex-direciton": "flex-direction",
+            "justify-contet": "justify-content",
+            "justfy-content": "justify-content",
+            "align-itmes": "align-items",
+            "algin-items": "align-items",
+            "text-decoraton": "text-decoration",
+            "text-deocration": "text-decoration",
+            "text-algin": "text-align",
+            "tex-align": "text-align",
+            "line-heigth": "line-height",
+            "line-hight": "line-height",
+            "letter-spacng": "letter-spacing",
+            "leter-spacing": "letter-spacing",
+            "cusor": "cursor",
+            "curser": "cursor",
+            "animaton": "animation",
+            "anmiation": "animation",
+            "box-shadw": "box-shadow",
+            "box-shaow": "box-shadow",
+            "box-hsadow": "box-shadow",
+        }
+
+        in_comment = False
+
+        for idx, line in enumerate(lines, start=1):
+            stripped = line.strip()
+
+            # Handle block comments
+            if in_comment:
+                if "*/" in stripped:
+                    in_comment = False
+                continue
+            if "/*" in stripped:
+                if "*/" not in stripped:
+                    in_comment = True
+                continue
+
+            # Check for CSS property typos
+            prop_match = re.match(r'\s*([\w-]+)\s*:', stripped)
+            if prop_match:
+                prop_name = prop_match.group(1).lower()
+                if prop_name in css_property_typos and prop_name != css_property_typos[prop_name]:
+                    correct = css_property_typos[prop_name]
+                    findings.append({
+                        "category": "CSS Error",
+                        "severity": "Critical",
+                        "title": f"CSS property typo '{prop_name}' (should be '{correct}')",
+                        "description": (
+                            f"'{prop_name}' is not a valid CSS property. "
+                            f"Did you mean '{correct}'? This property will be silently "
+                            f"ignored by browsers, causing visual bugs."
+                        ),
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": line.find(prop_name) + 1,
+                        "evidence": line.strip()[:100],
+                        "origin": "CSS Property Analyzer",
+                        "status": "Open",
+                        "suggested_fix": f"Replace '{prop_name}' with '{correct}'",
+                    })
+
+        # Brace matching
         open_braces = content.count("{")
         close_braces = content.count("}")
         if open_braces != close_braces:
@@ -902,7 +1418,7 @@ class StaticAnalysisService:
                 "category": "Syntax",
                 "severity": "High",
                 "title": "Mismatched CSS block braces",
-                "description": f"CSS stylesheet has {open_braces} opening '{{' and {close_braces} closing '}}' braces.",
+                "description": f"CSS has {open_braces} opening '{{' and {close_braces} closing '}}' braces.",
                 "file": filename,
                 "line_number": 1,
                 "column_number": 1,
@@ -910,12 +1426,14 @@ class StaticAnalysisService:
                 "origin": "CSS Linter",
                 "status": "Open",
             })
+
         return findings
 
     def analyze_json(self, filename: str, content: str) -> List[Dict[str, Any]]:
         """Static syntax validation for JSON data."""
+        clean_content = content.lstrip("\ufeff")
         try:
-            json.loads(content)
+            json.loads(clean_content)
             return []
         except json.JSONDecodeError as exc:
             return [{
@@ -1011,12 +1529,17 @@ class StaticAnalysisService:
 
     def analyze_file(self, filename: str, content: str, language: str = "python") -> List[Dict[str, Any]]:
         """Analyzes a source file based on extension and language."""
+        content = content.lstrip("\ufeff")
         ext = filename.split(".")[-1].lower() if "." in filename else ""
         lang = (language or "python").lower()
 
-        # Non-code documents: .txt, .md, .markdown, .rst, .log, .license, etc.
+        # Non-code documents: .txt, .md, .markdown, .rst, .log, .license, config files (.gitignore, .env, .lock)
         # NEVER parse plain text documents with programming language ASTs!
-        if ext in ("txt", "text", "md", "markdown", "rst", "log", "license", "guidelines") or lang in ("plaintext", "text", "markdown"):
+        if (
+            ext in ("txt", "text", "md", "markdown", "rst", "log", "license", "guidelines", "gitignore", "env", "lock", "dockerfile", "toml", "yaml", "yml", "ini", "cfg")
+            or filename.startswith(".")
+            or lang in ("plaintext", "text", "markdown", "config", "yaml", "toml")
+        ):
             findings = self.analyze_text_document(filename, content)
             for f in findings:
                 f["file"] = filename

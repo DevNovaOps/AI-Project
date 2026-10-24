@@ -57,7 +57,7 @@ def diagnosis_node(state: WorkflowState) -> Dict[str, Any]:
 
 
 def _generate_fallback_diagnosis(findings: list, error_msg: str = "") -> Dict[str, Any]:
-    """Generates structured diagnosis from deterministic static findings without pretending AI ran."""
+    """Generates structured diagnosis from ALL static findings without pretending AI ran."""
     if not findings:
         return {
             "root_cause_summary": "No syntax or static analysis errors were identified in the source files.",
@@ -67,19 +67,35 @@ def _generate_fallback_diagnosis(findings: list, error_msg: str = "") -> Dict[st
             "provider_note": error_msg,
         }
 
-    top_finding = findings[0]
+    # Include ALL findings, not just the first one
+    suspected_causes = []
+    for f in findings:
+        if f.get("severity") in ("Critical", "High", "Medium"):
+            suspected_causes.append({
+                "title": f.get("title", "Unknown issue"),
+                "file": f.get("file", "unknown"),
+                "line_number": f.get("line_number"),
+                "explanation": f.get("description", ""),
+                "confidence": 95 if f.get("severity") == "Critical" else (85 if f.get("severity") == "High" else 70),
+            })
+
+    critical_count = sum(1 for f in findings if f.get("severity") == "Critical")
+    high_count = sum(1 for f in findings if f.get("severity") == "High")
+
+    root_summary = (
+        f"Identified {len(findings)} issue(s) across project files "
+        f"({critical_count} critical, {high_count} high severity). "
+        f"Top issue: {findings[0].get('title')}. "
+        f"{findings[0].get('description')}"
+    )
+
     return {
-        "root_cause_summary": f"Identified issue: {top_finding.get('title')}. {top_finding.get('description')}",
-        "suspected_causes": [
-            {
-                "title": top_finding.get("title"),
-                "file": top_finding.get("file", "main.py"),
-                "line_number": top_finding.get("line_number"),
-                "explanation": top_finding.get("description"),
-                "confidence": 90 if top_finding.get("severity") in ("Critical", "High") else 75,
-            }
-        ],
-        "recommended_repair_strategy": "Apply defensive validation guard or correct syntax at the indicated location.",
-        "confidence": 85,
+        "root_cause_summary": root_summary,
+        "suspected_causes": suspected_causes[:20],  # Cap at 20
+        "recommended_repair_strategy": (
+            f"Fix all {critical_count} critical and {high_count} high severity issues. "
+            "Apply keyword/method corrections, fix syntax errors, and resolve undefined references."
+        ),
+        "confidence": 90,
         "provider_note": error_msg,
     }

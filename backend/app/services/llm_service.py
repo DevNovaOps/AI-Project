@@ -97,18 +97,30 @@ class LLMService:
         ) or "No static analysis issues detected."
 
         prompt = (
-            f"You are an expert autonomous code diagnosis agent.\n"
-            f"Task / Context: {task_description or 'Analyze and diagnose bugs in the provided code.'}\n\n"
-            f"Deterministic Static Analysis Findings:\n{findings_summary}\n\n"
+            f"You are an expert autonomous code diagnosis agent specialized in multi-language bug analysis.\n"
+            f"Task / Context: {task_description or 'Analyze and diagnose all bugs in the provided code.'}\n\n"
+            f"Static Analysis Findings (from automated tools):\n{findings_summary}\n\n"
             f"Source Files:\n{files_summary}\n\n"
-            f"Diagnose the root cause, rank suspected causes with line numbers and confidence, and recommend a minimal repair strategy."
+            f"INSTRUCTIONS:\n"
+            f"1. Carefully review ALL source files and ALL findings\n"
+            f"2. Identify the root cause of EACH finding - explain why it's wrong\n"
+            f"3. Look for ADDITIONAL bugs the static analysis may have missed:\n"
+            f"   - Keyword typos (cosnt, retunr, fucntion)\n"
+            f"   - Method name typos (toLowercase vs toLowerCase, querySelecter vs querySelector)\n"
+            f"   - Undefined variable/function references (variables used but never declared)\n"
+            f"   - Missing parentheses, brackets, or braces\n"
+            f"   - CSS property typos (backgroud-color vs background-color)\n"
+            f"   - HTML structural errors\n"
+            f"   - Runtime TypeError/ReferenceError patterns\n"
+            f"4. Rank ALL suspected causes by confidence (100 = certain, 0 = speculative)\n"
+            f"5. For EACH cause, provide the exact file name, line number, and a clear explanation\n"
+            f"6. Recommend a precise repair strategy that addresses ALL identified issues\n"
         )
 
         try:
             structured_llm = client.with_structured_output(DiagnosisOutput)
             result = structured_llm.invoke(prompt)
             if not isinstance(result, DiagnosisOutput):
-                # If parsed as dict, validate
                 result = DiagnosisOutput.model_validate(result)
             return result
         except Exception as exc:
@@ -139,15 +151,29 @@ class LLMService:
         if previous_test_output:
             test_context = f"\nPrevious Test Failure Output:\n{previous_test_output}\n"
 
+        findings_block = "\n".join(
+            f"- [{f.get('severity')}] {f.get('file')}:{f.get('line_number')} - {f.get('title')}: {f.get('description')} (Fix: {f.get('suggested_fix', 'N/A')})"
+            for f in findings[:20]
+        ) or "No specific findings."
+
         prompt = (
             f"You are an expert autonomous software repair agent.\n"
-            f"Task: {task_description or 'Repair bugs while preserving intent and style.'}\n"
+            f"Task: {task_description or 'Repair all bugs while preserving intent and style.'}\n"
             f"Attempt Number: {attempt_number}\n\n"
             f"Diagnosis:\n{diagnosis.get('root_cause_summary', '')}\n"
             f"Recommended Strategy: {diagnosis.get('recommended_repair_strategy', '')}\n"
             f"{test_context}\n"
+            f"Identified Issues to Fix:\n{findings_block}\n\n"
             f"Source Files:\n{files_summary}\n\n"
-            f"Generate a minimal, targeted fix. For each modified file, provide the complete proposed content. Do NOT break existing tests or change unrelated code."
+            f"INSTRUCTIONS:\n"
+            f"1. Fix ALL identified issues in the source files\n"
+            f"2. For each modified file, provide the COMPLETE corrected file content\n"
+            f"3. Fix keyword typos (cosnt→const, retunr→return), method typos (toLowercase→toLowerCase, querySelecter→querySelector)\n"
+            f"4. Fix CSS property typos (backgroud-color→background-color)\n"
+            f"5. Fix undefined references and missing imports\n"
+            f"6. Fix missing parentheses, brackets, and braces\n"
+            f"7. Do NOT break existing functionality or change unrelated code\n"
+            f"8. Preserve code style, indentation, and structure\n"
         )
 
         try:
