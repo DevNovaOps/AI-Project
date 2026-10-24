@@ -103,18 +103,29 @@ export default function CodeEditor() {
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
+    window.__AETHERION_EDITOR__ = editor;
+    window.__AETHERION_MONACO__ = monaco;
 
     // Listen to cursor position
     editor.onDidChangeCursorPosition((e) => {
       setCursorPosition({ line: e.position.lineNumber, col: e.position.column });
     });
 
-    // Add Save command (Ctrl+S or Cmd+S)
+    // 1. SELECT ALL (Ctrl+A or Cmd+A) - Guarantee full document selection
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyA, () => {
+      const model = editor.getModel();
+      if (model) {
+        editor.setSelection(model.getFullModelRange());
+        editor.focus();
+      }
+    });
+
+    // 2. Add Save command (Ctrl+S or Cmd+S)
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       if (saveActiveFile) saveActiveFile();
     });
 
-    // Add Command Palette (Ctrl+P & Ctrl+Shift+P)
+    // 3. Add Command Palette (Ctrl+P & Ctrl+Shift+P)
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, () => {
       setCommandPalette(true);
     });
@@ -122,22 +133,77 @@ export default function CodeEditor() {
       setCommandPalette(true);
     });
 
-    // Toggle Left Sidebar (Ctrl+B)
+    // 4. Find & Replace (Ctrl+F & Ctrl+H)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => {
+      editor.getAction('actions.find')?.run();
+    });
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => {
+      editor.getAction('editor.action.startFindReplaceAction')?.run();
+    });
+
+    // 5. Add Selection to Next Find Match (Ctrl+D)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
+      editor.getAction('editor.action.addSelectionToNextFindMatch')?.run();
+    });
+
+    // 6. Toggle Line Comment (Ctrl+/)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash, () => {
+      editor.getAction('editor.action.commentLine')?.run();
+    });
+
+    // 7. Undo / Redo (Ctrl+Z & Ctrl+Y / Ctrl+Shift+Z)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyZ, () => {
+      editor.trigger('keyboard', 'undo', null);
+    });
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyY, () => {
+      editor.trigger('keyboard', 'redo', null);
+    });
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyZ, () => {
+      editor.trigger('keyboard', 'redo', null);
+    });
+
+    // 8. Format Document (Shift+Alt+F)
+    editor.addCommand(monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF, () => {
+      editor.getAction('editor.action.formatDocument')?.run();
+    });
+
+    // 9. Move Lines Up / Down (Alt+Up / Alt+Down)
+    editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.UpArrow, () => {
+      editor.getAction('editor.action.moveLinesUpAction')?.run();
+    });
+    editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.DownArrow, () => {
+      editor.getAction('editor.action.moveLinesDownAction')?.run();
+    });
+
+    // 10. Copy Lines Up / Down (Shift+Alt+Up / Shift+Alt+Down)
+    editor.addCommand(monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.UpArrow, () => {
+      editor.getAction('editor.action.copyLinesUpAction')?.run();
+    });
+    editor.addCommand(monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.DownArrow, () => {
+      editor.getAction('editor.action.copyLinesDownAction')?.run();
+    });
+
+    // 11. Delete Line (Ctrl+Shift+K)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyK, () => {
+      editor.getAction('editor.action.deleteLines')?.run();
+    });
+
+    // 12. Toggle Left Sidebar (Ctrl+B)
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => {
       toggleLeftSidebar();
     });
 
-    // Toggle Bottom Terminal / Panel (Ctrl+J)
+    // 13. Toggle Bottom Terminal / Panel (Ctrl+J)
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyJ, () => {
       toggleConsole();
     });
 
-    // Focus AI Fixes (Ctrl+I)
+    // 14. Focus AI Fixes (Ctrl+I)
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
       setRightSidebarTab('fixes');
     });
 
-    // Focus AI Chat (Ctrl+L)
+    // 15. Focus AI Chat (Ctrl+L)
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyL, () => {
       setRightSidebarTab('chat');
     });
@@ -322,6 +388,16 @@ export default function CodeEditor() {
     }
   }, [cursorPosition, activeFilePath]);
 
+  // Clean up global reference when editor unmounts
+  useEffect(() => {
+    return () => {
+      if (window.__AETHERION_EDITOR__ === editorRef.current) {
+        window.__AETHERION_EDITOR__ = null;
+        window.__AETHERION_MONACO__ = null;
+      }
+    };
+  }, []);
+
   if (!activeFilePath || !currentFile) {
     return (
       <div className="editor-canvas-container" style={{
@@ -343,7 +419,14 @@ export default function CodeEditor() {
   const shouldShowPopup = (isHoveringError || isHoveringPopup || isDiagnosticPopupOpen) && !isSelectedFixed;
 
   return (
-    <div className="editor-canvas-container">
+    <div 
+      className="editor-canvas-container"
+      onClick={() => {
+        if (editorRef.current && !editorRef.current.hasTextFocus()) {
+          editorRef.current.focus();
+        }
+      }}
+    >
       {/* Monaco Editor */}
       <Editor
         height="calc(100% - 24px)"

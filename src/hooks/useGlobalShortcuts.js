@@ -141,7 +141,26 @@ export function useGlobalShortcuts() {
           }
         }
 
-        // 12. RUN AUTONOMOUS AI PIPELINE: Ctrl+Shift+A
+        // 12. SELECT ALL: Ctrl+A
+        if (key === 'a' && !e.shiftKey && !e.altKey) {
+          // If in a standard form input/textarea (search bar, chat input), allow default input select-all
+          if (e.target.matches('input, textarea') && !e.target.classList.contains('inputarea')) {
+            return;
+          }
+
+          if (window.__AETHERION_EDITOR__) {
+            e.preventDefault();
+            const ed = window.__AETHERION_EDITOR__;
+            const model = ed.getModel();
+            if (model) {
+              ed.setSelection(model.getFullModelRange());
+              ed.focus();
+            }
+            return;
+          }
+        }
+
+        // 13. RUN AUTONOMOUS AI PIPELINE: Ctrl+Shift+A
         if (e.shiftKey && key === 'a') {
           e.preventDefault();
           if (workflowState === 'idle' || workflowState === 'completed' || workflowState === 'failed') {
@@ -150,25 +169,148 @@ export function useGlobalShortcuts() {
           return;
         }
 
-        // 13. AI FIXES PANEL: Ctrl+I
+        // 14. FIND IN EDITOR: Ctrl+F
+        if (key === 'f' && !e.shiftKey && !e.altKey) {
+          if (e.target.matches('input, textarea') && !e.target.classList.contains('inputarea')) return;
+          if (window.__AETHERION_EDITOR__) {
+            e.preventDefault();
+            window.__AETHERION_EDITOR__.getAction('actions.find')?.run();
+            window.__AETHERION_EDITOR__.focus();
+            return;
+          }
+        }
+
+        // 15. FIND & REPLACE IN EDITOR: Ctrl+H
+        if (key === 'h' && !e.shiftKey && !e.altKey) {
+          if (e.target.matches('input, textarea') && !e.target.classList.contains('inputarea')) return;
+          if (window.__AETHERION_EDITOR__) {
+            e.preventDefault();
+            window.__AETHERION_EDITOR__.getAction('editor.action.startFindReplaceAction')?.run();
+            window.__AETHERION_EDITOR__.focus();
+            return;
+          }
+        }
+
+        // 16. UNDO: Ctrl+Z
+        if (key === 'z' && !e.shiftKey && !e.altKey) {
+          if (e.target.matches('input, textarea') && !e.target.classList.contains('inputarea')) return;
+          if (window.__AETHERION_EDITOR__ && !document.activeElement?.classList?.contains('inputarea')) {
+            e.preventDefault();
+            window.__AETHERION_EDITOR__.trigger('keyboard', 'undo', null);
+            window.__AETHERION_EDITOR__.focus();
+            return;
+          }
+        }
+
+        // 17. REDO: Ctrl+Y or Ctrl+Shift+Z
+        if (((key === 'y' && !e.shiftKey) || (key === 'z' && e.shiftKey)) && !e.altKey) {
+          if (e.target.matches('input, textarea') && !e.target.classList.contains('inputarea')) return;
+          if (window.__AETHERION_EDITOR__ && !document.activeElement?.classList?.contains('inputarea')) {
+            e.preventDefault();
+            window.__AETHERION_EDITOR__.trigger('keyboard', 'redo', null);
+            window.__AETHERION_EDITOR__.focus();
+            return;
+          }
+        }
+
+        // 18. TOGGLE COMMENT: Ctrl+/
+        if ((e.key === '/' || key === '/') && !e.shiftKey && !e.altKey) {
+          if (e.target.matches('input, textarea') && !e.target.classList.contains('inputarea')) return;
+          if (window.__AETHERION_EDITOR__) {
+            e.preventDefault();
+            window.__AETHERION_EDITOR__.getAction('editor.action.commentLine')?.run();
+            window.__AETHERION_EDITOR__.focus();
+            return;
+          }
+        }
+
+        // 19. SELECT NEXT MATCH: Ctrl+D
+        if (key === 'd' && !e.shiftKey && !e.altKey) {
+          if (e.target.matches('input, textarea') && !e.target.classList.contains('inputarea')) return;
+          if (window.__AETHERION_EDITOR__) {
+            e.preventDefault();
+            window.__AETHERION_EDITOR__.getAction('editor.action.addSelectionToNextFindMatch')?.run();
+            window.__AETHERION_EDITOR__.focus();
+            return;
+          }
+        }
+
+        // 20. AI FIXES PANEL: Ctrl+I
         if (key === 'i' && !e.shiftKey && !e.altKey) {
           e.preventDefault();
           setRightSidebarTab('fixes');
           return;
         }
 
-        // 14. AI CHAT PANEL: Ctrl+L
+        // 21. AI CHAT PANEL: Ctrl+L
         if (key === 'l' && !e.shiftKey && !e.altKey) {
           e.preventDefault();
           setRightSidebarTab('chat');
           return;
         }
 
-        // 15. COPY ASSIST: Ctrl+C
+        // 22. COPY: Ctrl+C (Ensures editor selection is copied to clipboard)
         if (key === 'c' && !e.shiftKey && !e.altKey) {
-          const selectedText = window.getSelection()?.toString();
-          if (selectedText && !e.target.matches('input, textarea, .monaco-mouse-cursor-text')) {
-            navigator.clipboard.writeText(selectedText).catch(() => {});
+          if (e.target.matches('input, textarea') && !e.target.classList.contains('inputarea')) return;
+          if (window.__AETHERION_EDITOR__) {
+            const ed = window.__AETHERION_EDITOR__;
+            const selection = ed.getSelection();
+            if (selection && !selection.isEmpty()) {
+              const model = ed.getModel();
+              const text = model?.getValueInRange(selection);
+              if (text) {
+                navigator.clipboard.writeText(text).catch(() => {});
+              }
+            }
+          }
+        }
+
+        // 23. CUT: Ctrl+X
+        if (key === 'x' && !e.shiftKey && !e.altKey) {
+          if (e.target.matches('input, textarea') && !e.target.classList.contains('inputarea')) return;
+          if (window.__AETHERION_EDITOR__ && !document.activeElement?.classList?.contains('inputarea')) {
+            const ed = window.__AETHERION_EDITOR__;
+            const selection = ed.getSelection();
+            if (selection && !selection.isEmpty()) {
+              const model = ed.getModel();
+              const text = model?.getValueInRange(selection);
+              if (text) {
+                e.preventDefault();
+                navigator.clipboard.writeText(text).then(() => {
+                  ed.executeEdits('keyboard-cut', [{
+                    range: selection,
+                    text: '',
+                    forceMoveMarkers: true
+                  }]);
+                }).catch(() => {});
+              }
+            }
+          }
+        }
+
+        // 24. PASTE: Ctrl+V
+        if (key === 'v' && !e.shiftKey && !e.altKey) {
+          if (e.target.matches('input, textarea') && !e.target.classList.contains('inputarea')) return;
+          if (window.__AETHERION_EDITOR__ && !document.activeElement?.classList?.contains('inputarea')) {
+            e.preventDefault();
+            navigator.clipboard.readText().then((text) => {
+              if (text && window.__AETHERION_EDITOR__) {
+                const ed = window.__AETHERION_EDITOR__;
+                const selection = ed.getSelection() || {
+                  startLineNumber: 1,
+                  startColumn: 1,
+                  endLineNumber: 1,
+                  endColumn: 1
+                };
+                ed.executeEdits('keyboard-paste', [{
+                  range: selection,
+                  text: text,
+                  forceMoveMarkers: true
+                }]);
+                ed.focus();
+              }
+            }).catch(() => {});
+            return;
           }
         }
       }

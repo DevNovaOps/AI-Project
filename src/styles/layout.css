@@ -574,6 +574,17 @@
   position: relative;
   overflow: hidden;
   background-color: var(--bg-editor);
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+.monaco-editor,
+.monaco-editor .view-lines,
+.monaco-editor .view-line,
+.monaco-editor .lines-content,
+.monaco-editor .line-numbers {
+  user-select: text !important;
+  -webkit-user-select: text !important;
 }
 
 /* Floating Diagnostic Popup - Displays on Hover over Error */
