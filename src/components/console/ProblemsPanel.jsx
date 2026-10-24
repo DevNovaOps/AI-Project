@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { Lightbulb, ExternalLink, Filter, Search, CheckCircle, CheckCircle2 } from 'lucide-react';
+import { Lightbulb, ExternalLink, Filter, Search, CheckCircle, CheckCircle2, ShieldCheck, Activity } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
+import { useWorkflowStore } from '../../store/useWorkflowStore';
 
 export default function ProblemsPanel() {
   const { 
     issues, selectedIssueId, selectIssue, 
     setRightSidebarTab, appliedFixes 
   } = useAppStore();
+  const { workflowState, activeAgent } = useWorkflowStore();
 
   const [severityFilter, setSeverityFilter] = useState('All');
   const [filterText, setFilterText] = useState('');
@@ -101,15 +103,39 @@ export default function ProblemsPanel() {
         {issues.length === 0 ? (
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            height: '100%', gap: 8, color: 'var(--text-muted)', padding: '24px'
+            height: '100%', gap: 8, color: 'var(--text-muted)', padding: '24px', textAlign: 'center'
           }}>
-            <CheckCircle2 size={32} color="var(--color-success)" opacity={0.8} />
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
-              No problems detected in workspace
-            </div>
-            <div style={{ fontSize: 11 }}>
-              Click "Run with AI Agents" in the top bar to run full multi-agent code analysis.
-            </div>
+            {workflowState === 'completed' ? (
+              <>
+                <ShieldCheck size={32} color="#10b981" />
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#10b981' }}>
+                  Analysis Complete: 0 Problems Detected
+                </div>
+                <div style={{ fontSize: 11, maxWidth: 400, lineHeight: 1.4 }}>
+                  ✓ Workspace code is 100% clean and verified across AST syntax, security rules, and structural integrity.
+                </div>
+              </>
+            ) : ['planning', 'analyzing', 'diagnosing', 'generating_fix', 'running_tests', 'validating'].includes(workflowState) ? (
+              <>
+                <div className="animate-spin" style={{ width: 28, height: 28, border: '2px solid rgba(56, 189, 248, 0.2)', borderTopColor: '#38bdf8', borderRadius: '50%' }} />
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#38bdf8' }}>
+                  AI Agents Analyzing Workspace...
+                </div>
+                <div style={{ fontSize: 11 }}>
+                  Running AST static inspection and diagnostics in the background.
+                </div>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={32} color="var(--color-success)" opacity={0.8} />
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  No problems detected in workspace
+                </div>
+                <div style={{ fontSize: 11 }}>
+                  Click "Run with AI Agents" in the top bar to run full multi-agent code analysis.
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <table className="ide-table">

@@ -290,6 +290,18 @@ export const useWorkflowStore = create((set, get) => ({
       try {
         const repairsRes = await apiClient.get(`/debug/sessions/${sessionId}/repairs`);
         repairs = Array.isArray(repairsRes) ? repairsRes : [];
+        if (repairs.length > 0) {
+          const primaryRepair = repairs[0];
+          const changes = primaryRepair.proposed_changes || [];
+          for (const iss of formattedIssues) {
+            if (!iss.suggestedFix) {
+              const fileChange = changes.find(c => c.filename === iss.file || c.filename?.endsWith(iss.file) || iss.file?.endsWith(c.filename));
+              if (fileChange && fileChange.proposed_content) {
+                iss.suggestedFix = fileChange.proposed_content;
+              }
+            }
+          }
+        }
       } catch (e) {
         repairs = [];
       }
