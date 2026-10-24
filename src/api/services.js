@@ -3,6 +3,7 @@ import { apiClient } from './client';
 export const repairsApi = {
   getForSession: (sessionId) => apiClient.get(`/debug/sessions/${sessionId}/repairs`),
   apply: (repairId) => apiClient.post(`/repairs/${repairId}/apply`),
+  generate: (payload) => apiClient.post('/repairs/generate', payload),
 };
 
 export const testsApi = {

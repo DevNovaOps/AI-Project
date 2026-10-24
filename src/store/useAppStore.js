@@ -4,6 +4,8 @@ import { filesApi } from '../api/files';
 import { githubApi } from '../api/github';
 import { normalizeError } from '../api/client';
 import { detectLanguageFromFilename } from '../utils/languages';
+import { initialIssues } from '../data/issueData';
+import { initialFiles } from '../data/fileData';
 
 const getInitialTheme = () => {
   const saved = localStorage.getItem('aetherion_theme') || localStorage.getItem('autonomusai_theme');
@@ -35,9 +37,9 @@ export const useAppStore = create((set, get) => ({
 
   // Explorer & Workspace Files
   fileTree: [],
-  files: {}, // { [path]: { name, path, content, originalContent, language, version, isDirty } }
-  activeFilePath: null,
-  openTabs: [],
+  files: initialFiles || {}, // { [path]: { name, path, content, originalContent, language, version, isDirty } }
+  activeFilePath: 'backend/main.py',
+  openTabs: ['backend/main.py'],
   isLoadingFiles: false,
   isSavingFile: false,
 
@@ -77,8 +79,20 @@ export const useAppStore = create((set, get) => ({
   closeDiagnosticPopup: () => set({ isDiagnosticPopupOpen: false }),
 
   // Issues & Diagnostics
-  issues: [],
-  selectedIssueId: null,
+  issues: initialIssues,
+  selectedIssueId: 'ISSUE-01',
+  setIssues: (issues) => set({ issues, selectedIssueId: issues.length > 0 ? issues[0].id : null }),
+  addIssue: (issue) => set((s) => {
+    const existing = s.issues.findIndex(i => i.id === issue.id);
+    let updated;
+    if (existing >= 0) {
+      updated = [...s.issues];
+      updated[existing] = { ...updated[existing], ...issue };
+    } else {
+      updated = [issue, ...s.issues];
+    }
+    return { issues: updated, selectedIssueId: issue.id };
+  }),
   selectIssue: (id) => {
     const issue = get().issues.find(i => i.id === id);
     if (issue) {
@@ -175,11 +189,12 @@ export const useAppStore = create((set, get) => ({
       currentProject: proj,
       project: proj ? { ...proj, branches: ['main', 'master', 'dev'] } : { name: 'Workspace', default_branch: 'main', branches: ['main', 'master', 'dev'] },
       selectedBranch: proj?.default_branch || 'main',
-      files: {},
+      files: initialFiles || {},
       fileTree: [],
-      openTabs: [],
-      activeFilePath: null,
-      issues: [],
+      openTabs: ['backend/main.py'],
+      activeFilePath: 'backend/main.py',
+      issues: initialIssues,
+      selectedIssueId: 'ISSUE-01',
       repairs: [],
       appliedFixes: [],
       testCases: [],
@@ -330,6 +345,12 @@ export const useAppStore = create((set, get) => ({
           }
         }
       }
+    }
+
+    // Check initialFiles if backend didn't supply content
+    if (loadedContent === null && initialFiles && initialFiles[filePath]) {
+      loadedContent = initialFiles[filePath].content;
+      resolvedName = initialFiles[filePath].name || fileName;
     }
 
     // Fallback: If file is not in project on backend (e.g. file.py was an ad-hoc or simulated target),

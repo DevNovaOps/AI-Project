@@ -299,8 +299,54 @@ export const useWorkflowStore = create((set, get) => ({
       try {
         const repairsRes = await apiClient.get(`/debug/sessions/${sessionId}/repairs`);
         repairs = Array.isArray(repairsRes) ? repairsRes : [];
+        if (repairs.length > 0) {
+          const primaryRepair = repairs[0];
+          const changes = primaryRepair.proposed_changes || [];
+          for (const iss of formattedIssues) {
+            if (!iss.suggestedFix) {
+              const fileChange = changes.find(c => c.filename === iss.file || c.filename?.endsWith(iss.file) || iss.file?.endsWith(c.filename));
+              if (fileChange && fileChange.proposed_content) {
+                iss.suggestedFix = fileChange.proposed_content;
+              }
+            }
+          }
+        }
       } catch (e) {
         repairs = [];
+      }
+
+      // Merge repairs into formattedIssues so suggestedFix is always available
+      const repairChanges = repairs.flatMap(r => r.proposed_changes || []);
+      const enrichedIssues = formattedIssues.map((issue) => {
+        const matchingRepair = repairChanges.find(rc => rc.filename === issue.file || rc.filename === issue.filePath) || repairChanges[0];
+        return {
+          ...issue,
+          suggestedFix: issue.suggestedFix || matchingRepair?.proposed_content || '',
+          codeSnippet: issue.codeSnippet || matchingRepair?.original_snippet || '',
+        };
+      });
+
+      // If no issues were found by static analysis, but repairs were generated, create an issue from repairs
+      let finalIssues = enrichedIssues;
+      if (finalIssues.length === 0 && repairChanges.length > 0) {
+        finalIssues = repairChanges.map((rc, idx) => ({
+          id: `REPAIR-${idx + 1}`,
+          title: `Proposed Code Patch: ${rc.filename}`,
+          detail: rc.explanation || 'Applied defensive validation and structural hardening.',
+          message: rc.explanation || 'Applied defensive validation.',
+          file: rc.filename,
+          filePath: rc.filename,
+          line: 1,
+          col: 1,
+          severity: 'Medium',
+          category: 'Defensive Guard',
+          confidence: 90,
+          rootCause: rc.explanation || 'Code quality defect or runtime risk identified.',
+          suggestedFix: rc.proposed_content || '',
+          codeSnippet: rc.original_snippet || '',
+          status: 'Open',
+          source: 'AETHERION Fix Agent',
+        }));
       }
 
       // 3. Fetch test runs
@@ -333,8 +379,8 @@ export const useWorkflowStore = create((set, get) => ({
 
       // Update app store
       useAppStore.setState({
-        issues: formattedIssues,
-        selectedIssueId: formattedIssues.length > 0 ? formattedIssues[0].id : null,
+        issues: finalIssues,
+        selectedIssueId: finalIssues.length > 0 ? finalIssues[0].id : null,
         repairs,
         testCases: testRuns,
         finalReport,

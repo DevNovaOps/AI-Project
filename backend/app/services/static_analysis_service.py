@@ -78,6 +78,22 @@ class SecurityASTVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
+        # Detect mutable default arguments: def foo(x=[]) or def foo(x={})
+        for default in node.args.defaults:
+            if isinstance(default, (ast.List, ast.Dict, ast.Set)):
+                self.findings.append({
+                    "category": "Logic",
+                    "severity": "High",
+                    "title": "Mutable default argument",
+                    "description": f"Function '{node.name}' uses a mutable default argument. Default objects are shared across calls; use 'None' instead.",
+                    "file": self.filename,
+                    "line_number": getattr(default, "lineno", node.lineno),
+                    "column_number": getattr(default, "col_offset", None),
+                    "evidence": f"Mutable default in function '{node.name}'.",
+                    "origin": "AST",
+                    "status": "Open",
+                })
+
         old_guarded = getattr(self, "in_guarded_func", False)
         has_guard = False
         for stmt in node.body:
@@ -89,6 +105,64 @@ class SecurityASTVisitor(ast.NodeVisitor):
         self.in_guarded_func = has_guard
         self.generic_visit(node)
         self.in_guarded_func = old_guarded
+
+    def visit_Compare(self, node: ast.Compare):
+        # Detect == None or != None
+        for op, comp in zip(node.ops, node.comparators):
+            if isinstance(comp, ast.Constant) and comp.value is None:
+                if isinstance(op, (ast.Eq, ast.NotEq)):
+                    op_str = "==" if isinstance(op, ast.Eq) else "!="
+                    suggested_op = "is" if isinstance(op, ast.Eq) else "is not"
+                    self.findings.append({
+                        "category": "Code Quality",
+                        "severity": "Low",
+                        "title": f"Comparison to None using '{op_str}'",
+                        "description": f"Comparison to None should use '{suggested_op} None' instead of '{op_str} None' (PEP 8).",
+                        "file": self.filename,
+                        "line_number": getattr(node, "lineno", None),
+                        "column_number": getattr(node, "col_offset", None),
+                        "evidence": f"Comparison using '{op_str} None'.",
+                        "origin": "AST",
+                        "status": "Open",
+                    })
+        self.generic_visit(node)
+
+    def visit_Try(self, node: ast.Try):
+        # Detect bare except:
+        for handler in node.handlers:
+            if handler.type is None:
+                self.findings.append({
+                    "category": "Code Quality",
+                    "severity": "Medium",
+                    "title": "Bare 'except:' clause",
+                    "description": "Bare 'except:' catches system-exiting exceptions like KeyboardInterrupt and SystemExit. Catch 'Exception' instead.",
+                    "file": self.filename,
+                    "line_number": getattr(handler, "lineno", None),
+                    "column_number": getattr(handler, "col_offset", None),
+                    "evidence": "Bare 'except:' clause without exception class.",
+                    "origin": "AST",
+                    "status": "Open",
+                })
+        self.generic_visit(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom):
+        # Detect wildcard imports
+        for alias in node.names:
+            if alias.name == "*":
+                mod_name = node.module or "..."
+                self.findings.append({
+                    "category": "Code Quality",
+                    "severity": "Low",
+                    "title": "Wildcard import detected",
+                    "description": f"Wildcard import 'from {mod_name} import *' pollutes the namespace and can cause subtle variable shadowing.",
+                    "file": self.filename,
+                    "line_number": getattr(node, "lineno", None),
+                    "column_number": getattr(node, "col_offset", None),
+                    "evidence": f"from {mod_name} import *",
+                    "origin": "AST",
+                    "status": "Open",
+                })
+        self.generic_visit(node)
 
     def visit_BinOp(self, node: ast.BinOp):
         # Detect division by zero or potential division by len() without zero check
