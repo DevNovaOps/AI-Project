@@ -693,9 +693,48 @@ export const useAppStore = create((set, get) => ({
     if (!issue) return;
 
     const targetPath = issue.filePath || issue.file || state.activeFilePath;
-    const patchContent = issue.suggestedFix || issue.suggested_fix || issue.fixedCode;
+    const currentFileObj = state.files[targetPath];
+    const currentCode = currentFileObj?.content ?? (window.__AETHERION_EDITOR__?.getValue() || '');
 
-    if (!patchContent) {
+    // 1. Check if there is a full proposed file from repairs
+    const repairChanges = (state.repairs || []).flatMap(r => r.proposed_changes || []);
+    const matchingRepair = repairChanges.find(
+      rc => rc.filename === targetPath || rc.filename === issue.file || targetPath.endsWith(rc.filename) || rc.filename.endsWith(targetPath)
+    );
+
+    let nextContent = '';
+    if (matchingRepair && matchingRepair.proposed_content) {
+      nextContent = matchingRepair.proposed_content;
+    } else if (issue.fullPatchedFile) {
+      nextContent = issue.fullPatchedFile;
+    } else {
+      // Line/Snippet level replacement
+      const fixSnippet = issue.suggestedFix || issue.suggested_fix || issue.fixedCode;
+      const targetEvidence = issue.evidence || issue.codeSnippet;
+
+      if (fixSnippet && currentCode) {
+        if (targetEvidence && currentCode.includes(targetEvidence)) {
+          nextContent = currentCode.replace(targetEvidence, fixSnippet);
+        } else if (issue.line && Number(issue.line) > 0) {
+          const lines = currentCode.split('\n');
+          const lineIdx = Number(issue.line) - 1;
+          if (lineIdx < lines.length) {
+            lines[lineIdx] = fixSnippet;
+            nextContent = lines.join('\n');
+          } else {
+            nextContent = currentCode;
+          }
+        } else if (fixSnippet.split('\n').length > 5) {
+          nextContent = fixSnippet;
+        } else {
+          nextContent = currentCode;
+        }
+      } else if (fixSnippet) {
+        nextContent = fixSnippet;
+      }
+    }
+
+    if (!nextContent) {
       get().addNotification({
         title: 'Fix Unavailable',
         message: 'No code patch proposal found for this finding.',
@@ -705,12 +744,17 @@ export const useAppStore = create((set, get) => ({
     }
 
     try {
-      // Save updated code to workspace
-      if (state.currentProject?.id && targetPath) {
-        await filesApi.saveContent(state.currentProject.id, targetPath, patchContent);
+      // 1. If currently active file in editor, update Monaco editor live
+      if (window.__AETHERION_SET_CODE__ && targetPath === state.activeFilePath) {
+        window.__AETHERION_SET_CODE__(nextContent);
       }
 
-      // Update in-memory state
+      // 2. Persist to backend
+      if (state.currentProject?.id && targetPath) {
+        await filesApi.saveContent(state.currentProject.id, targetPath, nextContent);
+      }
+
+      // 3. Update store state
       const updatedIssues = state.issues.map(iss =>
         iss.id === issueId ? { ...iss, status: 'Fixed' } : iss
       );
@@ -720,8 +764,8 @@ export const useAppStore = create((set, get) => ({
           ...s.files,
           [targetPath]: {
             ...(s.files[targetPath] || {}),
-            content: patchContent,
-            originalContent: patchContent,
+            content: nextContent,
+            originalContent: nextContent,
             isDirty: false,
           }
         },

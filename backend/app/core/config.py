@@ -16,7 +16,7 @@ class Settings(BaseSettings):
 
     # Groq AI
     GROQ_API_KEY: Optional[str] = Field(default=None, description="Groq API key")
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
     GROQ_TIMEOUT_SECONDS: int = 60
 
     # Workflow & Limits

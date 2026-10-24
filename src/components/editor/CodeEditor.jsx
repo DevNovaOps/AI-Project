@@ -46,6 +46,15 @@ export default function CodeEditor() {
     );
   });
 
+  const activeFileIssuesRef = useRef(activeFileIssues);
+  activeFileIssuesRef.current = activeFileIssues;
+
+  const isDiagnosticPopupOpenRef = useRef(isDiagnosticPopupOpen);
+  isDiagnosticPopupOpenRef.current = isDiagnosticPopupOpen;
+
+  const isHoveringErrorRef = useRef(isHoveringError);
+  isHoveringErrorRef.current = isHoveringError;
+
   const handlePopupClose = () => {
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
@@ -56,6 +65,9 @@ export default function CodeEditor() {
     setIsHoveringPopup(false);
     closeDiagnosticPopup();
   };
+
+  const handlePopupCloseRef = useRef(handlePopupClose);
+  handlePopupCloseRef.current = handlePopupClose;
 
   // When diagnostic popup is explicitly opened from external action (e.g. Problems tab), reset dismissed state
   useEffect(() => {
@@ -250,26 +262,26 @@ export default function CodeEditor() {
       );
       const isGutterIssue = (e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN || 
                              e.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS) && 
-                             activeFileIssues.some(i => i.line === targetLine);
+                             activeFileIssuesRef.current.some(i => i.line === targetLine);
 
       if (isGlyphElem || isGutterIssue) {
         // Clicking specifically on the gutter error glyph toggles the popup
-        if (isDiagnosticPopupOpen || isHoveringError) {
-          handlePopupClose();
+        if (isDiagnosticPopupOpenRef.current || isHoveringErrorRef.current) {
+          handlePopupCloseRef.current();
         } else {
           isDismissedRef.current = false;
           setIsHoveringError(true);
         }
       } else {
         // User clicked inside code: dismiss popup immediately!
-        handlePopupClose();
+        handlePopupCloseRef.current();
       }
     });
 
     // Detect mouse move over issue line or error glyph: show error popup when hovering on it
     editor.onMouseMove((e) => {
       const targetLine = e.target.position?.lineNumber || e.target.detail?.lineNumber;
-      const matchingIssue = activeFileIssues.find(i => i.line === targetLine);
+      const matchingIssue = activeFileIssuesRef.current.find(i => i.line === targetLine);
       const isTargetIssue = !!matchingIssue && matchingIssue.status !== 'Fixed';
       const isGutterIssue = (e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN || 
                              e.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS) && isTargetIssue;

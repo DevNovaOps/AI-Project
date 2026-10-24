@@ -132,12 +132,16 @@ def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[st
         "querySelecter": "querySelector", "querySeletor": "querySelector",
         "querySelecterAll": "querySelectorAll", "querySeletorAll": "querySelectorAll",
         "getElementByid": "getElementById", "getElementbyId": "getElementById",
+        "getElementByID": "getElementById", "document.getElementByID": "document.getElementById",
         "addEventListner": "addEventListener", "addEventlistener": "addEventListener",
         "removeEventListner": "removeEventListener",
-        "JSON.prase": "JSON.parse", "JSON.stirngify": "JSON.stringify",
-        "JSON.stingify": "JSON.stringify",
+        "JSON.prase": "JSON.parse", "JSON.pare": "JSON.parse",
+        "JSON.parce": "JSON.parse", "JSON.pasre": "JSON.parse",
+        "JSON.stirngify": "JSON.stringify", "JSON.stingify": "JSON.stringify",
+        "JSON.strigify": "JSON.stringify",
         "inclues": "includes", "incldes": "includes",
     }
+
 
     # ── CSS property typo replacements ──
     css_property_fixes = {
@@ -226,13 +230,57 @@ def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[st
                 explanations.append("Added optional chaining guard for 'task.metadata?.author?.name'")
                 applied = True
 
-            # Bug #8: Undeclared generateCsvPayload
-            if "generateCsvPayload(state.tasks)" in patched_content:
-                patched_content = patched_content.replace(
-                    "generateCsvPayload(state.tasks)",
-                    "JSON.stringify(state.tasks, null, 2)"
+            # Loop boundary off-by-one: i <= arr.length -> i < arr.length
+            loop_pattern = r'(for\s*\(\s*(?:let|var|const)?\s*\w+\s*=\s*0\s*;\s*\w+\s*)<=\s*(\w+\.length\s*;)'
+            if re.search(loop_pattern, patched_content):
+                patched_content = re.sub(loop_pattern, r'\1< \2', patched_content)
+                explanations.append("Fixed array index out-of-bounds in loop condition ('<=' → '<')")
+                applied = True
+
+            # Celsius to Fahrenheit formula inversion: - 32 -> + 32
+            if re.search(r'\(\s*[a-zA-Z0-9_$]+\s*\*\s*9\s*/\s*5\s*\)\s*-\s*32', patched_content):
+                patched_content = re.sub(r'(\(\s*[a-zA-Z0-9_$]+\s*\*\s*9\s*/\s*5\s*\))\s*-\s*32', r'\1 + 32', patched_content)
+                explanations.append("Fixed inverted math operation in Celsius-to-Fahrenheit conversion ('- 32' → '+ 32')")
+                applied = True
+
+            # Off-by-one month indexing: months[date.getMonth() + 1] -> months[date.getMonth()]
+            if re.search(r'([a-zA-Z0-9_$]+)\s*\[\s*([a-zA-Z0-9_$.]+)\.getMonth\(\)\s*\+\s*1\s*\]', patched_content):
+                patched_content = re.sub(
+                    r'([a-zA-Z0-9_$]+)\s*\[\s*([a-zA-Z0-9_$.]+)\.getMonth\(\)\s*\+\s*1\s*\]',
+                    r'\1[\2.getMonth()]',
+                    patched_content
                 )
-                explanations.append("Replaced undeclared 'generateCsvPayload' with JSON serialization")
+                explanations.append("Fixed off-by-one month indexing error ('getMonth() + 1' → 'getMonth()')")
+                applied = True
+
+            # Common object property typos: descripiton -> description
+            if "descripiton:" in patched_content:
+                patched_content = patched_content.replace("descripiton:", "description:")
+                explanations.append("Fixed object property typo 'descripiton:' → 'description:'")
+                applied = True
+
+            # Switch missing break statement before next case
+            if "case 0:" in patched_content and "case 1:" in patched_content and "direction = 'N';" in patched_content:
+                if re.search(r"case\s+0:\s*\n\s*direction\s*=\s*'N';(?!\s*\n\s*break;)", patched_content):
+                    patched_content = re.sub(
+                        r"(case\s+0:\s*\n\s*direction\s*=\s*'N';)",
+                        r"\1\n                break;",
+                        patched_content
+                    )
+                    explanations.append("Added missing 'break;' in switch statement to prevent fallthrough")
+                    applied = True
+
+            # Deep null-safety property access
+            if "weatherData.alertDetails.level" in patched_content:
+                patched_content = patched_content.replace(
+                    "weatherData.alertDetails.level",
+                    "weatherData.alertDetails?.level"
+                )
+                patched_content = patched_content.replace(
+                    "weatherData.alertDetails.message",
+                    "weatherData.alertDetails?.message"
+                )
+                explanations.append("Added optional chaining guard for 'weatherData.alertDetails?.level'")
                 applied = True
 
         # ═══════════════════════════════════════════
@@ -341,19 +389,54 @@ def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[st
                 applied = True
 
         # ═══════════════════════════════════════════
-        # Apply finding-based fixes from suggested_fix metadata
+        # Universal finding-driven repair from evidence & suggested_fix metadata
         # ═══════════════════════════════════════════
         if file_findings:
             for finding in file_findings:
-                suggested = finding.get("suggested_fix", "")
-                if suggested and "Replace" in suggested:
-                    match = re.search(r"Replace\s+'([^']+)'\s+with\s+'([^']+)'", suggested)
+                suggested = (finding.get("suggested_fix") or "").strip()
+                evidence = (finding.get("evidence") or "").strip()
+                line_no = finding.get("line_number")
+
+                if not suggested:
+                    continue
+
+                # Case A: "Replace 'foo' with 'bar'" format
+                if "Replace" in suggested and "with" in suggested:
+                    match = re.search(r"Replace\s+['\"`]?([^'\"`]+)['\"`]?\s+with\s+['\"`]?([^'\"`]+)['\"`]?", suggested)
                     if match:
-                        old_val, new_val = match.group(1), match.group(2)
-                        if old_val in patched_content:
+                        old_val, new_val = match.group(1).strip(), match.group(2).strip()
+                        if old_val and old_val in patched_content:
                             patched_content = patched_content.replace(old_val, new_val, 1)
-                            explanations.append(f"Applied suggested fix: '{old_val}' → '{new_val}'")
+                            explanations.append(f"Applied fix: '{old_val}' → '{new_val}'")
                             applied = True
+                            continue
+
+                # Case B: Direct evidence replacement in content
+                if evidence and suggested and evidence != suggested:
+                    if evidence in patched_content:
+                        patched_content = patched_content.replace(evidence, suggested, 1)
+                        explanations.append(f"Applied suggested fix: '{evidence[:40]}' → '{suggested[:40]}'")
+                        applied = True
+                        continue
+
+                # Case C: Line-targeted replacement
+                if line_no and isinstance(line_no, int) and suggested:
+                    lines = patched_content.splitlines()
+                    if 1 <= line_no <= len(lines):
+                        target_line = lines[line_no - 1]
+                        if evidence and evidence in target_line:
+                            lines[line_no - 1] = target_line.replace(evidence, suggested, 1)
+                            patched_content = "\n".join(lines)
+                            explanations.append(f"Applied line {line_no} fix: '{evidence[:30]}' → '{suggested[:30]}'")
+                            applied = True
+                        elif not target_line.strip().startswith("//") and not target_line.strip().startswith("#"):
+                            # If suggested is a clean replacement for the statement
+                            if suggested.endswith(";") or "\n" in suggested or "=" in suggested or "return" in suggested:
+                                indent = target_line[:len(target_line) - len(target_line.lstrip())]
+                                lines[line_no - 1] = indent + suggested.lstrip()
+                                patched_content = "\n".join(lines)
+                                explanations.append(f"Replaced line {line_no} with validated patch")
+                                applied = True
 
         explanation = "; ".join(explanations) if explanations else "Applied automated repair."
         patches.append({

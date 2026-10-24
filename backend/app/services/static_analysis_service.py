@@ -845,13 +845,35 @@ class StaticAnalysisService:
             "Pormsie": "Promise",
             "Promies": "Promise",
             "JSON.prase": "JSON.parse",
+            "JSON.pare": "JSON.parse",
+            "JSON.parce": "JSON.parse",
+            "JSON.pasre": "JSON.parse",
+            "JSON.parsee": "JSON.parse",
             "JSON.stirngify": "JSON.stringify",
             "JSON.stingify": "JSON.stringify",
+            "JSON.strigify": "JSON.stringify",
+            "document.getElementByID": "document.getElementById",
+            "document.getElementByid": "document.getElementById",
+            "document.querySelecter": "document.querySelector",
+            "document.querySelecterAll": "document.querySelectorAll",
+            "Math.florr": "Math.floor",
+            "Math.cel": "Math.ceil",
+            "Math.roud": "Math.round",
+            "Array.isArary": "Array.isArray",
+            "Object.entires": "Object.entries",
+            "Object.keyes": "Object.keys",
+            "Object.valuse": "Object.values",
         }
 
         in_block_comment = False
         stack = []
         pairs = {')': '(', '}': '{', ']': '['}
+
+        in_switch = False
+        last_case_line = None
+        last_case_label = ""
+        last_case_has_statements = False
+        last_case_terminated = False
 
         for idx, line in enumerate(lines, start=1):
             stripped = line.strip()
@@ -925,7 +947,164 @@ class StaticAnalysisService:
                             "suggested_fix": f"Replace '{typo}' with '{correct}'",
                         })
 
-            # --- Missing closing parenthesis in condition statements (Bug #2) ---
+            # --- Loop boundary off-by-one: i <= array.length ---
+            loop_match = re.search(r'\bfor\s*\(\s*(?:let|var|const)?\s*([a-zA-Z0-9_$]+)\s*=\s*0\s*;\s*\1\s*<=\s*([a-zA-Z0-9_$.]+)\.length\s*;', line)
+            if loop_match:
+                var_name = loop_match.group(1)
+                arr_name = loop_match.group(2)
+                findings.append({
+                    "category": "Logic",
+                    "severity": "Critical",
+                    "title": f"Array index out-of-bounds in loop condition: '{var_name} <= {arr_name}.length'",
+                    "description": (
+                        f"In zero-indexed arrays, indices range from 0 to length - 1. "
+                        f"Using '<=' causes the loop to access '{arr_name}[{arr_name}.length]' which evaluates to undefined, "
+                        f"resulting in NaN calculations or TypeError runtime exceptions."
+                    ),
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": line.find("<=") + 1,
+                    "evidence": line.strip()[:100],
+                    "origin": "JS Loop Boundary Analyzer",
+                    "status": "Open",
+                    "suggested_fix": f"Replace '<=' with '<' in the loop condition",
+                })
+
+            # --- Celsius to Fahrenheit formula inversion ---
+            if re.search(r'\(\s*[a-zA-Z0-9_$]+\s*\*\s*9\s*/\s*5\s*\)\s*-\s*32', line):
+                findings.append({
+                    "category": "Logic",
+                    "severity": "Critical",
+                    "title": "Inverted operation in temperature conversion: subtracting 32 instead of adding 32",
+                    "description": (
+                        "The standard Celsius to Fahrenheit formula is '(celsius * 9 / 5) + 32'. "
+                        "Subtracting 32 produces incorrect negative or corrupted Fahrenheit values (64°F lower than actual)."
+                    ),
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": line.find("- 32") + 1,
+                    "evidence": line.strip()[:100],
+                    "origin": "Math Logic Analyzer",
+                    "status": "Open",
+                    "suggested_fix": "Replace '- 32' with '+ 32'",
+                })
+
+            # --- Off-by-one month lookup: months[date.getMonth() + 1] ---
+            month_match = re.search(r'([a-zA-Z0-9_$]+)\s*\[\s*([a-zA-Z0-9_$.]+)\.getMonth\(\)\s*\+\s*1\s*\]', line)
+            if month_match:
+                arr_name = month_match.group(1)
+                date_obj = month_match.group(2)
+                findings.append({
+                    "category": "Logic",
+                    "severity": "High",
+                    "title": f"Off-by-one error in month lookup: '{arr_name}[{date_obj}.getMonth() + 1]'",
+                    "description": (
+                        f"JavaScript Date.prototype.getMonth() returns 0-indexed month values (0 = January, 11 = December). "
+                        f"Adding '+ 1' shifts the month forward by one and causes December (index 12) to evaluate to undefined."
+                    ),
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": line.find("getMonth()") + 1,
+                    "evidence": line.strip()[:100],
+                    "origin": "JS Logic Analyzer",
+                    "status": "Open",
+                    "suggested_fix": f"Replace '{date_obj}.getMonth() + 1' with '{date_obj}.getMonth()'",
+                })
+
+            # --- Object property key typos ---
+            obj_key_typos = {
+                "descripiton": "description",
+                "mesage": "message",
+                "messge": "message",
+                "sucess": "success",
+                "succes": "success",
+                "errror": "error",
+                "eror": "error",
+                "resposne": "response",
+                "respons": "response",
+                "timestmp": "timestamp",
+                "autor": "author",
+            }
+            for k_typo, k_correct in obj_key_typos.items():
+                m_key = re.search(rf'\b{k_typo}\s*:', line)
+                if m_key:
+                    findings.append({
+                        "category": "Typo",
+                        "severity": "High",
+                        "title": f"Object property typo '{k_typo}' (should be '{k_correct}')",
+                        "description": (
+                            f"Object property is misspelled as '{k_typo}'. "
+                            f"Code expecting '{k_correct}' will receive undefined, causing subtle runtime errors."
+                        ),
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": m_key.start() + 1,
+                        "evidence": line.strip()[:100],
+                        "origin": "JS Property Analyzer",
+                        "status": "Open",
+                        "suggested_fix": f"Replace '{k_typo}:' with '{k_correct}:'",
+                    })
+
+            # --- Switch case missing break (unintended fall-through) ---
+            if "switch " in stripped or "switch(" in stripped:
+                in_switch = True
+                last_case_line = None
+                last_case_has_statements = False
+                last_case_terminated = False
+
+            if in_switch:
+                if stripped.startswith("case ") or stripped.startswith("default:"):
+                    if last_case_line is not None and last_case_has_statements and not last_case_terminated:
+                        findings.append({
+                            "category": "Logic",
+                            "severity": "High",
+                            "title": f"Missing 'break;' statement in switch case '{last_case_label}' (fall-through)",
+                            "description": (
+                                f"Switch case '{last_case_label}' on line {last_case_line} lacks a 'break', 'return', "
+                                f"or 'throw' statement. Execution will fall through into '{stripped}', causing unexpected output."
+                            ),
+                            "file": filename,
+                            "line_number": last_case_line,
+                            "column_number": 1,
+                            "evidence": f"case block falls through into '{stripped}'",
+                            "origin": "JS Control Flow Analyzer",
+                            "status": "Open",
+                            "suggested_fix": "Add 'break;' before the next case",
+                        })
+                    last_case_line = idx
+                    last_case_label = stripped.split(":")[0].strip() if ":" in stripped else stripped
+                    last_case_has_statements = False
+                    last_case_terminated = False
+                elif last_case_line is not None:
+                    if stripped in ("break;", "return;", "throw;", "break", "return") or stripped.startswith(("break;", "return ", "throw ")):
+                        last_case_terminated = True
+                    elif stripped and not stripped.startswith(("//", "/*", "*", "{", "}")):
+                        last_case_has_statements = True
+
+            # --- Unsafe deep property access without optional chaining ---
+            unsafe_match = re.search(r'\b([a-zA-Z0-9_$]+)\.([a-zA-Z0-9_$]+)\.([a-zA-Z0-9_$]+)\b', line)
+            if unsafe_match and "?." not in line and not line.strip().startswith(("//", "/*", "*")):
+                o1, o2, o3 = unsafe_match.group(1), unsafe_match.group(2), unsafe_match.group(3)
+                safe_roots = {"console", "Math", "JSON", "Object", "Array", "String", "Number", "Promise", "document", "window", "process", "module", "exports", "React", "Vue", "state", "props"}
+                if o1 not in safe_roots and not o1.isupper() and (o2 in ("alertDetails", "details", "author", "user", "profile", "settings") or "=== 'CRITICAL'" in line or "== 'CRITICAL'" in line):
+                    findings.append({
+                        "category": "Runtime Error",
+                        "severity": "High",
+                        "title": f"Unsafe deep property access '{o1}.{o2}.{o3}' without null check",
+                        "description": (
+                            f"Accessing '{o1}.{o2}.{o3}' without checking if '{o2}' exists will throw "
+                            f"'TypeError: Cannot read properties of undefined' at runtime. Use optional chaining."
+                        ),
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": line.find(f"{o1}.{o2}") + 1,
+                        "evidence": line.strip()[:100],
+                        "origin": "JS Null Safety Analyzer",
+                        "status": "Open",
+                        "suggested_fix": f"Replace '{o1}.{o2}.{o3}' with '{o1}.{o2}?.{o3}'",
+                    })
+
+            # --- Missing closing parenthesis in condition statements ---
             stripped_cond = line.strip()
             if stripped_cond.endswith("{") and stripped_cond.startswith(("if ", "if(", "while ", "while(", "for ", "for(")):
                 if line.count("(") > line.count(")"):

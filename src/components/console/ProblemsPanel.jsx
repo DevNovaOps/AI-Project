@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Lightbulb, ExternalLink, Filter, Search, CheckCircle, CheckCircle2, ShieldCheck, Activity } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useWorkflowStore } from '../../store/useWorkflowStore';
 
 export default function ProblemsPanel() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { 
     issues, selectedIssueId, selectIssue, 
     setRightSidebarTab, appliedFixes 
@@ -157,7 +160,12 @@ export default function ProblemsPanel() {
                   <tr 
                     key={item.id} 
                     className={isSelected ? 'selected' : ''}
-                    onClick={() => selectIssue(item.id)}
+                    onClick={() => {
+                      selectIssue(item.id);
+                      if (location.pathname !== '/' && location.pathname !== '/editor') {
+                        navigate('/');
+                      }
+                    }}
                     style={{ cursor: 'pointer' }}
                   >
                     <td>{getSeverityBadge(item.severity, isFixed)}</td>

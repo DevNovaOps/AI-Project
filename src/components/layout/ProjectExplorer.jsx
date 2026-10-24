@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Folder, FolderOpen, FileCode, FileText, ChevronRight, ChevronDown, 
   RotateCw, Minimize2, Plus, GitBranch, Layers, Sparkles, MoreHorizontal,
@@ -7,6 +8,8 @@ import {
 import { useAppStore } from '../../store/useAppStore';
 
 export default function ProjectExplorer() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { 
     projects, currentProject, selectProject, loadProjects,
     selectedBranch, setSelectedBranch,
@@ -113,7 +116,12 @@ export default function ProjectExplorer() {
           key={node.id}
           className={`tree-node ${isActive ? 'active' : ''}`}
           style={{ paddingLeft: `${depth * 14 + 18}px` }}
-          onClick={() => setActiveFile(node.id)}
+          onClick={() => {
+            setActiveFile(node.id);
+            if (location.pathname !== '/' && location.pathname !== '/editor') {
+              navigate('/');
+            }
+          }}
           onContextMenu={(e) => {
             e.preventDefault();
             setContextMenu({ x: e.clientX, y: e.clientY, item: node });
