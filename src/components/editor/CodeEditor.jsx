@@ -19,6 +19,7 @@ export default function CodeEditor() {
   const monacoRef = useRef(null);
   const decorationsRef = useRef([]);
   const hoverTimeoutRef = useRef(null);
+  const isInternalCursorChange = useRef(false);
 
   const [isHoveringError, setIsHoveringError] = useState(false);
   const [isHoveringPopup, setIsHoveringPopup] = useState(false);
@@ -108,16 +109,25 @@ export default function CodeEditor() {
 
     // Listen to cursor position
     editor.onDidChangeCursorPosition((e) => {
+      isInternalCursorChange.current = true;
       setCursorPosition({ line: e.position.lineNumber, col: e.position.column });
+      setTimeout(() => {
+        isInternalCursorChange.current = false;
+      }, 50);
     });
 
     // 1. SELECT ALL (Ctrl+A or Cmd+A) - Guarantee full document selection
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyA, () => {
-      const model = editor.getModel();
-      if (model) {
-        editor.setSelection(model.getFullModelRange());
-        editor.focus();
+      const action = editor.getAction('editor.action.selectAll');
+      if (action) {
+        action.run();
+      } else {
+        const model = editor.getModel();
+        if (model) {
+          editor.setSelection(model.getFullModelRange());
+        }
       }
+      editor.focus();
     });
 
     // 2. Add Save command (Ctrl+S or Cmd+S)
@@ -373,18 +383,30 @@ export default function CodeEditor() {
 
   // Jump to line when cursorPosition changes from external actions (like clicking Problems table)
   useEffect(() => {
-    if (editorRef.current && cursorPosition) {
-      editorRef.current.revealLineInCenter(cursorPosition.line);
-      editorRef.current.setPosition({ lineNumber: cursorPosition.line, column: cursorPosition.col || 1 });
-      if (cursorPosition.line) {
-        const lineTop = editorRef.current.getTopForLineNumber(cursorPosition.line) - editorRef.current.getScrollTop();
-        const layout = editorRef.current.getLayoutInfo();
-        const leftPos = Math.max(380, Math.min((layout?.contentLeft || 60) + 360, window.innerWidth - 680));
-        setPopupPosition({
-          top: Math.max(30, lineTop - 15),
-          left: leftPos
-        });
-      }
+    if (!editorRef.current || !cursorPosition) return;
+    
+    // If cursor change was triggered internally by user typing, clicking, or selecting in the editor, do not reset position
+    if (isInternalCursorChange.current) return;
+
+    // If editor has an active selection (e.g. from Ctrl+A or dragging), never collapse it!
+    const selection = editorRef.current.getSelection();
+    if (selection && !selection.isEmpty()) return;
+
+    const currentPos = editorRef.current.getPosition();
+    if (currentPos && currentPos.lineNumber === cursorPosition.line && currentPos.column === (cursorPosition.col || 1)) {
+      return;
+    }
+
+    editorRef.current.revealLineInCenter(cursorPosition.line);
+    editorRef.current.setPosition({ lineNumber: cursorPosition.line, column: cursorPosition.col || 1 });
+    if (cursorPosition.line) {
+      const lineTop = editorRef.current.getTopForLineNumber(cursorPosition.line) - editorRef.current.getScrollTop();
+      const layout = editorRef.current.getLayoutInfo();
+      const leftPos = Math.max(380, Math.min((layout?.contentLeft || 60) + 360, window.innerWidth - 680));
+      setPopupPosition({
+        top: Math.max(30, lineTop - 15),
+        left: leftPos
+      });
     }
   }, [cursorPosition, activeFilePath]);
 

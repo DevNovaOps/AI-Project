@@ -151,11 +151,16 @@ export function useGlobalShortcuts() {
           if (window.__AETHERION_EDITOR__) {
             e.preventDefault();
             const ed = window.__AETHERION_EDITOR__;
-            const model = ed.getModel();
-            if (model) {
-              ed.setSelection(model.getFullModelRange());
-              ed.focus();
+            const action = ed.getAction('editor.action.selectAll');
+            if (action) {
+              action.run();
+            } else {
+              const model = ed.getModel();
+              if (model) {
+                ed.setSelection(model.getFullModelRange());
+              }
             }
+            ed.focus();
             return;
           }
         }
