@@ -9,9 +9,13 @@ import ConnectRepoModal from '../common/ConnectRepoModal';
 import UploadProjectModal from '../common/UploadProjectModal';
 import FileActionModal from '../common/FileActionModal';
 import { useAppStore } from '../../store/useAppStore';
+import { useGlobalShortcuts } from '../../hooks/useGlobalShortcuts';
 
 export default function AppShell() {
   const { theme } = useAppStore();
+
+  // Initialize global VS Code keyboard shortcut engine
+  useGlobalShortcuts();
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);

@@ -11,7 +11,8 @@ export default function CodeEditor() {
     cursorPosition, setCursorPosition,
     selectedIssueId, issues, runTests,
     saveActiveFile, isSavingFile,
-    isDiagnosticPopupOpen, closeDiagnosticPopup
+    isDiagnosticPopupOpen, closeDiagnosticPopup,
+    setCommandPalette, toggleLeftSidebar, toggleConsole, setRightSidebarTab
   } = useAppStore();
 
   const editorRef = useRef(null);
@@ -101,6 +102,34 @@ export default function CodeEditor() {
     // Add Save command (Ctrl+S or Cmd+S)
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       if (saveActiveFile) saveActiveFile();
+    });
+
+    // Add Command Palette (Ctrl+P & Ctrl+Shift+P)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, () => {
+      setCommandPalette(true);
+    });
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, () => {
+      setCommandPalette(true);
+    });
+
+    // Toggle Left Sidebar (Ctrl+B)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => {
+      toggleLeftSidebar();
+    });
+
+    // Toggle Bottom Terminal / Panel (Ctrl+J)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyJ, () => {
+      toggleConsole();
+    });
+
+    // Focus AI Fixes (Ctrl+I)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
+      setRightSidebarTab('fixes');
+    });
+
+    // Focus AI Chat (Ctrl+L)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyL, () => {
+      setRightSidebarTab('chat');
     });
 
     // Clicking anywhere in the code or editor dismisses the diagnostic popup
@@ -320,7 +349,13 @@ export default function CodeEditor() {
           glyphMargin: true,
           wordWrap: 'on',
           tabSize: 4,
-          padding: { top: 12, bottom: 12 }
+          padding: { top: 12, bottom: 12 },
+          copyWithSyntaxHighlighting: true,
+          contextmenu: true,
+          multiCursorModifier: 'alt',
+          formatOnPaste: true,
+          quickSuggestions: true,
+          selectOnLineNumbers: true
         }}
       />
 

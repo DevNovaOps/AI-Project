@@ -307,6 +307,10 @@ export default function TopBar() {
                 <span>Preferences</span>
                 <span className="kbd-badge">Ctrl ,</span>
               </div>
+              <div className="palette-item" onClick={() => { navigate('/shortcuts'); setIsProfileMenuOpen(false); }}>
+                <span>Keyboard Shortcuts</span>
+                <span className="kbd-badge">Ctrl K S</span>
+              </div>
               <div className="palette-item" onClick={() => { navigate('/reports'); setIsProfileMenuOpen(false); }}>
                 <span>Team Diagnostics</span>
               </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, Play, Wrench, FlaskConical, BarChart2, Sun, Moon, 
-  FileCode, Terminal, X, ArrowRight, Sparkles, FolderGit2, UploadCloud, FilePlus 
+  FileCode, Terminal, X, ArrowRight, Sparkles, FolderGit2, UploadCloud, FilePlus, Keyboard, Save
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useWorkflowStore } from '../../store/useWorkflowStore';
@@ -122,6 +122,17 @@ export default function CommandPalette() {
       color: '#6366f1',
       action: () => {
         setRightSidebarTab('chat');
+        setCommandPalette(false);
+      }
+    },
+    {
+      id: 'cmd-open-shortcuts',
+      title: 'Preferences: Open Keyboard Shortcuts (Ctrl+K Ctrl+S)',
+      subtitle: 'View, search, and test all VS Code and AETHERION keybindings',
+      icon: Keyboard,
+      color: '#38bdf8',
+      action: () => {
+        navigate('/shortcuts');
         setCommandPalette(false);
       }
     }

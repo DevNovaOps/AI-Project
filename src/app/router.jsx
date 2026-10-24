@@ -9,6 +9,7 @@ import TestsPage from '../pages/TestsPage';
 import FixesPage from '../pages/FixesPage';
 import ReportsPage from '../pages/ReportsPage';
 import SettingsPage from '../pages/SettingsPage';
+import KeyboardShortcutsPage from '../pages/KeyboardShortcutsPage';
 
 export const router = createBrowserRouter([
   {
@@ -50,6 +51,14 @@ export const router = createBrowserRouter([
       {
         path: 'settings',
         element: <SettingsPage />
+      },
+      {
+        path: 'shortcuts',
+        element: <KeyboardShortcutsPage />
+      },
+      {
+        path: 'keyboard-shortcuts',
+        element: <KeyboardShortcutsPage />
       },
       {
         path: '*',

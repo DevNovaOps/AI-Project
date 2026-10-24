@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   FolderGit2, Search, GitBranch, Bug, CheckSquare,
-  Settings, Wrench, BarChart2
+  Settings, Wrench, BarChart2, Keyboard
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
@@ -59,6 +59,16 @@ export default function ActivityBar() {
       </div>
 
       <div className="activity-bar-group" style={{ gap: 6 }}>
+        <button
+          className={`activity-item ${location.pathname === '/shortcuts' ? 'active' : ''}`}
+          onClick={() => navigate('/shortcuts')}
+          title="Keyboard Shortcuts (Ctrl+K Ctrl+S)"
+          aria-label="Keyboard Shortcuts"
+        >
+          <Keyboard size={18} strokeWidth={1.7} />
+          <span className="activity-label">Shortcuts</span>
+        </button>
+
         <button
           className={`activity-item ${location.pathname === '/settings' ? 'active' : ''}`}
           onClick={() => navigate('/settings')}
