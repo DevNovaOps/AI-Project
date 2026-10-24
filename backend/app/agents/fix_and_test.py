@@ -154,6 +154,37 @@ def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[st
             explanation = "Corrected built-in typo to 'print()'."
             applied = True
 
+        # 4b. Semicolon used instead of colon in compound statements (def, if, for, while, etc.)
+        if (fname.endswith(".py") or fname == "main.py") and re.search(r"\b(def|class|if|elif|else|for|while|try|except|finally|with)\b[^:\n]*;(\s*(?:#.*)?)$", patched_content, re.MULTILINE):
+            patched_content = re.sub(
+                r"(\b(?:def|class|if|elif|else|for|while|try|except|finally|with)\b[^:\n]*);(\s*(?:#.*)?)$",
+                r"\1:\2",
+                patched_content,
+                flags=re.MULTILINE,
+            )
+            explanation = "Replaced invalid semicolon ';' with colon ':' in compound statement."
+            applied = True
+
+        # 4c. Unnecessary trailing semicolons in Python (PEP 8 E703)
+        if (fname.endswith(".py") or fname == "main.py") and re.search(r";\s*(?:#.*)?$", patched_content, re.MULTILINE):
+            lines = patched_content.splitlines()
+            new_lines = []
+            semi_stripped = False
+            for line in lines:
+                s_check = re.sub(r'("""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\'|"[^"\\]*(?:\\.[^"\\]*)*"|\'[^\'\\]*(?:\\.[^\'\\]*)*\')', '""', line)
+                comm_pos = s_check.find('#')
+                if comm_pos != -1:
+                    s_check = s_check[:comm_pos]
+                if s_check.rstrip().endswith(';'):
+                    idx_semi = line.rfind(';')
+                    line = line[:idx_semi] + line[idx_semi+1:]
+                    semi_stripped = True
+                new_lines.append(line)
+            if semi_stripped:
+                patched_content = "\n".join(new_lines)
+                explanation = "Removed un-idiomatic trailing semicolon ';' (PEP 8 E703)."
+                applied = True
+
         # 5. Division by zero on empty collections / calculate_average
         if "sum(numbers) / len(numbers)" in patched_content and "len(numbers) == 0" not in patched_content:
             patched_content = patched_content.replace(

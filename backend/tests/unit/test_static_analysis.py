@@ -80,3 +80,23 @@ def test_java_sout_and_builtin_typo_detection():
     assert op_finding["category"] == "Syntax"
     assert op_finding["severity"] == "Critical"
     assert op_finding["line_number"] == 2
+
+
+def test_python_semicolon_detection():
+    # 1. Trailing semicolon E703
+    code1 = "data = [10, 20, 30, 40, 50];\n"
+    findings1 = static_analysis_service.analyze_file("main.py", code1, "python")
+    semi1 = next((f for f in findings1 if "semicolon" in f["title"].lower()), None)
+    assert semi1 is not None
+    assert semi1["category"] == "Code Quality"
+    assert "E703" in semi1["title"]
+    assert semi1["line_number"] == 1
+
+    # 2. Semicolon used instead of colon in compound statement
+    code2 = "def calculate_average(numbers);\n    return 0\n"
+    findings2 = static_analysis_service.analyze_file("main.py", code2, "python")
+    semi2 = next((f for f in findings2 if "instead of colon" in f["title"].lower()), None)
+    assert semi2 is not None
+    assert semi2["category"] == "Syntax"
+    assert semi2["severity"] == "Critical"
+    assert semi2["line_number"] == 1

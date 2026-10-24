@@ -422,6 +422,73 @@ class StaticAnalysisService:
                         "suggested_fix": f"Replace with {correct}(...)",
                     })
 
+            # 5. Semicolon anomalies in Python (PEP 8 E703, E702, and syntax errors)
+            s_code = re.sub(r'("""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\'|"[^"\\]*(?:\\.[^"\\]*)*"|\'[^\'\\]*(?:\\.[^\'\\]*)*\')', '""', line)
+            comment_idx = s_code.find('#')
+            if comment_idx != -1:
+                s_code = s_code[:comment_idx]
+            s_code = s_code.rstrip()
+
+            if s_code:
+                # 5a. Semicolon used instead of colon in compound statement (Syntax Error)
+                if re.search(r'\b(def|class|if|elif|else|for|while|try|except|finally|with)\b[^:]*;\s*$', s_code):
+                    col = line.rfind(';') + 1
+                    findings.append({
+                        "category": "Syntax",
+                        "severity": "Critical",
+                        "title": "Semicolon ';' used instead of colon ':'",
+                        "description": (
+                            f"Python compound statements ('if', 'for', 'while', 'def', 'class', etc.) "
+                            f"must end with a colon ':', not a semicolon ';' on line {idx}."
+                        ),
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": col,
+                        "evidence": line.strip()[:80],
+                        "origin": "Lexical Syntax Check",
+                        "status": "Open",
+                        "suggested_fix": "Replace ';' with ':'",
+                    })
+                # 5b. Unnecessary trailing semicolon (PEP 8 E703)
+                elif s_code.endswith(';'):
+                    col = line.rfind(';') + 1
+                    findings.append({
+                        "category": "Code Quality",
+                        "severity": "Medium",
+                        "title": "Unnecessary trailing semicolon ';' (PEP 8 E703)",
+                        "description": (
+                            f"Trailing semicolon ';' detected at end of line {idx}. "
+                            "Semicolons are not required to terminate statements in Python and violate "
+                            "PEP 8 (rule E703: statement ends with a semicolon)."
+                        ),
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": col,
+                        "evidence": line.strip()[:80],
+                        "origin": "Lexical Syntax Check",
+                        "status": "Open",
+                        "suggested_fix": "Remove trailing semicolon ';'",
+                    })
+                # 5c. Multiple statements on one line separated by semicolon (PEP 8 E702)
+                elif ';' in s_code:
+                    col = line.find(';') + 1
+                    findings.append({
+                        "category": "Code Quality",
+                        "severity": "Low",
+                        "title": "Multiple statements separated by ';' (PEP 8 E702)",
+                        "description": (
+                            f"Multiple statements on line {idx} are separated by a semicolon. "
+                            "PEP 8 recommends placing each statement on its own line."
+                        ),
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": col,
+                        "evidence": line.strip()[:80],
+                        "origin": "Lexical Syntax Check",
+                        "status": "Open",
+                        "suggested_fix": "Split into separate lines",
+                    })
+
         return findings
 
     def analyze_python_ast(self, filename: str, content: str) -> List[Dict[str, Any]]:
