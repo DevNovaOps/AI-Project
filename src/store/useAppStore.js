@@ -3,6 +3,7 @@ import { projectsApi } from '../api/projects';
 import { filesApi } from '../api/files';
 import { githubApi } from '../api/github';
 import { normalizeError } from '../api/client';
+import { detectLanguageFromFilename } from '../utils/languages';
 
 const getInitialTheme = () => {
   const saved = localStorage.getItem('aetherion_theme') || localStorage.getItem('autonomusai_theme');
@@ -222,30 +223,21 @@ export const useAppStore = create((set, get) => ({
     if (!filePath) return;
     const { openTabs, files, currentProject } = get();
 
+    const langInfo = detectLanguageFromFilename(filePath);
+
     if (!openTabs.includes(filePath)) {
-      set({ openTabs: [...openTabs, filePath], activeFilePath: filePath });
+      set({ openTabs: [...openTabs, filePath], activeFilePath: filePath, activeLanguage: langInfo.id });
     } else {
-      set({ activeFilePath: filePath });
+      set({ activeFilePath: filePath, activeLanguage: langInfo.id });
     }
 
     // Load content if not already loaded
     if (!files[filePath] && currentProject?.id) {
       try {
         const res = await filesApi.getContent(currentProject.id, filePath);
-        const ext = res.extension || filePath.split('.').pop();
-        const getLang = (e) => {
-          if (e === 'py') return 'python';
-          if (e === 'js' || e === 'jsx') return 'javascript';
-          if (e === 'ts' || e === 'tsx') return 'typescript';
-          if (e === 'css') return 'css';
-          if (e === 'html') return 'html';
-          if (e === 'json') return 'json';
-          if (e === 'md') return 'markdown';
-          if (e === 'sql') return 'sql';
-          return 'plaintext';
-        };
 
         set((state) => ({
+          activeLanguage: langInfo.id,
           files: {
             ...state.files,
             [filePath]: {
@@ -253,7 +245,7 @@ export const useAppStore = create((set, get) => ({
               path: res.path,
               content: res.content,
               originalContent: res.content,
-              language: getLang(ext),
+              language: langInfo.monacoLang,
               version: res.version,
               isDirty: false,
             }

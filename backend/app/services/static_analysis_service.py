@@ -363,17 +363,270 @@ class StaticAnalysisService:
 
         return findings
 
+    def analyze_javascript(self, filename: str, content: str, language: str = "javascript") -> List[Dict[str, Any]]:
+        """Static security and quality analysis for JavaScript, TypeScript, and React (JSX/TSX)."""
+        findings = []
+        lines = content.splitlines()
+
+        stack = []
+        pairs = {')': '(', '}': '{', ']': '['}
+
+        for idx, line in enumerate(lines, start=1):
+            stripped = line.strip()
+            if stripped.startswith("//") or stripped.startswith("/*"):
+                continue
+
+            # Detect dangerous eval()
+            if re.search(r"\beval\s*\(", stripped):
+                findings.append({
+                    "category": "Security",
+                    "severity": "Critical",
+                    "title": "Arbitrary code execution risk: 'eval()'",
+                    "description": "Use of 'eval()' is dangerous and allows arbitrary script execution. Avoid dynamic evaluation.",
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": max(1, line.find("eval") + 1),
+                    "evidence": line.strip()[:100],
+                    "origin": "JS Static Analyzer",
+                    "status": "Open",
+                })
+
+            # Detect document.write()
+            if "document.write" in stripped:
+                findings.append({
+                    "category": "Security",
+                    "severity": "High",
+                    "title": "Unsafe DOM injection: 'document.write'",
+                    "description": "'document.write' can lead to cross-site scripting (XSS) and blocks page rendering. Use modern DOM APIs or React state.",
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": max(1, line.find("document.write") + 1),
+                    "evidence": line.strip()[:100],
+                    "origin": "JS Static Analyzer",
+                    "status": "Open",
+                })
+
+            # Detect React dangerouslySetInnerHTML
+            if "dangerouslySetInnerHTML" in stripped:
+                findings.append({
+                    "category": "Security",
+                    "severity": "High",
+                    "title": "Cross-Site Scripting (XSS) risk: 'dangerouslySetInnerHTML'",
+                    "description": "Bypassing React's built-in XSS protection with 'dangerouslySetInnerHTML' can introduce severe injection vulnerabilities.",
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": max(1, line.find("dangerouslySetInnerHTML") + 1),
+                    "evidence": line.strip()[:100],
+                    "origin": "React Security Analyzer",
+                    "status": "Open",
+                })
+
+            # Detect debugger statements
+            if re.search(r"\bdebugger\b;?", stripped):
+                findings.append({
+                    "category": "Code Quality",
+                    "severity": "Medium",
+                    "title": "Production code contains 'debugger' statement",
+                    "description": "A 'debugger' breakpoint was left in the source code. Remove debuggers before deploying.",
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": max(1, line.find("debugger") + 1),
+                    "evidence": line.strip()[:100],
+                    "origin": "JS Static Analyzer",
+                    "status": "Open",
+                })
+
+            for char in line:
+                if char in ('(', '{', '['):
+                    stack.append((char, idx))
+                elif char in (')', '}', ']'):
+                    if stack and stack[-1][0] == pairs[char]:
+                        stack.pop()
+                    elif not stack:
+                        findings.append({
+                            "category": "Syntax",
+                            "severity": "Critical",
+                            "title": f"Unmatched closing delimiter '{char}'",
+                            "description": f"Encountered unexpected closing delimiter '{char}' without a matching opening delimiter.",
+                            "file": filename,
+                            "line_number": idx,
+                            "column_number": 1,
+                            "evidence": line.strip()[:80],
+                            "origin": "JS Syntax Analyzer",
+                            "status": "Open",
+                        })
+                        break
+
+        if stack and len(findings) == 0:
+            unclosed_char, unclosed_line = stack[-1]
+            findings.append({
+                "category": "Syntax",
+                "severity": "Critical",
+                "title": f"Unclosed delimiter '{unclosed_char}'",
+                "description": f"Opening delimiter '{unclosed_char}' on line {unclosed_line} was never closed.",
+                "file": filename,
+                "line_number": unclosed_line,
+                "column_number": 1,
+                "evidence": f"Unclosed '{unclosed_char}'",
+                "origin": "JS Syntax Analyzer",
+                "status": "Open",
+            })
+
+        if not findings:
+            return [{
+                "category": "Code Quality",
+                "severity": "Info",
+                "title": f"Static analysis skipped for {language}",
+                "description": f"File '{filename}' passed JavaScript/TypeScript lexical checks with no immediate syntax or security violations.",
+                "file": filename,
+                "line_number": None,
+                "column_number": None,
+                "evidence": f"Language: {language}",
+                "origin": "JS Static Analyzer",
+                "status": "Open",
+            }]
+
+        return findings
+
+    def analyze_html(self, filename: str, content: str) -> List[Dict[str, Any]]:
+        """Static accessibility and structural analysis for HTML."""
+        findings = []
+        lines = content.splitlines()
+
+        for idx, line in enumerate(lines, start=1):
+            if "<img" in line.lower() and "alt=" not in line.lower():
+                findings.append({
+                    "category": "Accessibility",
+                    "severity": "Medium",
+                    "title": "Image missing required 'alt' attribute",
+                    "description": "HTML <img> elements must specify an 'alt' attribute for screen reader accessibility and SEO standards.",
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": max(1, line.lower().find("<img") + 1),
+                    "evidence": line.strip()[:100],
+                    "origin": "HTML Accessibility Linter",
+                    "status": "Open",
+                })
+
+        return findings
+
+    def analyze_css(self, filename: str, content: str) -> List[Dict[str, Any]]:
+        """Static syntax and brace matching for CSS / SCSS."""
+        findings = []
+        open_braces = content.count("{")
+        close_braces = content.count("}")
+        if open_braces != close_braces:
+            findings.append({
+                "category": "Syntax",
+                "severity": "High",
+                "title": "Mismatched CSS block braces",
+                "description": f"CSS stylesheet has {open_braces} opening '{{' and {close_braces} closing '}}' braces.",
+                "file": filename,
+                "line_number": 1,
+                "column_number": 1,
+                "evidence": f"Brace count mismatch: {open_braces} open vs {close_braces} close",
+                "origin": "CSS Linter",
+                "status": "Open",
+            })
+        return findings
+
+    def analyze_json(self, filename: str, content: str) -> List[Dict[str, Any]]:
+        """Static syntax validation for JSON data."""
+        try:
+            json.loads(content)
+            return []
+        except json.JSONDecodeError as exc:
+            return [{
+                "category": "Syntax",
+                "severity": "Critical",
+                "title": f"Invalid JSON syntax: {exc.msg}",
+                "description": f"JSON parsing failed: {exc.msg} at line {exc.lineno}, column {exc.colno}.",
+                "file": filename,
+                "line_number": exc.lineno,
+                "column_number": exc.colno,
+                "evidence": f"Error at position {exc.pos}: {exc.msg}",
+                "origin": "JSON Validator",
+                "status": "Open",
+            }]
+
+    def analyze_generic(self, filename: str, content: str, language: str) -> List[Dict[str, Any]]:
+        """General static checks for Java, C++, C#, Go, Rust, PHP, Ruby, etc."""
+        findings = []
+        lines = content.splitlines()
+
+        secret_patterns = [
+            (r"""(?i)(?:api[_-]?key|apikey|secret|auth[_-]?token|private[_-]?key)\s*[:=]\s*['"][a-zA-Z0-9_\-]{16,}['"]""", "Exposed API key / secret credential"),
+            (r"""(?i)(?:password|passwd|pwd)\s*[:=]\s*['"][^'"]{6,}['"]""", "Hardcoded plaintext password"),
+        ]
+
+        for idx, line in enumerate(lines, start=1):
+            stripped = line.strip()
+            if stripped.startswith("//") or stripped.startswith("#") or stripped.startswith("/*"):
+                continue
+
+            for pattern, title in secret_patterns:
+                if re.search(pattern, stripped):
+                    findings.append({
+                        "category": "Security",
+                        "severity": "Critical",
+                        "title": title,
+                        "description": f"Potential credential or API secret exposed directly in source code on line {idx}.",
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": 1,
+                        "evidence": re.sub(r"""(['"])[^'"]{8,}(['"])""", r"\1********\2", line.strip())[:100],
+                        "origin": "Credential Safety Scanner",
+                        "status": "Open",
+                    })
+                    break
+
+        if not findings:
+            return [{
+                "category": "Code Quality",
+                "severity": "Info",
+                "title": f"Static analysis skipped for {language}",
+                "description": f"File '{filename}' indexed for multi-agent pipeline analysis, root-cause diagnosis, and verification.",
+                "file": filename,
+                "line_number": None,
+                "column_number": None,
+                "evidence": f"Language: {language}",
+                "origin": "Static Analyzer",
+                "status": "Open",
+            }]
+
+        return findings
+
     def analyze_file(self, filename: str, content: str, language: str = "python") -> List[Dict[str, Any]]:
         """Analyzes a source file based on extension and language."""
         ext = filename.split(".")[-1].lower() if "." in filename else ""
+        lang = (language or "python").lower()
 
-        if ext in ("sql",) or language.lower() in ("sql",):
+        # HTML
+        if ext in ("html", "htm") or lang in ("html", "htm"):
+            return self.analyze_html(filename, content)
+
+        # CSS / SCSS / LESS
+        if ext in ("css", "scss", "sass", "less") or lang in ("css", "scss", "sass", "less"):
+            return self.analyze_css(filename, content)
+
+        # JSON
+        if ext in ("json",) or lang in ("json",):
+            return self.analyze_json(filename, content)
+
+        # JavaScript / TypeScript / React JSX / TSX / Vue / Svelte
+        if ext in ("js", "jsx", "mjs", "cjs", "ts", "tsx", "vue", "svelte") or lang in ("javascript", "js", "typescript", "ts", "jsx", "tsx", "react", "vue", "svelte"):
+            return self.analyze_javascript(filename, content, language)
+
+        # SQL
+        if ext in ("sql",) or lang in ("sql", "tsql", "mysql", "postgres", "postgresql", "sqlite"):
             return self.analyze_sql(filename, content)
 
-        if ext in ("csv", "tsv") or language.lower() in ("csv",):
+        # CSV / TSV
+        if ext in ("csv", "tsv") or lang in ("csv",):
             return self.analyze_csv(filename, content)
 
-        if ext in ("py", "pyw") or language.lower() in ("python", "py"):
+        # Python
+        if ext in ("py", "pyw") or lang in ("python", "py"):
             ast_findings = self.analyze_python_ast(filename, content)
             has_syntax_error = any(f["category"] == "Syntax" for f in ast_findings)
             if has_syntax_error:
@@ -381,18 +634,8 @@ class StaticAnalysisService:
             ruff_findings = self.run_ruff(filename, content)
             return ast_findings + ruff_findings
 
-        return [{
-            "category": "Code Quality",
-            "severity": "Info",
-            "title": f"Static analysis skipped for {language or ext}",
-            "description": f"File '{filename}' indexed for pipeline diagnosis and verification.",
-            "file": filename,
-            "line_number": None,
-            "column_number": None,
-            "evidence": f"Language: {language or ext}",
-            "origin": "AST",
-            "status": "Open",
-        }]
+        # General Fallback for all other programming languages (Java, C, C++, C#, Go, Rust, PHP, etc.)
+        return self.analyze_generic(filename, content, language or ext)
 
     def analyze_session_files(self, files: List[Dict[str, Any]], language: str = "python") -> List[Dict[str, Any]]:
         """Analyzes all files in a session and combines findings."""

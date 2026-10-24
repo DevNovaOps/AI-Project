@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Sparkles, Search, Sun, Moon, Bell, Settings, Play,
   ChevronDown, Check, Terminal, ExternalLink, ShieldCheck, CheckCircle2
@@ -7,6 +7,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { useWorkflowStore } from '../../store/useWorkflowStore';
 import { useNavigate } from 'react-router-dom';
 import aetherionLogo from '../../assets/images/aetherion-logo.png';
+import { LANGUAGE_REGISTRY, getLanguageInfo } from '../../utils/languages';
 
 export default function TopBar() {
   const navigate = useNavigate();
@@ -21,18 +22,25 @@ export default function TopBar() {
   const { workflowState, startAutonomousWorkflow, activeAgent, progress } = useWorkflowStore();
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [langSearch, setLangSearch] = useState('');
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const isRunning = workflowState !== 'idle' && workflowState !== 'completed' && workflowState !== 'failed';
 
-  const languages = [
-    { id: 'python', label: 'Python 3.11', icon: '🐍' },
-    { id: 'sql', label: 'SQL (T-SQL / ANSI)', icon: '🗄️' },
-    { id: 'javascript', label: 'JavaScript (Node 20)', icon: '⚡' },
-    { id: 'typescript', label: 'TypeScript 5.3', icon: '🔷' },
-    { id: 'rust', label: 'Rust 1.76', icon: '🦀' },
-    { id: 'go', label: 'Go 1.22', icon: '🐹' }
-  ];
+  const currentLang = getLanguageInfo(activeLanguage);
+
+  const allLanguages = useMemo(() => Object.values(LANGUAGE_REGISTRY), []);
+
+  const filteredLanguages = useMemo(() => {
+    if (!langSearch.trim()) return allLanguages;
+    const q = langSearch.toLowerCase();
+    return allLanguages.filter(
+      l => l.label.toLowerCase().includes(q) || 
+           l.id.toLowerCase().includes(q) || 
+           l.category.toLowerCase().includes(q) ||
+           (l.extensions && l.extensions.some(ext => ext.includes(q)))
+    );
+  }, [allLanguages, langSearch]);
 
   return (
     <header className="topbar">
@@ -42,7 +50,7 @@ export default function TopBar() {
           <img 
             src={aetherionLogo} 
             alt="AETHERION" 
-            className="brand-logo-img"
+            className="brand-logo-img" 
           />
         </div>
         <div className="brand-info">
@@ -68,39 +76,77 @@ export default function TopBar() {
 
       {/* Right: Actions, Language, Workflow Trigger, Theme, Notifications, Profile */}
       <div className="topbar-right">
-        {/* Language Selector */}
+        {/* Universal Multi-Language & Framework Selector */}
         <div style={{ position: 'relative' }}>
           <button
             className="lang-select-btn"
-            onClick={() => setIsLangMenuOpen(!isLangMenuOpen)}
+            onClick={() => {
+              setIsLangMenuOpen(!isLangMenuOpen);
+              setLangSearch('');
+            }}
+            title={`Active Language: ${currentLang.label} (${currentLang.runtime})`}
           >
-            <span>{languages.find(l => l.id === activeLanguage)?.icon || '🐍'}</span>
-            <span>{languages.find(l => l.id === activeLanguage)?.label?.split(' ')[0] || 'Python'}</span>
+            <span>{currentLang.icon}</span>
+            <span>{currentLang.label.split(' ')[0]}</span>
             <ChevronDown size={13} />
           </button>
 
           {isLangMenuOpen && (
-            <div className="popover-menu" style={{ width: 180 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', padding: '4px 8px', textTransform: 'uppercase' }}>
-                Active Runtime
-              </div>
-              {languages.map((l) => (
-                <div
-                  key={l.id}
-                  className="palette-item"
-                  onClick={() => {
-                    setLanguage(l.id);
-                    setIsLangMenuOpen(false);
+            <div className="popover-menu" style={{ width: 260, maxHeight: 360, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '6px 8px 4px 8px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <input
+                  type="text"
+                  placeholder="Filter 25+ languages & frameworks..."
+                  value={langSearch}
+                  onChange={(e) => setLangSearch(e.target.value)}
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 4,
+                    padding: '4px 8px',
+                    fontSize: 11,
+                    color: 'var(--text-primary)',
+                    outline: 'none'
                   }}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>{l.icon}</span>
-                    <span>{l.label}</span>
-                  </span>
-                  {activeLanguage === l.id && <Check size={13} color="var(--color-success)" />}
-                </div>
-              ))}
+                />
+              </div>
+
+              <div style={{ overflowY: 'auto', flex: 1, padding: '4px 0' }}>
+                {filteredLanguages.length === 0 ? (
+                  <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--text-muted)' }}>
+                    No matching language found
+                  </div>
+                ) : (
+                  filteredLanguages.map((l) => (
+                    <div
+                      key={l.id}
+                      className="palette-item"
+                      onClick={() => {
+                        setLanguage(l.id);
+                        setIsLangMenuOpen(false);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '6px 10px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 14 }}>{l.icon}</span>
+                        <span>
+                          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>{l.label}</span>
+                          <span style={{ display: 'block', fontSize: 9, color: 'var(--text-muted)' }}>{l.category}</span>
+                        </span>
+                      </span>
+                      {activeLanguage === l.id && <Check size={13} color="var(--color-success)" />}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>

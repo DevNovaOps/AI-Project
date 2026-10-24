@@ -3,6 +3,7 @@ import Editor from '@monaco-editor/react';
 import { useAppStore } from '../../store/useAppStore';
 import DiagnosticPopup from './DiagnosticPopup';
 import { Play, Save, Check, FileCode } from 'lucide-react';
+import { getLanguageInfo } from '../../utils/languages';
 
 export default function CodeEditor() {
   const { 
@@ -360,7 +361,7 @@ export default function CodeEditor() {
           <span style={{ color: 'var(--text-muted)' }}>•</span>
           <span>UTF-8</span>
           <span style={{ color: 'var(--text-muted)' }}>•</span>
-          <span>Python 3.11.5</span>
+          <span>{getLanguageInfo(currentFile.language || 'plaintext').runtime}</span>
         </span>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

@@ -4,8 +4,19 @@ from app.core.config import settings
 from app.core.exceptions import SecurityViolationException
 
 SUPPORTED_LANGUAGES = {
-    "python", "py", "javascript", "js", "typescript", "ts",
-    "sql", "tsql", "csv", "plaintext", "markdown", "json", "rust", "go"
+    # Web & Frontend
+    "javascript", "js", "typescript", "ts", "jsx", "tsx", "react", "vue", "svelte",
+    "html", "htm", "css", "scss", "sass", "less",
+    # Backend & Systems
+    "python", "py", "java", "c", "cpp", "cxx", "h", "hpp", "csharp", "cs", "dotnet",
+    "go", "golang", "rust", "rs", "php", "ruby", "rb", "rails",
+    "kotlin", "kt", "swift", "dart", "scala", "r", "lua", "perl", "pl",
+    # Data & Databases
+    "sql", "tsql", "mysql", "postgres", "postgresql", "sqlite", "plsql",
+    # Config, Data & DevOps
+    "json", "yaml", "yml", "xml", "markdown", "md", "csv", "tsv", "plaintext", "txt",
+    "shell", "sh", "bash", "zsh", "powershell", "ps1", "bat", "cmd",
+    "dockerfile", "docker", "graphql", "gql", "toml", "ini", "properties"
 }
 
 

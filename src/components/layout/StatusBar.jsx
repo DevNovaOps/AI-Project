@@ -5,11 +5,12 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useWorkflowStore } from '../../store/useWorkflowStore';
+import { getLanguageInfo } from '../../utils/languages';
 
 export default function StatusBar() {
   const { 
     project, selectedBranch, activeFilePath, 
-    issues, testCases, 
+    issues, testCases, activeLanguage,
     setConsoleTab, toggleConsole
   } = useAppStore();
 
@@ -115,7 +116,7 @@ export default function StatusBar() {
         {/* Workflow State indicator */}
         {getWorkflowBadge()}
 
-        <span style={{ color: 'var(--text-muted)' }}>Python 3.11</span>
+        <span style={{ color: 'var(--text-muted)' }}>{getLanguageInfo(activeLanguage).runtime}</span>
         <span style={{ color: 'var(--text-muted)' }}>UTF-8</span>
         <span style={{ color: 'var(--text-muted)' }}>Spaces: 4</span>
       </div>
