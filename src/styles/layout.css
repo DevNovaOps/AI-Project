@@ -308,6 +308,116 @@
   letter-spacing: -0.1px;
 }
 
+/* Activity Bar Logo / Brand Card Widget */
+.activity-bar-brand-card {
+  width: 48px;
+  border-radius: 8px;
+  padding: 6px 2px;
+  background-color: #091326;
+  border: 1px solid #1a2a47;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.activity-bar-brand-card:hover {
+  background-color: #0d1a36;
+  border-color: #2563eb;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.35);
+  transform: translateY(-1px);
+}
+
+.activity-bar-logo-container {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 6px;
+}
+
+.activity-brand-name {
+  font-size: 8px;
+  font-weight: 800;
+  color: #f8fafc;
+  line-height: 1;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  transition: color var(--transition-fast);
+}
+
+.activity-brand-sub {
+  font-size: 7px;
+  color: #64748b;
+  line-height: 1;
+  transition: color var(--transition-fast);
+}
+
+.activity-brand-stats {
+  display: flex;
+  gap: 3px;
+  font-size: 7px;
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+.brand-stat-ai {
+  color: #38bdf8;
+}
+
+.brand-stat-num {
+  color: #a855f7;
+}
+
+.brand-stat-ok {
+  color: #10b981;
+}
+
+/* Light theme adaptations for Activity Bar */
+[data-theme="light"] .activity-item {
+  color: #64748b;
+}
+
+[data-theme="light"] .activity-item:hover {
+  color: #0f172a;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .activity-bar-brand-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="light"] .activity-bar-brand-card:hover {
+  background-color: #f8fafc;
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  transform: translateY(-1px);
+}
+
+[data-theme="light"] .activity-brand-name {
+  color: #0f172a;
+}
+
+[data-theme="light"] .activity-brand-sub {
+  color: #64748b;
+}
+
+[data-theme="light"] .brand-stat-ai {
+  color: #0284c7;
+}
+
+[data-theme="light"] .brand-stat-num {
+  color: #7c3aed;
+}
+
+[data-theme="light"] .brand-stat-ok {
+  color: #059669;
+}
+
 
 /* IDE Workspace */
 .ide-workspace {

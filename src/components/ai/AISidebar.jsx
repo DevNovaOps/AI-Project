@@ -9,12 +9,14 @@ import ChatPanel from './ChatPanel';
 import TestsPanel from './TestsPanel';
 import FixesPanel from './FixesPanel';
 import aetherionLogo from '../../assets/images/aetherion-logo.png';
+import logoLight from '../../assets/images/logo-light.png';
+import logoDark from '../../assets/images/logo-dark.png';
 
 export default function AISidebar() {
   const {
     isRightSidebarOpen, toggleRightSidebar,
     rightSidebarTab, setRightSidebarTab,
-    activeFilePath
+    activeFilePath, theme
   } = useAppStore();
 
   const [bottomInput, setBottomInput] = useState('');
@@ -40,6 +42,8 @@ export default function AISidebar() {
     setBottomInput('');
   };
 
+  const logoSrc = theme === 'light' ? (logoLight || aetherionLogo) : (logoDark || aetherionLogo);
+
   return (
     <aside
       className="ai-sidebar"
@@ -51,7 +55,7 @@ export default function AISidebar() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div className="brand-logo-container" style={{ width: 32, height: 32, borderRadius: 7 }}>
             <img 
-              src={aetherionLogo} 
+              src={logoSrc} 
               alt="AETHERION" 
               className="brand-logo-img" 
             />

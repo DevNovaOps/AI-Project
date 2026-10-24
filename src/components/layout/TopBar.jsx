@@ -7,6 +7,8 @@ import { useAppStore } from '../../store/useAppStore';
 import { useWorkflowStore } from '../../store/useWorkflowStore';
 import { useNavigate } from 'react-router-dom';
 import aetherionLogo from '../../assets/images/aetherion-logo.png';
+import logoLight from '../../assets/images/logo-light.png';
+import logoDark from '../../assets/images/logo-dark.png';
 import { LANGUAGE_REGISTRY, getLanguageInfo, detectLanguageFromFilename } from '../../utils/languages';
 
 export default function TopBar() {
@@ -43,13 +45,15 @@ export default function TopBar() {
     );
   }, [allLanguages, langSearch]);
 
+  const logoSrc = theme === 'light' ? (logoLight || aetherionLogo) : (logoDark || aetherionLogo);
+
   return (
     <header className="topbar">
       {/* Left: Brand Identity */}
       <div className="topbar-left" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
         <div className="brand-logo-container" title="AETHERION — Autonomous AI Debugging IDE">
           <img 
-            src={aetherionLogo} 
+            src={logoSrc} 
             alt="AETHERION" 
             className="brand-logo-img" 
           />

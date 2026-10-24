@@ -6,11 +6,14 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
 import aetherionLogo from '../../assets/images/aetherion-logo.png';
+import logoLight from '../../assets/images/logo-light.png';
+import logoDark from '../../assets/images/logo-dark.png';
 
 export default function ActivityBar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { toggleLeftSidebar } = useAppStore();
+  const { toggleLeftSidebar, theme } = useAppStore();
+  const logoSrc = theme === 'light' ? (logoLight || aetherionLogo) : (logoDark || aetherionLogo);
 
   const navItems = [
     { id: 'explorer', label: 'Explorer', icon: FolderGit2, path: '/', isToggle: true },
@@ -79,44 +82,33 @@ export default function ActivityBar() {
           <span className="activity-label">Settings</span>
         </button>
 
-        {/* AegisVault mini card widget at bottom */}
+        {/* Aetherion mini card widget at bottom */}
         <div
-          style={{
-            width: 48,
-            borderRadius: 6,
-            padding: '6px 2px',
-            backgroundColor: '#091326',
-            border: '1px solid #1a2a47',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 2,
-            marginTop: 4,
-            cursor: 'pointer'
-          }}
+          className="activity-bar-brand-card"
           onClick={() => navigate('/')}
-          title="AETHERION - Autonomous multi-agent debugging system"
+          title="AETHERION — Autonomous multi-agent debugging system"
         >
-          <div className="brand-logo-container" style={{ width: 28, height: 28, borderRadius: 6 }}>
+          <div className="brand-logo-container activity-bar-logo-container">
             <img
-              src={aetherionLogo}
+              src={logoSrc}
               alt="AETHERION"
               className="brand-logo-img"
             />
           </div>
-          <span style={{ fontSize: 8, fontWeight: 800, color: '#f8fafc', lineHeight: 1, letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+          <span className="activity-brand-name">
             Aetherion
           </span>
-          <span style={{ fontSize: 7, color: '#64748b', lineHeight: 1 }}>
+          <span className="activity-brand-sub">
             System
           </span>
-          <div style={{ display: 'flex', gap: 3, fontSize: 7, color: '#38bdf8', marginTop: 2, fontWeight: 600 }}>
-            <span style={{ color: '#38bdf8' }}>AI</span>
-            <span style={{ color: '#a855f7' }}>5</span>
-            <span style={{ color: '#10b981' }}>OK</span>
+          <div className="activity-brand-stats">
+            <span className="brand-stat-ai">AI</span>
+            <span className="brand-stat-num">5</span>
+            <span className="brand-stat-ok">OK</span>
           </div>
         </div>
       </div>
     </aside>
   );
 }
+
