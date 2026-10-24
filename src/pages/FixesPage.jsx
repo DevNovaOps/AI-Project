@@ -77,13 +77,18 @@ export default function FixesPage() {
               Execute the 5-Agent autonomous pipeline to detect code quality defects and generate deterministic unified diff repairs.
             </p>
           </div>
-          <button
-            className="btn btn-primary-gradient"
-            onClick={() => navigate('/')}
-            style={{ height: 34, padding: '0 20px', fontSize: 12, marginTop: 4 }}
-          >
-            Go to Editor &amp; Analyze
-          </button>
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            <button
+              className="btn btn-primary-gradient"
+              onClick={() => {
+                navigate('/');
+              }}
+              style={{ height: 34, padding: '0 20px', fontSize: 12 }}
+            >
+              <Sparkles size={13} style={{ marginRight: 6 }} />
+              <span>Go to Editor &amp; Analyze</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2.2fr', gap: 16 }}>
