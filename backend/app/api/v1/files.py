@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.project import Project
+from app.models.workspace_file import WorkspaceFile
 from app.schemas.file import (
     FileContentResponse,
     FileCreateRequest,
@@ -31,6 +32,29 @@ def get_project_file_tree(project_id: UUID, db: Session = Depends(get_db)) -> Li
     get_project_or_404(project_id, db)
     service = WorkspaceService(db)
     return service.get_project_files_tree(project_id)
+
+
+@router.get("/files/all")
+def get_all_project_files(project_id: UUID, db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+    """Returns all source files with their content in the workspace for multi-file analysis."""
+    get_project_or_404(project_id, db)
+    files = (
+        db.query(WorkspaceFile)
+        .filter(WorkspaceFile.project_id == project_id, WorkspaceFile.is_directory == False)
+        .order_by(WorkspaceFile.relative_path)
+        .all()
+    )
+    return [
+        {
+            "path": f.relative_path,
+            "filename": f.filename,
+            "extension": f.file_extension,
+            "content": f.content or "",
+            "size_bytes": f.size_bytes,
+            "version": f.version,
+        }
+        for f in files
+    ]
 
 
 @router.get("/files/content", response_model=FileContentResponse)

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   AlertCircle, Lightbulb, CheckCircle2, ChevronRight, Copy, Check, 
   Sparkles, FlaskConical, ExternalLink, ShieldCheck, ChevronLeft, Play, FileCode,
-  RefreshCw, Bug, Activity
+  RefreshCw, Bug, Activity, Globe, CheckSquare, Layers
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useWorkflowStore } from '../../store/useWorkflowStore';
@@ -14,12 +14,14 @@ export default function AnalysisPanel() {
   const { 
     selectedIssueId, issues, selectIssue, 
     applyFix, undoFix, appliedFixes, 
-    setRightSidebarTab, openFileAtLine
+    setRightSidebarTab, openFileAtLine,
+    currentProject, activeFilePath
   } = useAppStore();
 
   const { 
     startAutonomousWorkflow, workflowState, 
-    activeAgent, progress, agentLogs 
+    activeAgent, progress, agentLogs,
+    targetScope, setTargetScope, setTargetModalOpen, selectedTargetFiles
   } = useWorkflowStore();
   const [copied, setCopied] = useState(false);
   const [isInjecting, setIsInjecting] = useState(false);
@@ -65,12 +67,71 @@ export default function AnalysisPanel() {
     }
   };
 
+  const renderScopeBanner = (canEdit = true) => {
+    let scopeLabel = 'Entire Codebase (All Files)';
+    let ScopeIcon = Globe;
+    if (targetScope === 'selected') {
+      scopeLabel = `${selectedTargetFiles.length} Selected File(s)`;
+      ScopeIcon = CheckSquare;
+    } else if (targetScope === 'active') {
+      scopeLabel = `Active File (${activeFilePath ? activeFilePath.split('/').pop() : 'Current Tab'})`;
+      ScopeIcon = FileCode;
+    }
+
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '7px 10px',
+        background: 'rgba(56, 189, 248, 0.06)',
+        borderRadius: 'var(--radius-md)',
+        border: '1px solid rgba(56, 189, 248, 0.22)',
+        fontSize: 11
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+          <ScopeIcon size={13} color="#38bdf8" style={{ flexShrink: 0 }} />
+          <span style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Target:</span>
+          <strong style={{ color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+            {scopeLabel}
+          </strong>
+        </div>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => setTargetModalOpen(true)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#38bdf8',
+              cursor: 'pointer',
+              fontSize: 11,
+              fontWeight: 600,
+              padding: '2px 6px',
+              borderRadius: 4,
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+            title="Configure Target Files for AI Analysis (Entire Codebase, Selected Files, or Active File)"
+          >
+            <Layers size={11} />
+            <span>Select Files</span>
+          </button>
+        )}
+      </div>
+    );
+  };
+
   // State 1: Active 5-Agent Workflow Running
   if (isRunning) {
     const latestLog = agentLogs && agentLogs.length > 0 ? agentLogs[agentLogs.length - 1] : null;
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {renderScopeBanner(false)}
+
         <div style={{
           padding: '20px 14px',
           background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, rgba(168, 85, 247, 0.08) 100%)',
@@ -147,6 +208,8 @@ export default function AnalysisPanel() {
   if (workflowState === 'completed' && issues.length === 0) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {renderScopeBanner(true)}
+
         {/* Verification Status Banner */}
         <div style={{
           padding: '18px 14px',
@@ -284,43 +347,213 @@ export default function AnalysisPanel() {
   if (issues.length === 0) {
     return (
       <div style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        padding: '36px 16px', textAlign: 'center', gap: 14, color: 'var(--text-muted)'
+        display: 'flex', flexDirection: 'column', alignItems: 'stretch',
+        padding: '20px 14px', gap: 14
       }}>
+        {/* Header Hero */}
         <div style={{
-          width: 48, height: 48, borderRadius: '50%', backgroundColor: 'var(--bg-card)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-subtle)'
+          display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 8
         }}>
-          <Sparkles size={22} color="#38bdf8" />
-        </div>
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-            Autonomous 5-Agent Analysis
+          <div style={{
+            width: 44, height: 44, borderRadius: '50%', backgroundColor: 'var(--bg-card)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-subtle)',
+            boxShadow: '0 0 16px rgba(56, 189, 248, 0.15)'
+          }}>
+            <Sparkles size={22} color="#38bdf8" />
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
-            Run the 5-Agent pipeline to perform deep AST static analysis, diagnose root causes, and propose verified patches.
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+              Autonomous 5-Agent Analysis
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.4 }}>
+              AST static checks, root cause diagnosis, and auto-generated verification patches.
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', marginTop: 4 }}>
+        {/* Target Scope Selection Card */}
+        <div style={{
+          padding: '12px',
+          background: 'var(--bg-card)',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--border-subtle)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Target Scope
+            </span>
+            <button
+              type="button"
+              onClick={() => setTargetModalOpen(true)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#38bdf8',
+                fontSize: 10,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 3
+              }}
+            >
+              <Layers size={10} />
+              <span>Configure...</span>
+            </button>
+          </div>
+
+          {/* 3 Scope Selector Pills */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+            {/* Project Pill */}
+            <button
+              type="button"
+              onClick={() => setTargetScope('project')}
+              style={{
+                padding: '8px 4px',
+                borderRadius: 'var(--radius-md)',
+                border: targetScope === 'project' ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid var(--border-subtle)',
+                background: targetScope === 'project' ? 'rgba(56, 189, 248, 0.12)' : 'var(--bg-input)',
+                color: targetScope === 'project' ? '#38bdf8' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 10,
+                fontWeight: targetScope === 'project' ? 700 : 500,
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Globe size={14} />
+              <span>Entire Codebase</span>
+            </button>
+
+            {/* Custom Selected Pill */}
+            <button
+              type="button"
+              onClick={() => {
+                setTargetScope('selected');
+                setTargetModalOpen(true);
+              }}
+              style={{
+                padding: '8px 4px',
+                borderRadius: 'var(--radius-md)',
+                border: targetScope === 'selected' ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid var(--border-subtle)',
+                background: targetScope === 'selected' ? 'rgba(56, 189, 248, 0.12)' : 'var(--bg-input)',
+                color: targetScope === 'selected' ? '#38bdf8' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 10,
+                fontWeight: targetScope === 'selected' ? 700 : 500,
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <CheckSquare size={14} />
+              <span>
+                {selectedTargetFiles.length > 0 ? `${selectedTargetFiles.length} Selected` : 'Select Files'}
+              </span>
+            </button>
+
+            {/* Active File Pill */}
+            <button
+              type="button"
+              onClick={() => setTargetScope('active')}
+              style={{
+                padding: '8px 4px',
+                borderRadius: 'var(--radius-md)',
+                border: targetScope === 'active' ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid var(--border-subtle)',
+                background: targetScope === 'active' ? 'rgba(56, 189, 248, 0.12)' : 'var(--bg-input)',
+                color: targetScope === 'active' ? '#38bdf8' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 10,
+                fontWeight: targetScope === 'active' ? 700 : 500,
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <FileCode size={14} />
+              <span>Active File</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+          {/* Main Action 1: Analyze Entire Codebase */}
           <button
             className="btn btn-primary-gradient"
-            onClick={startAutonomousWorkflow}
+            onClick={() => {
+              setTargetScope('project');
+              startAutonomousWorkflow();
+            }}
             disabled={workflowState !== 'idle' && workflowState !== 'completed' && workflowState !== 'failed'}
-            style={{ height: 34, fontSize: 11, width: '100%' }}
+            style={{ height: 36, fontSize: 11, width: '100%', fontWeight: 700 }}
+            title="Scan and verify every file in the entire repository"
           >
-            <Play size={12} fill="#ffffff" />
-            <span>Start Autonomous Analysis</span>
+            <Globe size={13} fill="#ffffff" />
+            <span>Analyze Entire Codebase</span>
           </button>
 
+          {/* Main Action 2: Select Specific Files */}
+          <button
+            className="btn btn-secondary"
+            onClick={() => setTargetModalOpen(true)}
+            style={{
+              height: 32,
+              fontSize: 11,
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6
+            }}
+            title="Choose specific files from a file picker dialog"
+          >
+            <CheckSquare size={13} color="#38bdf8" />
+            <span>Select Specific Files to Analyze...</span>
+          </button>
+
+          {/* Main Action 3: Current File Only */}
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              setTargetScope('active');
+              startAutonomousWorkflow();
+            }}
+            style={{
+              height: 30,
+              fontSize: 11,
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              opacity: 0.85
+            }}
+            title="Analyze only the currently active editor tab"
+          >
+            <FileCode size={12} />
+            <span>Analyze Active File Only</span>
+          </button>
+
+          {/* Test with Demo Defect */}
           <button
             className="btn btn-secondary"
             onClick={handleInjectDemoBug}
             disabled={isInjecting}
-            style={{ height: 32, fontSize: 11, width: '100%' }}
+            style={{ height: 28, fontSize: 10, width: '100%', opacity: 0.75, marginTop: 4 }}
             title="Inject a realistic defect to test the AI diagnosis and auto-repair engine"
           >
-            <Bug size={12} />
+            <Bug size={11} />
             <span>{isInjecting ? 'Injecting...' : 'Test with Demo Defect'}</span>
           </button>
         </div>
@@ -364,6 +597,8 @@ export default function AnalysisPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {renderScopeBanner(true)}
+
       {/* Context Pill */}
       <div style={{ 
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', 

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { useAppStore } from './useAppStore';
 import { sessionsApi } from '../api/sessions';
+import { filesApi } from '../api/files';
 import { normalizeError, apiClient } from '../api/client';
 
 export const useWorkflowStore = create((set, get) => ({
@@ -11,6 +12,25 @@ export const useWorkflowStore = create((set, get) => ({
   retryCount: 0,
   activeSessionId: null,
   agentLogs: [],
+
+  // Target Scope Configuration
+  targetScope: 'project', // 'project' (all project code files) | 'selected' (user picked files) | 'active' (active file only)
+  selectedTargetFiles: [], // array of relative paths
+  isTargetModalOpen: false,
+
+  setTargetScope: (scope) => set({ targetScope: scope }),
+  setSelectedTargetFiles: (files) => set({ selectedTargetFiles: files }),
+  setTargetModalOpen: (open) => set({ isTargetModalOpen: open }),
+  toggleTargetFile: (filePath) => {
+    const current = get().selectedTargetFiles;
+    if (current.includes(filePath)) {
+      set({ selectedTargetFiles: current.filter(p => p !== filePath) });
+    } else {
+      set({ selectedTargetFiles: [...current, filePath] });
+    }
+  },
+  selectAllTargetFiles: (paths) => set({ selectedTargetFiles: paths }),
+  clearSelectedTargetFiles: () => set({ selectedTargetFiles: [] }),
 
   addLog: (log) => {
     const newEntry = {
@@ -40,10 +60,16 @@ export const useWorkflowStore = create((set, get) => ({
       return text;
     };
 
-    // Gather files from appStore: prioritize active file in editor!
-    const nonCodeExts = ['.txt', '.text', '.md', '.markdown', '.rst', '.log', '.csv', '.tsv'];
-    let sourceFiles = [];
+    const targetScope = get().targetScope || 'project';
+    const selectedTargetFiles = get().selectedTargetFiles || [];
 
+    const nonCodeExts = [
+      '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp',
+      '.woff', '.woff2', '.ttf', '.eot', '.mp4', '.mp3',
+      '.pdf', '.zip', '.tar', '.gz', '.lock'
+    ];
+
+    let sourceFiles = [];
     const activePath = appStore.activeFilePath || 'main.py';
 
     // Synchronize live unsaved buffer directly from Monaco Editor if mounted
@@ -55,19 +81,17 @@ export const useWorkflowStore = create((set, get) => ({
         console.warn('Could not read from Monaco editor instance:', err);
       }
     }
-
     if (liveEditorContent !== null && activePath) {
       appStore.updateFileContent(activePath, liveEditorContent);
     }
 
     const currentFiles = useAppStore.getState().files;
-    const activeFile = currentFiles[activePath];
-    const effectiveContent = liveEditorContent !== null ? liveEditorContent : (activeFile ? activeFile.content : '');
 
-    // 1. If an active file is open and is a code/markup file, put it FIRST
-    if (effectiveContent !== undefined && effectiveContent !== null) {
-      const p = (activeFile?.path || activePath || 'main.py').toLowerCase();
-      if (!nonCodeExts.some(ext => p.endsWith(ext))) {
+    // ── CASE 1: Active File Only ──
+    if (targetScope === 'active') {
+      const activeFile = currentFiles[activePath];
+      const effectiveContent = liveEditorContent !== null ? liveEditorContent : (activeFile ? activeFile.content : '');
+      if (effectiveContent !== undefined && effectiveContent !== null) {
         sourceFiles.push({
           filename: activeFile?.path || activePath || 'main.py',
           file_path: activeFile?.path || activePath || 'main.py',
@@ -77,37 +101,68 @@ export const useWorkflowStore = create((set, get) => ({
       }
     }
 
-    // 2. Add other open tabs if any (up to 3 total open editor tabs)
-    const openTabs = appStore.openTabs || [];
-    for (const tabPath of openTabs) {
-      if (tabPath === activePath) continue;
-      const f = appStore.files[tabPath];
-      if (!f || f.content === undefined) continue;
-      const p = (f.path || f.name || tabPath).toLowerCase();
-      if (nonCodeExts.some(ext => p.endsWith(ext))) continue;
-
-      if (!sourceFiles.some(s => s.filename === (f.path || tabPath))) {
+    // ── CASE 2: Selected Specific Files ──
+    else if (targetScope === 'selected' && selectedTargetFiles.length > 0) {
+      for (const p of selectedTargetFiles) {
+        let content = '';
+        if (p === activePath && liveEditorContent !== null) {
+          content = liveEditorContent;
+        } else if (currentFiles[p]?.content !== undefined) {
+          content = currentFiles[p].content;
+        } else if (currentProject?.id) {
+          try {
+            const res = await filesApi.getContent(currentProject.id, p);
+            content = res.content || '';
+          } catch (e) {
+            console.warn(`Could not fetch content for ${p}:`, e);
+          }
+        }
         sourceFiles.push({
-          filename: f.path || tabPath,
-          file_path: f.path || tabPath,
-          content: truncateContent(f.content),
-          language: f.language,
+          filename: p,
+          file_path: p,
+          content: truncateContent(content),
         });
       }
     }
 
-    // 3. ONLY if NO files are open in tabs at all, fallback to project tree
-    if (sourceFiles.length === 0 && currentProject?.id && appStore.fileTree?.length > 0) {
-      try {
-        const tree = appStore.fileTree;
-        const codeExtensions = ['.py', '.js', '.jsx', '.ts', '.tsx', '.sql', '.html', '.css', '.json'];
-        const existingPaths = new Set(sourceFiles.map(f => f.filename));
+    // ── CASE 3: Entire Project / Codebase (DEFAULT) ──
+    else {
+      // 1. Try batch fetching all files via filesApi.getAllFiles(currentProject.id)
+      if (currentProject?.id) {
+        try {
+          const allRes = await filesApi.getAllFiles(currentProject.id);
+          if (Array.isArray(allRes) && allRes.length > 0) {
+            for (const item of allRes) {
+              const p = item.path || item.filename;
+              const lower = p.toLowerCase();
+              if (nonCodeExts.some(ext => lower.endsWith(ext))) continue;
 
+              let content = item.content || '';
+              if (p === activePath && liveEditorContent !== null) {
+                content = liveEditorContent;
+              }
+
+              sourceFiles.push({
+                filename: p,
+                file_path: p,
+                content: truncateContent(content),
+                language: item.extension || 'javascript',
+              });
+            }
+          }
+        } catch (err) {
+          console.warn('Could not call filesApi.getAllFiles, falling back to file tree:', err);
+        }
+      }
+
+      // 2. Fallback: Traverse fileTree if getAllFiles returned empty
+      if (sourceFiles.length === 0 && appStore.fileTree?.length > 0) {
+        const codeExtensions = ['.py', '.js', '.jsx', '.ts', '.tsx', '.sql', '.html', '.css', '.json'];
         const collectCodeFiles = (nodes, acc = []) => {
           for (const n of nodes) {
-            if (n.type === 'file' && !existingPaths.has(n.id)) {
+            if (n.type === 'file') {
               const lower = n.id.toLowerCase();
-              if (codeExtensions.some(ext => lower.endsWith(ext)) && acc.length < 20) {
+              if (codeExtensions.some(ext => lower.endsWith(ext)) && acc.length < 50) {
                 acc.push(n.id);
               }
             }
@@ -116,21 +171,41 @@ export const useWorkflowStore = create((set, get) => ({
           return acc;
         };
 
-        const paths = collectCodeFiles(tree);
+        const paths = collectCodeFiles(appStore.fileTree);
         for (const p of paths) {
           try {
-            const contentRes = await apiClient.get(`/projects/${currentProject.id}/files/content?path=${encodeURIComponent(p)}`);
+            let content = '';
+            if (p === activePath && liveEditorContent !== null) {
+              content = liveEditorContent;
+            } else if (currentFiles[p]?.content !== undefined) {
+              content = currentFiles[p].content;
+            } else if (currentProject?.id) {
+              const contentRes = await filesApi.getContent(currentProject.id, p);
+              content = contentRes.content || '';
+            }
             sourceFiles.push({
               filename: p,
               file_path: p,
-              content: truncateContent(contentRes.content),
+              content: truncateContent(content),
             });
           } catch (e) {
-            // Ignore single file fetch error
+            // ignore
           }
         }
-      } catch (err) {
-        console.warn('Could not auto-fetch project files for analysis:', err);
+      }
+
+      // 3. Fallback: If still empty, use open editor tabs or active file
+      if (sourceFiles.length === 0) {
+        const activeFile = currentFiles[activePath];
+        const effectiveContent = liveEditorContent !== null ? liveEditorContent : (activeFile ? activeFile.content : '');
+        if (effectiveContent) {
+          sourceFiles.push({
+            filename: activeFile?.path || activePath || 'main.py',
+            file_path: activeFile?.path || activePath || 'main.py',
+            content: truncateContent(effectiveContent),
+            language: activeFile?.language || 'python',
+          });
+        }
       }
     }
 
@@ -167,9 +242,15 @@ export const useWorkflowStore = create((set, get) => ({
       agentLogs: [],
     });
 
+    const scopeLabel = targetScope === 'project'
+      ? 'Entire Project'
+      : targetScope === 'selected'
+      ? 'Selected Files'
+      : 'Active File';
+
     get().addLog({
       agent: 'Planner',
-      message: `Initializing 5-Agent pipeline for project '${currentProject?.name || 'Workspace'}' (${sourceFiles.length} file(s) targeted)`,
+      message: `Initializing 5-Agent pipeline for project '${currentProject?.name || 'Workspace'}' (${sourceFiles.length} file(s) targeted - ${scopeLabel})`,
       status: 'info',
     });
 

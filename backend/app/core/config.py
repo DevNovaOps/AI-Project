@@ -21,7 +21,7 @@ class Settings(BaseSettings):
 
     # Workflow & Limits
     MAX_REPAIR_ATTEMPTS: int = Field(default=3, ge=1, le=10)
-    MAX_FILES_PER_SESSION: int = Field(default=20, ge=1, le=100)
+    MAX_FILES_PER_SESSION: int = Field(default=50, ge=1, le=200)
     MAX_SOURCE_FILE_SIZE_BYTES: int = Field(default=200_000, ge=1)  # 200 KB per file
     MAX_SESSION_SOURCE_SIZE_BYTES: int = Field(default=1_000_000, ge=1)  # 1 MB total
     MAX_EXECUTION_SECONDS: int = Field(default=10, ge=1, le=120)

@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import {
   Sparkles, Search, Sun, Moon, Bell, Settings, Play,
-  ChevronDown, Check, Terminal, ExternalLink, ShieldCheck, CheckCircle2
+  ChevronDown, Check, Terminal, ExternalLink, ShieldCheck, CheckCircle2,
+  Globe, CheckSquare, FileCode
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useWorkflowStore } from '../../store/useWorkflowStore';
@@ -22,7 +23,10 @@ export default function TopBar() {
     setCommandPalette
   } = useAppStore();
 
-  const { workflowState, startAutonomousWorkflow, activeAgent, progress } = useWorkflowStore();
+  const { 
+    workflowState, startAutonomousWorkflow, activeAgent, progress,
+    targetScope, setTargetScope, setTargetModalOpen, selectedTargetFiles
+  } = useWorkflowStore();
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [langSearch, setLangSearch] = useState('');
@@ -207,6 +211,40 @@ export default function TopBar() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Target Scope Selector Pill */}
+        <div style={{ position: 'relative' }}>
+          <button
+            type="button"
+            onClick={() => setTargetModalOpen(true)}
+            className="btn btn-secondary"
+            style={{
+              height: 28,
+              fontSize: 11,
+              padding: '0 10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'var(--bg-input)',
+              border: targetScope === 'selected' ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              color: targetScope === 'selected' ? '#38bdf8' : 'var(--text-secondary)'
+            }}
+            title="Configure Target Files for AI Analysis (Entire Project, Selected Files, or Active File)"
+          >
+            {targetScope === 'project' && <Globe size={12} color="#38bdf8" />}
+            {targetScope === 'selected' && <CheckSquare size={12} color="#38bdf8" />}
+            {targetScope === 'active' && <FileCode size={12} color="#38bdf8" />}
+            <span>
+              {targetScope === 'project'
+                ? 'Entire Codebase'
+                : targetScope === 'selected'
+                ? `${selectedTargetFiles.length} Selected`
+                : 'Active File'}
+            </span>
+            <ChevronDown size={11} color="var(--text-muted)" />
+          </button>
         </div>
 
         {/* Primary CTA: Run with AI Agents */}

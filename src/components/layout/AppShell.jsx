@@ -8,6 +8,7 @@ import PlasmaCursor from '../common/PlasmaCursor';
 import ConnectRepoModal from '../common/ConnectRepoModal';
 import UploadProjectModal from '../common/UploadProjectModal';
 import FileActionModal from '../common/FileActionModal';
+import FileTargetSelectorModal from '../common/FileTargetSelectorModal';
 import { useAppStore } from '../../store/useAppStore';
 import { useGlobalShortcuts } from '../../hooks/useGlobalShortcuts';
 
@@ -47,6 +48,7 @@ export default function AppShell() {
       <ConnectRepoModal />
       <UploadProjectModal />
       <FileActionModal />
+      <FileTargetSelectorModal />
 
       {/* Animated Futuristic Plasma Orb Cursor */}
       <PlasmaCursor />

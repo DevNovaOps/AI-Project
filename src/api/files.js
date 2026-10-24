@@ -2,6 +2,7 @@ import { apiClient } from './client';
 
 export const filesApi = {
   getTree: (projectId) => apiClient.get(`/projects/${projectId}/files`),
+  getAllFiles: (projectId) => apiClient.get(`/projects/${projectId}/files/all`),
   getContent: (projectId, path) => apiClient.get(`/projects/${projectId}/files/content?path=${encodeURIComponent(path)}`),
   createFile: (projectId, path, content = '') => apiClient.post(`/projects/${projectId}/files`, { path, content }),
   createFolder: (projectId, path) => apiClient.post(`/projects/${projectId}/folders`, { path }),
