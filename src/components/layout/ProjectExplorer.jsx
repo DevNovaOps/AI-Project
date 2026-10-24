@@ -13,7 +13,8 @@ export default function ProjectExplorer() {
     fileTree, activeFilePath, setActiveFile,
     isLeftSidebarOpen, loadProjectFiles,
     setConnectRepoModalOpen, setUploadModalOpen,
-    setActiveModal, issues
+    setActiveModal, issues,
+    deleteProject, createLocalWorkspace
   } = useAppStore();
 
   const [expandedFolders, setExpandedFolders] = useState({});
@@ -203,24 +204,56 @@ export default function ProjectExplorer() {
           </button>
 
           {isProjectMenuOpen && (
-            <div className="popover-menu" style={{ width: 200, left: 0 }}>
+            <div className="popover-menu" style={{ width: 230, left: 0 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', padding: '4px 8px', textTransform: 'uppercase' }}>
-                Your Projects
+                Your Workspaces
               </div>
               {projects.map((p) => (
                 <div 
                   key={p.id} 
                   className="palette-item"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px' }}
                   onClick={() => {
                     selectProject(p.id);
                     setIsProjectMenuOpen(false);
                   }}
                 >
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                  {p.id === currentProject?.id && <span style={{ color: 'var(--color-success)', fontSize: 10 }}>Active</span>}
+                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 130 }}>
+                    <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-primary)' }}>{p.name}</div>
+                    <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+                      {p.source_type === 'github' ? 'GitHub Repo' : 'Simple Workspace'}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {p.id === currentProject?.id && <span style={{ color: 'var(--color-success)', fontSize: 10, fontWeight: 600 }}>Active</span>}
+                    <button
+                      className="icon-action-btn"
+                      style={{ width: 20, height: 20, opacity: 0.7 }}
+                      title="Disconnect / Remove Workspace"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Remove workspace "${p.name}"?`)) {
+                          deleteProject(p.id);
+                        }
+                      }}
+                    >
+                      <Trash2 size={11} color="#ef4444" />
+                    </button>
+                  </div>
                 </div>
               ))}
               <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '4px 0' }} />
+              <div
+                className="palette-item"
+                style={{ color: '#10b981', fontWeight: 600 }}
+                onClick={() => {
+                  setIsProjectMenuOpen(false);
+                  createLocalWorkspace('Simple Workspace');
+                }}
+              >
+                <Plus size={12} />
+                <span>+ New Simple Workspace</span>
+              </div>
               <div
                 className="palette-item"
                 style={{ color: '#38bdf8' }}
@@ -230,7 +263,7 @@ export default function ProjectExplorer() {
                 }}
               >
                 <FolderGit2 size={12} />
-                <span>Connect GitHub...</span>
+                <span>Connect GitHub Repo...</span>
               </div>
               <div
                 className="palette-item"
@@ -390,13 +423,24 @@ export default function ProjectExplorer() {
             </div>
             <div>
               <div className="overview-name">{currentProject?.name || 'Workspace'}</div>
-              <div className="overview-sub">{currentProject?.source_type === 'github' ? 'GitHub Repository' : 'Managed Workspace'}</div>
+              <div className="overview-sub">{currentProject?.source_type === 'github' ? 'GitHub Repository' : 'Simple Workspace'}</div>
             </div>
           </div>
-          <svg width="48" height="24" viewBox="0 0 48 24" fill="none">
-            <path d="M2 18C8 12 14 20 20 14C26 8 32 16 38 10C42 6 46 8 46 8" stroke="#a855f7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M2 18C8 12 14 20 20 14C26 8 32 16 38 10C42 6 46 8 46 8" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6"/>
-          </svg>
+          {currentProject?.source_type === 'github' ? (
+            <button
+              className="btn btn-secondary"
+              style={{ height: 22, fontSize: 10, padding: '0 8px' }}
+              onClick={() => createLocalWorkspace('Simple Workspace')}
+              title="Switch from GitHub to clean simple files workspace"
+            >
+              Simple Files
+            </button>
+          ) : (
+            <svg width="48" height="24" viewBox="0 0 48 24" fill="none">
+              <path d="M2 18C8 12 14 20 20 14C26 8 32 16 38 10C42 6 46 8 46 8" stroke="#a855f7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 18C8 12 14 20 20 14C26 8 32 16 38 10C42 6 46 8 46 8" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6"/>
+            </svg>
+          )}
         </div>
 
         <div className="overview-stats-grid">

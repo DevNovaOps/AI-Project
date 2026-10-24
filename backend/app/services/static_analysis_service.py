@@ -557,7 +557,7 @@ class StaticAnalysisService:
                 "column_number": None,
                 "evidence": f"Language: {language}",
                 "origin": "JS Static Analyzer",
-                "status": "Open",
+                "status": "Skipped",
             }]
 
         return findings

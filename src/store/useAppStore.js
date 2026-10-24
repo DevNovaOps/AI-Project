@@ -189,12 +189,12 @@ export const useAppStore = create((set, get) => ({
       currentProject: proj,
       project: proj ? { ...proj, branches: ['main', 'master', 'dev'] } : { name: 'Workspace', default_branch: 'main', branches: ['main', 'master', 'dev'] },
       selectedBranch: proj?.default_branch || 'main',
-      files: initialFiles || {},
+      files: {},
       fileTree: [],
-      openTabs: ['backend/main.py'],
-      activeFilePath: 'backend/main.py',
-      issues: initialIssues,
-      selectedIssueId: 'ISSUE-01',
+      openTabs: [],
+      activeFilePath: null,
+      issues: [],
+      selectedIssueId: null,
       repairs: [],
       appliedFixes: [],
       testCases: [],
@@ -203,6 +203,95 @@ export const useAppStore = create((set, get) => ({
 
     if (projectId) {
       await get().loadProjectFiles(projectId);
+    }
+  },
+
+  // 2b. Create and Switch to Clean Local Simple Workspace
+  createLocalWorkspace: async (name = 'Simple Workspace') => {
+    try {
+      const created = await projectsApi.create({
+        name,
+        description: 'Simple local code workspace',
+        source_type: 'managed',
+        default_branch: 'main',
+      });
+      const updatedProjects = [created, ...get().projects.filter(p => p.id !== created.id)];
+      set({ projects: updatedProjects });
+
+      const defaultCode = `# Function to calculate average of a list\ndef calculate_average(numbers):\n    if len(numbers) == 0:\n        return 0\n    return sum(numbers) / len(numbers)\n\n# Example usage\ndata = [10, 20, 30, 40, 50]\nprint("Average:", calculate_average(data))\n\n# Edge case\nempty_list = []\nprint("Empty list average:", calculate_average(empty_list))\n`;
+      try {
+        await filesApi.saveContent(created.id, 'main.py', defaultCode);
+      } catch (e) {
+        console.warn('Could not save initial main.py to backend:', e);
+      }
+
+      set({
+        currentProject: created,
+        project: { ...created, branches: ['main'] },
+        selectedBranch: 'main',
+        files: {
+          'main.py': {
+            name: 'main.py',
+            path: 'main.py',
+            content: defaultCode,
+            originalContent: defaultCode,
+            language: 'python',
+            version: 1,
+            isDirty: false,
+          }
+        },
+        fileTree: [{ id: 'main.py', name: 'main.py', type: 'file' }],
+        openTabs: ['main.py'],
+        activeFilePath: 'main.py',
+        activeLanguage: 'python',
+        issues: [],
+        selectedIssueId: null,
+        repairs: [],
+        appliedFixes: [],
+        testCases: [],
+        finalReport: null,
+      });
+
+      get().addNotification({
+        title: 'Simple Workspace Ready',
+        message: `Switched from GitHub to '${name}'. Now editing main.py.`,
+        type: 'success',
+      });
+    } catch (err) {
+      get().addNotification({
+        title: 'Failed to Create Workspace',
+        message: normalizeError(err),
+        type: 'error',
+      });
+    }
+  },
+
+  // 2c. Delete / Disconnect Project
+  deleteProject: async (projectId) => {
+    try {
+      await projectsApi.delete(projectId);
+      const remaining = get().projects.filter(p => p.id !== projectId);
+      set({ projects: remaining });
+
+      get().addNotification({
+        title: 'Project Removed',
+        message: 'Repository removed successfully from workspace.',
+        type: 'info',
+      });
+
+      if (get().currentProject?.id === projectId) {
+        if (remaining.length > 0) {
+          await get().selectProject(remaining[0].id);
+        } else {
+          await get().createLocalWorkspace('Simple Workspace');
+        }
+      }
+    } catch (err) {
+      get().addNotification({
+        title: 'Failed to Remove Project',
+        message: normalizeError(err),
+        type: 'error',
+      });
     }
   },
 
