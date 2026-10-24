@@ -13,7 +13,7 @@ export default function AnalysisPanel() {
   const location = useLocation();
   const { 
     selectedIssueId, issues, selectIssue, 
-    applyFix, undoFix, appliedFixes, 
+    applyFix, undoFix, applyAllFixes, appliedFixes, 
     setRightSidebarTab, openFileAtLine,
     currentProject, activeFilePath
   } = useAppStore();
@@ -744,22 +744,47 @@ export default function AnalysisPanel() {
       )}
 
       {/* Action Buttons */}
-      <div style={{ display: 'flex', gap: 6 }}>
-        {isApplied ? (
-          <button 
-            className="btn btn-secondary" 
-            style={{ flex: 1, height: 32 }}
-            onClick={() => undoFix(issue.id)}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {isApplied ? (
+            <button 
+              className="btn btn-secondary" 
+              style={{ flex: 1, height: 32 }}
+              onClick={() => undoFix(issue.id)}
+            >
+              Undo Applied Fix
+            </button>
+          ) : (
+            <button 
+              className="btn btn-primary-gradient" 
+              style={{ flex: 1, height: 32 }}
+              onClick={() => applyFix(issue.id)}
+            >
+              Apply Fix to Workspace
+            </button>
+          )}
+        </div>
+
+        {/* Auto-Repair All Issues across codebase */}
+        {issues.filter(i => i.status !== 'Fixed').length > 1 && (
+          <button
+            className="btn btn-secondary"
+            style={{ 
+              height: 30, 
+              fontSize: 11,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              background: 'rgba(56, 189, 248, 0.08)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              color: '#38bdf8'
+            }}
+            onClick={applyAllFixes}
+            title="Automatically apply verified patches to all files across the workspace"
           >
-            Undo Applied Fix
-          </button>
-        ) : (
-          <button 
-            className="btn btn-primary-gradient" 
-            style={{ flex: 1, height: 32 }}
-            onClick={() => applyFix(issue.id)}
-          >
-            Apply Fix to Workspace
+            <Sparkles size={12} color="#38bdf8" />
+            <span>Auto-Repair All ({issues.filter(i => i.status !== 'Fixed').length}) Issues</span>
           </button>
         )}
       </div>

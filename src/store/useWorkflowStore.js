@@ -442,13 +442,21 @@ export const useWorkflowStore = create((set, get) => ({
         repairs = [];
       }
 
-      // Merge repairs into formattedIssues so suggestedFix is always available
+      // Merge repairs into formattedIssues without cross-file bleeding
       const repairChanges = repairs.flatMap(r => r.proposed_changes || []);
       const enrichedIssues = formattedIssues.map((issue) => {
-        const matchingRepair = repairChanges.find(rc => rc.filename === issue.file || rc.filename === issue.filePath) || repairChanges[0];
+        const matchingRepair = repairChanges.find(rc => 
+          rc.filename === issue.file || 
+          rc.filename === issue.filePath ||
+          (issue.file && rc.filename?.endsWith(issue.file)) ||
+          (rc.filename && issue.file?.endsWith(rc.filename))
+        );
         return {
           ...issue,
-          suggestedFix: issue.suggestedFix || matchingRepair?.proposed_content || '',
+          proposedFileContent: matchingRepair?.proposed_content || null,
+          repairDiff: matchingRepair?.diff || null,
+          repairExplanation: matchingRepair?.explanation || null,
+          suggestedFix: issue.suggestedFix || matchingRepair?.explanation || '',
           codeSnippet: issue.codeSnippet || matchingRepair?.original_snippet || '',
         };
       });
