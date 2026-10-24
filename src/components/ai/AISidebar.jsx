@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import {
   Sparkles, X, Maximize2, Minimize2, Send, CornerDownLeft,
-  MessageSquare, Search, FlaskConical, Wrench, BarChart2, MoreHorizontal
+  MessageSquare, Search, FlaskConical, Wrench, MoreHorizontal
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import AnalysisPanel from './AnalysisPanel';
 import ChatPanel from './ChatPanel';
 import TestsPanel from './TestsPanel';
 import FixesPanel from './FixesPanel';
-import ReportPreview from './ReportPreview';
 import aetherionLogo from '../../assets/images/aetherion-logo.png';
 
 export default function AISidebar() {
@@ -27,8 +26,7 @@ export default function AISidebar() {
     { id: 'chat', label: 'Chat', icon: MessageSquare },
     { id: 'analysis', label: 'Analysis', icon: Search },
     { id: 'tests', label: 'Tests', icon: FlaskConical },
-    { id: 'fixes', label: 'Fixes', icon: Wrench },
-    { id: 'report', label: 'Report', icon: BarChart2 }
+    { id: 'fixes', label: 'Fixes', icon: Wrench }
   ];
 
   const handleBottomPrompt = (promptText) => {
@@ -106,7 +104,6 @@ export default function AISidebar() {
         {rightSidebarTab === 'analysis' && <AnalysisPanel />}
         {rightSidebarTab === 'tests' && <TestsPanel />}
         {rightSidebarTab === 'fixes' && <FixesPanel />}
-        {rightSidebarTab === 'report' && <ReportPreview />}
       </div>
 
       {/* Quick Prompt Bar at Bottom (matching reference images) */}

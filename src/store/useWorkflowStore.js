@@ -305,7 +305,7 @@ export const useWorkflowStore = create((set, get) => ({
         repairs,
         testCases: testRuns,
         finalReport,
-        rightSidebarTab: formattedIssues.length > 0 ? 'analysis' : 'report',
+        rightSidebarTab: 'analysis',
       });
 
       set({

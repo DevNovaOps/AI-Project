@@ -46,7 +46,7 @@ export const useAppStore = create((set, get) => ({
   toggleLeftSidebar: () => set((state) => ({ isLeftSidebarOpen: !state.isLeftSidebarOpen })),
   isRightSidebarOpen: true,
   toggleRightSidebar: () => set((state) => ({ isRightSidebarOpen: !state.isRightSidebarOpen })),
-  rightSidebarTab: 'analysis', // 'chat' | 'analysis' | 'tests' | 'fixes' | 'report'
+  rightSidebarTab: 'analysis', // 'chat' | 'analysis' | 'tests' | 'fixes'
   setRightSidebarTab: (tab) => set({ rightSidebarTab: tab, isRightSidebarOpen: true }),
 
   // Console Panels
