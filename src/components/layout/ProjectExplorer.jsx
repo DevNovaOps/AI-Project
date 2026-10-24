@@ -51,15 +51,26 @@ export default function ProjectExplorer() {
     setExpandedFolders(all);
   };
 
-  const getFileIcon = (ext, fileName) => {
-    if (ext === 'py') return <span style={{ color: '#38bdf8', fontSize: 13, fontWeight: 700 }}>🐍</span>;
-    if (ext === 'jsx' || ext === 'js') return <span style={{ color: '#06b6d4', fontSize: 13, fontWeight: 700 }}>⚛</span>;
-    if (ext === 'ts' || ext === 'tsx') return <span style={{ color: '#3b82f6', fontSize: 13, fontWeight: 700 }}>🔷</span>;
-    if (ext === 'css') return <span style={{ color: '#38bdf8', fontSize: 12 }}>🎨</span>;
-    if (ext === 'html') return <span style={{ color: '#f97316', fontSize: 12 }}>🌐</span>;
-    if (ext === 'json') return <span style={{ color: '#fbbf24', fontSize: 12 }}>📋</span>;
-    if (ext === 'md') return <FileText size={14} style={{ color: '#94a3b8' }} />;
-    if (ext === 'env') return <span style={{ color: '#fbbf24', fontSize: 12 }}>⚙</span>;
+  const getFileIcon = (ext, fileName = '') => {
+    const fLower = fileName.toLowerCase();
+    if (fLower === 'dockerfile') return <span style={{ fontSize: 13 }} title="Dockerfile">🐳</span>;
+    if (fLower === 'procfile') return <span style={{ fontSize: 13 }} title="Procfile">⚙️</span>;
+    if (ext === 'html' || ext === 'htm') return <span style={{ color: '#f97316', fontSize: 13, fontWeight: 700 }} title="HTML5">🌐</span>;
+    if (ext === 'css' || ext === 'scss' || ext === 'sass' || ext === 'less') return <span style={{ color: '#38bdf8', fontSize: 13 }} title="CSS Stylesheet">🎨</span>;
+    if (ext === 'jsx') return <span style={{ color: '#06b6d4', fontSize: 13, fontWeight: 700 }} title="React JSX">⚛</span>;
+    if (ext === 'tsx') return <span style={{ color: '#3b82f6', fontSize: 13, fontWeight: 700 }} title="React TSX">⚛</span>;
+    if (ext === 'js' || ext === 'mjs' || ext === 'cjs') return <span style={{ color: '#eab308', fontSize: 13, fontWeight: 700 }} title="JavaScript">⚡</span>;
+    if (ext === 'ts') return <span style={{ color: '#3b82f6', fontSize: 13, fontWeight: 700 }} title="TypeScript">🔷</span>;
+    if (ext === 'vue') return <span style={{ fontSize: 13 }} title="Vue.js">💚</span>;
+    if (ext === 'svelte') return <span style={{ fontSize: 13 }} title="Svelte">🔥</span>;
+    if (ext === 'py' || ext === 'pyw') return <span style={{ color: '#38bdf8', fontSize: 13, fontWeight: 700 }} title="Python">🐍</span>;
+    if (ext === 'sql') return <span style={{ fontSize: 13 }} title="SQL Query / Schema">🗄️</span>;
+    if (ext === 'json') return <span style={{ color: '#fbbf24', fontSize: 13 }} title="JSON">📋</span>;
+    if (ext === 'yaml' || ext === 'yml') return <span style={{ color: '#ec4899', fontSize: 13 }} title="YAML">📝</span>;
+    if (ext === 'md' || ext === 'markdown') return <FileText size={14} style={{ color: '#94a3b8' }} title="Markdown" />;
+    if (ext === 'txt' || ext === 'text' || ext === 'log') return <span style={{ color: '#94a3b8', fontSize: 13 }} title="Text">📄</span>;
+    if (ext === 'sh' || ext === 'bash') return <span style={{ fontSize: 13 }} title="Shell Script">🐚</span>;
+    if (ext === 'env' || fLower.startsWith('.env')) return <span style={{ color: '#fbbf24', fontSize: 12 }}>⚙</span>;
     return <FileCode size={14} style={{ color: '#94a3b8' }} />;
   };
 

@@ -29,8 +29,8 @@ class Settings(BaseSettings):
 
     # GitHub Integration
     GITHUB_TOKEN: Optional[str] = Field(default=None, description="Optional GitHub Personal Access Token for rate limits")
-    MAX_REPO_FILES: int = Field(default=150, ge=1, le=500)
-    MAX_REPO_SIZE_BYTES: int = Field(default=5_000_000, ge=10_000)  # 5 MB max total
+    MAX_REPO_FILES: int = Field(default=350, ge=1, le=1000)
+    MAX_REPO_SIZE_BYTES: int = Field(default=15_000_000, ge=10_000)  # 15 MB max total
     WORKSPACE_ROOT: str = "./workspaces"
 
     # Sandbox
