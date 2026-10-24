@@ -126,7 +126,7 @@ class WorkspaceService:
         return dict_to_array(root_nodes)
 
     def get_file_content(self, project_id: UUID, relative_path: str) -> Dict[str, Any]:
-        """Retrieves file content, metadata, and version hash."""
+        """Retrieves file content, metadata, and version hash with smart path resolution."""
         clean_path = sanitize_relative_path(relative_path)
         record = (
             self.db.query(WorkspaceFile)
@@ -136,6 +136,27 @@ class WorkspaceService:
             )
             .first()
         )
+        if not record:
+            # Fallback 1: match suffix (e.g. clean_path="taskController.js" matches "backend/taskController.js")
+            record = (
+                self.db.query(WorkspaceFile)
+                .filter(
+                    WorkspaceFile.project_id == project_id,
+                    WorkspaceFile.relative_path.endswith("/" + clean_path),
+                )
+                .first()
+            )
+        if not record and "/" not in clean_path:
+            # Fallback 2: match by filename
+            record = (
+                self.db.query(WorkspaceFile)
+                .filter(
+                    WorkspaceFile.project_id == project_id,
+                    WorkspaceFile.filename == clean_path,
+                )
+                .first()
+            )
+
         if not record:
             raise ValueError(f"File '{clean_path}' not found in project.")
 
@@ -202,7 +223,7 @@ class WorkspaceService:
         content: str,
         expected_version: Optional[int] = None,
     ) -> WorkspaceFile:
-        """Saves updated file content with conflict detection."""
+        """Saves updated file content with conflict detection and smart path resolution."""
         clean_path = sanitize_relative_path(relative_path)
         record = (
             self.db.query(WorkspaceFile)
@@ -212,6 +233,30 @@ class WorkspaceService:
             )
             .first()
         )
+        if not record:
+            # Check if there is an existing file ending with this relative path
+            alt_record = (
+                self.db.query(WorkspaceFile)
+                .filter(
+                    WorkspaceFile.project_id == project_id,
+                    WorkspaceFile.relative_path.endswith("/" + clean_path),
+                )
+                .first()
+            )
+            if alt_record:
+                record = alt_record
+            elif "/" not in clean_path:
+                filename_record = (
+                    self.db.query(WorkspaceFile)
+                    .filter(
+                        WorkspaceFile.project_id == project_id,
+                        WorkspaceFile.filename == clean_path,
+                    )
+                    .first()
+                )
+                if filename_record:
+                    record = filename_record
+
         if not record:
             # Create if not exists
             return self.create_file(project_id, clean_path, content)
@@ -337,11 +382,22 @@ class WorkspaceService:
         """
         Safely extracts source files from a ZIP archive.
         Guards against zip bomb and zip slip path traversal attacks.
+        Automatically strips common top-level folders (such as GitHub zipball archives).
         """
         try:
             with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
                 imported_count = 0
                 total_bytes = 0
+
+                # Detect if all files share a common single root folder (typical GitHub zipball)
+                namelist = [info.filename.replace("\\", "/") for info in zf.infolist() if not info.is_dir()]
+                common_prefix = ""
+                if namelist:
+                    first_parts = namelist[0].split("/")
+                    if len(first_parts) > 1:
+                        candidate = first_parts[0] + "/"
+                        if all(name.startswith(candidate) for name in namelist):
+                            common_prefix = candidate
 
                 for info in zf.infolist():
                     if info.is_dir():
@@ -349,6 +405,12 @@ class WorkspaceService:
 
                     # Zip-slip defense
                     raw_filename = info.filename.replace("\\", "/")
+                    if common_prefix and raw_filename.startswith(common_prefix):
+                        raw_filename = raw_filename[len(common_prefix):]
+
+                    if not raw_filename:
+                        continue
+
                     try:
                         clean_path = sanitize_relative_path(raw_filename)
                     except ValueError:

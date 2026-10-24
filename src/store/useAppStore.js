@@ -409,11 +409,45 @@ export const useAppStore = create((set, get) => ({
 
     set({ isLoadingFiles: true });
     try {
-      const tree = await filesApi.getTree(pid);
-      set({ fileTree: Array.isArray(tree) ? tree : [], isLoadingFiles: false });
+      const [tree, allFiles] = await Promise.all([
+        filesApi.getTree(pid),
+        filesApi.getAllFiles(pid).catch(() => [])
+      ]);
 
-      // If active file is null and there are files in tree, open the first file
-      if (!get().activeFilePath && Array.isArray(tree) && tree.length > 0) {
+      const fileMap = { ...get().files };
+      if (Array.isArray(allFiles)) {
+        for (const f of allFiles) {
+          const path = f.path || f.filename;
+          const langInfo = detectLanguageFromFilename(path);
+          const fileObj = {
+            name: f.filename || path.split('/').pop(),
+            path: path,
+            content: f.content || '',
+            originalContent: f.content || '',
+            language: langInfo.monacoLang,
+            version: f.version || 1,
+            isDirty: false,
+          };
+          fileMap[path] = fileObj;
+          const fn = f.filename || path.split('/').pop();
+          if (!fileMap[fn]) {
+            fileMap[fn] = fileObj;
+          }
+        }
+      }
+
+      set({ 
+        fileTree: Array.isArray(tree) ? tree : [], 
+        files: fileMap,
+        isLoadingFiles: false 
+      });
+
+      // If active file is null or dummy and there are files in tree, open the first file
+      const currentActive = get().activeFilePath;
+      const currentActiveObj = currentActive ? fileMap[currentActive] : null;
+      const isCurrentDummy = !currentActiveObj || !currentActiveObj.content || currentActiveObj.content.length < 50;
+
+      if ((!currentActive || isCurrentDummy) && Array.isArray(tree) && tree.length > 0) {
         const findFirstFile = (nodes) => {
           for (const n of nodes) {
             if (n.type === 'file') return n.id;
@@ -486,85 +520,103 @@ export const useAppStore = create((set, get) => ({
     if (!filePath) return;
     const { openTabs, files, currentProject, fileTree, issues } = get();
 
-    const langInfo = detectLanguageFromFilename(filePath);
     const fileName = filePath.split('/').pop() || filePath;
 
-    if (!openTabs.includes(filePath)) {
-      set({ openTabs: [...openTabs, filePath], activeFilePath: filePath, activeLanguage: langInfo.id });
-    } else {
-      set({ activeFilePath: filePath, activeLanguage: langInfo.id });
+    // Normalization: find real path in fileTree if short name was provided
+    let resolvedPath = filePath;
+    const findInTree = (nodes) => {
+      for (const n of nodes) {
+        if (n.type === 'file' && (n.id === filePath || n.name === fileName || n.id.endsWith('/' + fileName))) {
+          return n.id;
+        }
+        if (n.children) {
+          const r = findInTree(n.children);
+          if (r) return r;
+        }
+      }
+      return null;
+    };
+    if (fileTree && fileTree.length > 0) {
+      const match = findInTree(fileTree);
+      if (match) {
+        resolvedPath = match;
+      }
     }
 
-    // If already loaded with valid content, skip reload
-    if (files[filePath]?.content !== undefined && files[filePath]?.content !== null) {
+    const langInfo = detectLanguageFromFilename(resolvedPath);
+    const resolvedName = resolvedPath.split('/').pop() || resolvedPath;
+
+    // Update openTabs
+    const nextTabs = openTabs.map(t => (t === filePath ? resolvedPath : t));
+    if (!nextTabs.includes(resolvedPath)) {
+      nextTabs.push(resolvedPath);
+    }
+    set({ openTabs: nextTabs, activeFilePath: resolvedPath, activeLanguage: langInfo.id });
+
+    // Check if file is already loaded with REAL content (not dummy comment placeholder)
+    const existingFile = files[resolvedPath] || files[filePath];
+    const existingContent = existingFile?.content;
+    const isDummy = existingContent && existingContent.length < 50 && (
+      existingContent.trim().startsWith('// ' + resolvedName) ||
+      existingContent.trim().startsWith('# ' + resolvedName)
+    );
+
+    if (existingContent !== undefined && existingContent !== null && !isDummy) {
       return;
     }
 
     let loadedContent = null;
     let fileVersion = 1;
-    let resolvedName = fileName;
+    let finalName = resolvedName;
 
     // Load content from backend if project is selected
     if (currentProject?.id) {
       try {
-        const res = await filesApi.getContent(currentProject.id, filePath);
+        const res = await filesApi.getContent(currentProject.id, resolvedPath);
         if (res && res.content !== undefined) {
           loadedContent = res.content;
           fileVersion = res.version || 1;
-          resolvedName = res.filename || fileName;
+          finalName = res.filename || resolvedName;
         }
       } catch (err) {
-        // If direct path failed, check if fileTree contains this filename elsewhere
-        const findInTree = (nodes) => {
-          for (const n of nodes) {
-            if (n.type === 'file' && (n.name === fileName || n.id.endsWith('/' + fileName))) {
-              return n.id;
-            }
-            if (n.children) {
-              const r = findInTree(n.children);
-              if (r) return r;
-            }
-          }
-          return null;
-        };
-        const altPath = fileTree ? findInTree(fileTree) : null;
-        if (altPath && altPath !== filePath) {
+        // Fallback to filePath if resolvedPath was different
+        if (resolvedPath !== filePath) {
           try {
-            const altRes = await filesApi.getContent(currentProject.id, altPath);
-            if (altRes && altRes.content !== undefined) {
-              loadedContent = altRes.content;
-              fileVersion = altRes.version || 1;
-              resolvedName = altRes.filename || fileName;
+            const fallbackRes = await filesApi.getContent(currentProject.id, filePath);
+            if (fallbackRes && fallbackRes.content !== undefined) {
+              loadedContent = fallbackRes.content;
+              fileVersion = fallbackRes.version || 1;
+              finalName = fallbackRes.filename || fileName;
             }
-          } catch (altErr) {
-            console.warn(`Could not load alternate file ${altPath}:`, altErr);
+          } catch (e) {
+            // ignore
           }
         }
       }
     }
 
     // Check initialFiles if backend didn't supply content
-    if (loadedContent === null && initialFiles && initialFiles[filePath]) {
-      loadedContent = initialFiles[filePath].content;
-      resolvedName = initialFiles[filePath].name || fileName;
+    if (loadedContent === null && initialFiles && (initialFiles[resolvedPath] || initialFiles[filePath])) {
+      const initF = initialFiles[resolvedPath] || initialFiles[filePath];
+      loadedContent = initF.content;
+      finalName = initF.name || resolvedName;
     }
 
-    // Fallback: If file is not in project on backend (e.g. file.py was an ad-hoc or simulated target),
-    // ensure files[filePath] is gracefully initialized so Monaco editor renders it immediately
+    // Fallback: If file is not in project on backend
     if (loadedContent === null) {
-      const relatedIssue = issues.find(i => (i.filePath === filePath || i.file === filePath || i.file === fileName));
+      const relatedIssue = issues.find(i => (i.filePath === resolvedPath || i.file === resolvedPath || i.file === fileName));
       if (relatedIssue?.codeSnippet) {
         const lineNum = Math.max(1, relatedIssue.line || 1);
         const lines = [];
         for (let i = 1; i < lineNum; i++) {
-          lines.push(i === 1 ? `# ${fileName} - Source file` : '');
+          lines.push(i === 1 ? `# ${resolvedName} - Source file` : '');
         }
         lines.push(relatedIssue.codeSnippet);
         loadedContent = lines.join('\n') + '\n';
-      } else if (fileName.endsWith('.py')) {
-        loadedContent = `# ${fileName} - Source file for diagnostic analysis\nimport os\nimport sys\nfrom typing import Any, Dict, List, Optional\n\n# External dependencies\nfrom alembic import op\nimport sqlalchemy as sa\nimport json\n\ndef main():\n    print("Running ${fileName}")\n\nif __name__ == '__main__':\n    main()\n`;
+      } else if (resolvedName.endsWith('.py')) {
+        loadedContent = `# ${resolvedName} - Source file for diagnostic analysis\n`;
       } else {
-        loadedContent = `// ${fileName}\n\n`;
+        loadedContent = `// ${resolvedName}\n\n`;
       }
     }
 
@@ -572,9 +624,18 @@ export const useAppStore = create((set, get) => ({
       activeLanguage: langInfo.id,
       files: {
         ...state.files,
+        [resolvedPath]: {
+          name: finalName,
+          path: resolvedPath,
+          content: loadedContent,
+          originalContent: loadedContent,
+          language: langInfo.monacoLang,
+          version: fileVersion,
+          isDirty: false,
+        },
         [filePath]: {
-          name: resolvedName,
-          path: filePath,
+          name: finalName,
+          path: resolvedPath,
           content: loadedContent,
           originalContent: loadedContent,
           language: langInfo.monacoLang,

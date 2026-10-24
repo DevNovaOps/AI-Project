@@ -8,13 +8,19 @@ from app.services.workspace_service import sanitize_relative_path
 
 def test_github_url_validation():
     # Valid URLs
-    owner, repo = parse_and_validate_github_url("https://github.com/torvalds/linux")
+    owner, repo, branch = parse_and_validate_github_url("https://github.com/torvalds/linux")
     assert owner == "torvalds"
     assert repo == "linux"
+    assert branch is None
 
-    owner, repo = parse_and_validate_github_url("https://github.com/psf/requests.git")
+    owner, repo, branch = parse_and_validate_github_url("https://github.com/psf/requests.git")
     assert owner == "psf"
     assert repo == "requests"
+
+    owner, repo, branch = parse_and_validate_github_url("https://github.com/Karnik007/task-manager-ai-testing/tree/main")
+    assert owner == "Karnik007"
+    assert repo == "task-manager-ai-testing"
+    assert branch == "main"
 
     # Invalid URLs (SSRF / invalid hosts)
     with pytest.raises(ValueError, match="Only 'github.com' is allowed"):
