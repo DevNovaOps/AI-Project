@@ -32,8 +32,8 @@ export default function MetricCard({
       className="card"
       onClick={onClick}
       style={{
-        backgroundColor: '#061326',
-        border: isSelected ? `1px solid ${color}` : '1px solid #12243e',
+        backgroundColor: 'var(--bg-card)',
+        border: isSelected ? `1px solid ${color}` : '1px solid var(--border-subtle)',
         boxShadow: isSelected ? `0 0 14px ${color}33` : 'none',
         borderRadius: 10,
         padding: '12px 14px',
@@ -65,11 +65,11 @@ export default function MetricCard({
 
       {/* Metric Content */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-        <span style={{ fontSize: 11, color: '#8fa2be', fontWeight: 500, whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>
           {title}
         </span>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-          <span style={{ fontSize: 22, fontWeight: 700, color: '#ffffff', lineHeight: 1.1 }}>
+          <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.1 }}>
             {value}
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
@@ -86,7 +86,7 @@ export default function MetricCard({
               <span>{change.startsWith('-') ? '▼' : '▲'}</span>
               <span>{change}</span>
             </span>
-            <span style={{ fontSize: 9, color: '#64748b', marginTop: 2 }}>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>
               {subtitle || 'vs last run'}
             </span>
           </div>

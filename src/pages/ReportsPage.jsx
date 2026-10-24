@@ -217,15 +217,17 @@ export default function ReportsPage() {
 
   return (
     <div
+      className="reports-page-container"
       style={{
         flex: 1,
         overflowY: 'auto',
-        backgroundColor: '#030b18',
+        backgroundColor: 'var(--bg-app)',
         padding: '16px 22px 24px 22px',
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
-        position: 'relative'
+        position: 'relative',
+        color: 'var(--text-primary)'
       }}
     >
       {/* Toast Notification */}
@@ -234,12 +236,12 @@ export default function ReportsPage() {
           position: 'fixed',
           top: 56,
           right: 24,
-          backgroundColor: '#0c1830',
-          border: '1px solid #1a66ff',
-          boxShadow: '0 8px 24px rgba(0, 112, 243, 0.4)',
+          backgroundColor: 'var(--bg-card)',
+          border: '1px solid var(--border-focus)',
+          boxShadow: '0 8px 24px rgba(0, 112, 243, 0.25)',
           borderRadius: 8,
           padding: '10px 16px',
-          color: '#ffffff',
+          color: 'var(--text-primary)',
           fontSize: 12,
           fontWeight: 600,
           zIndex: 100,
@@ -275,10 +277,10 @@ export default function ReportsPage() {
           </div>
 
           <div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#ffffff', letterSpacing: '-0.3px', margin: 0 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px', margin: 0 }}>
               Reports
             </h1>
-            <p style={{ fontSize: 11, color: '#91a6c6', margin: '2px 0 0 0' }}>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
               Analyze results, track progress and generate detailed reports for your code.
             </p>
           </div>
@@ -289,14 +291,15 @@ export default function ReportsPage() {
           {/* Date Range Dropdown */}
           <div style={{ position: 'relative' }}>
             <button
+              className="reports-btn-dropdown"
               onClick={() => { setDateDropdownOpen(!dateDropdownOpen); setBranchDropdownOpen(false); }}
               style={{
                 height: 32,
                 padding: '0 12px',
-                backgroundColor: '#0b1930',
-                border: '1px solid #1a2a47',
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--border-subtle)',
                 borderRadius: 6,
-                color: '#f8fafc',
+                color: 'var(--text-primary)',
                 fontSize: 11,
                 display: 'flex',
                 alignItems: 'center',
@@ -305,22 +308,25 @@ export default function ReportsPage() {
               }}
             >
               <span>{dateRange}</span>
-              <ChevronDown size={12} color="#8fa2be" />
+              <ChevronDown size={12} color="var(--text-muted)" />
             </button>
 
             {dateDropdownOpen && (
-              <div style={{
-                position: 'absolute',
-                top: 'calc(100% + 4px)',
-                right: 0,
-                width: 190,
-                backgroundColor: '#0c1830',
-                border: '1px solid #1a2a47',
-                borderRadius: 6,
-                padding: 4,
-                zIndex: 30,
-                boxShadow: '0 10px 25px rgba(0,0,0,0.8)'
-              }}>
+              <div 
+                className="reports-dropdown-menu"
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 4px)',
+                  right: 0,
+                  width: 190,
+                  backgroundColor: 'var(--bg-dropdown)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 6,
+                  padding: 4,
+                  zIndex: 30,
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.15)'
+                }}
+              >
                 {[
                   'Oct 1, 2024 - Oct 10, 2024',
                   'Last 7 Days',
@@ -330,16 +336,17 @@ export default function ReportsPage() {
                 ].map((range) => (
                   <div
                     key={range}
+                    className="reports-dropdown-item"
                     onClick={() => { setDateRange(range); setDateDropdownOpen(false); }}
                     style={{
                       padding: '6px 10px',
                       fontSize: 11,
-                      color: dateRange === range ? '#38bdf8' : '#f8fafc',
-                      backgroundColor: dateRange === range ? '#132342' : 'transparent',
+                      color: dateRange === range ? '#38bdf8' : 'var(--text-primary)',
+                      backgroundColor: dateRange === range ? 'var(--bg-card-subtle)' : 'transparent',
                       borderRadius: 4,
                       cursor: 'pointer'
                     }}
-                    onMouseEnter={(e) => { if (dateRange !== range) e.target.style.backgroundColor = '#16284a'; }}
+                    onMouseEnter={(e) => { if (dateRange !== range) e.target.style.backgroundColor = 'var(--bg-card-hover)'; }}
                     onMouseLeave={(e) => { if (dateRange !== range) e.target.style.backgroundColor = 'transparent'; }}
                   >
                     {range}
@@ -352,14 +359,15 @@ export default function ReportsPage() {
           {/* Branch Dropdown */}
           <div style={{ position: 'relative' }}>
             <button
+              className="reports-btn-dropdown"
               onClick={() => { setBranchDropdownOpen(!branchDropdownOpen); setDateDropdownOpen(false); }}
               style={{
                 height: 32,
                 padding: '0 12px',
-                backgroundColor: '#0b1930',
-                border: '1px solid #1a2a47',
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--border-subtle)',
                 borderRadius: 6,
-                color: '#f8fafc',
+                color: 'var(--text-primary)',
                 fontSize: 11,
                 display: 'flex',
                 alignItems: 'center',
@@ -368,22 +376,25 @@ export default function ReportsPage() {
               }}
             >
               <span>{selectedBranch}</span>
-              <ChevronDown size={12} color="#8fa2be" />
+              <ChevronDown size={12} color="var(--text-muted)" />
             </button>
 
             {branchDropdownOpen && (
-              <div style={{
-                position: 'absolute',
-                top: 'calc(100% + 4px)',
-                right: 0,
-                width: 150,
-                backgroundColor: '#0c1830',
-                border: '1px solid #1a2a47',
-                borderRadius: 6,
-                padding: 4,
-                zIndex: 30,
-                boxShadow: '0 10px 25px rgba(0,0,0,0.8)'
-              }}>
+              <div 
+                className="reports-dropdown-menu"
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 4px)',
+                  right: 0,
+                  width: 150,
+                  backgroundColor: 'var(--bg-dropdown)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 6,
+                  padding: 4,
+                  zIndex: 30,
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.15)'
+                }}
+              >
                 {[
                   'All Branches',
                   'main',
@@ -393,16 +404,17 @@ export default function ReportsPage() {
                 ].map((branch) => (
                   <div
                     key={branch}
+                    className="reports-dropdown-item"
                     onClick={() => { setSelectedBranch(branch); setBranchDropdownOpen(false); }}
                     style={{
                       padding: '6px 10px',
                       fontSize: 11,
-                      color: selectedBranch === branch ? '#38bdf8' : '#f8fafc',
-                      backgroundColor: selectedBranch === branch ? '#132342' : 'transparent',
+                      color: selectedBranch === branch ? '#38bdf8' : 'var(--text-primary)',
+                      backgroundColor: selectedBranch === branch ? 'var(--bg-card-subtle)' : 'transparent',
                       borderRadius: 4,
                       cursor: 'pointer'
                     }}
-                    onMouseEnter={(e) => { if (selectedBranch !== branch) e.target.style.backgroundColor = '#16284a'; }}
+                    onMouseEnter={(e) => { if (selectedBranch !== branch) e.target.style.backgroundColor = 'var(--bg-card-hover)'; }}
                     onMouseLeave={(e) => { if (selectedBranch !== branch) e.target.style.backgroundColor = 'transparent'; }}
                   >
                     {branch}
@@ -443,23 +455,40 @@ export default function ReportsPage() {
 
       {/* SUMMARY METRIC CARDS OR EMPTY STATE */}
       {issues.length === 0 ? (
-        <div style={{
-          padding: '60px 20px',
-          backgroundColor: '#071224',
-          borderRadius: 12,
-          border: '1px solid #1a2a47',
-          textAlign: 'center',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 16
-        }}>
-          <div style={{ width: 56, height: 56, borderRadius: '50%', backgroundColor: '#0c1d38', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #1a66ff' }}>
+        <div 
+          className="reports-empty-box"
+          style={{
+            padding: '60px 20px',
+            backgroundColor: 'var(--bg-card)',
+            borderRadius: 12,
+            border: '1px solid var(--border-subtle)',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 16
+          }}
+        >
+          <div 
+            className="reports-empty-circle"
+            style={{ 
+              width: 56, 
+              height: 56, 
+              borderRadius: '50%', 
+              backgroundColor: 'var(--bg-card-subtle)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              border: '1px solid var(--border-focus)' 
+            }}
+          >
             <Sparkles size={28} color="#38bdf8" />
           </div>
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#ffffff', margin: 0 }}>No Analysis Reports Generated Yet</h2>
-            <p style={{ fontSize: 12, color: '#91a6c6', maxWidth: 480, margin: '8px auto 0', lineHeight: 1.5 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              No Analysis Reports Generated Yet
+            </h2>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 480, margin: '8px auto 0', lineHeight: 1.5 }}>
               Execute the 5-Agent pipeline on your workspace files to generate comprehensive defect reports, AST code metrics, and verification benchmarks.
             </p>
           </div>
@@ -527,13 +556,13 @@ export default function ReportsPage() {
         <div className="modal-overlay" onClick={() => setReportModalOpen(false)}>
           <div
             className="palette-box"
-            style={{ width: 620, padding: 0 }}
+            style={{ width: 620, padding: 0, backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <FileText size={18} color="#38bdf8" />
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#ffffff' }}>AETHERION Quality &amp; Audit Report</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>AETHERION Quality &amp; Audit Report</span>
               </div>
               <button className="editor-tab-close" onClick={() => setReportModalOpen(false)}>
                 <X size={14} />
@@ -542,26 +571,26 @@ export default function ReportsPage() {
 
             <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12, fontSize: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, textAlign: 'center' }}>
-                <div style={{ padding: 10, backgroundColor: '#091326', borderRadius: 6, border: '1px solid #1a2a47' }}>
-                  <div style={{ color: '#8fa2be', fontSize: 10 }}>Total Issues</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#ffffff', marginTop: 2 }}>24</div>
+                <div style={{ padding: 10, backgroundColor: 'var(--bg-card-subtle)', borderRadius: 6, border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>Total Issues</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>{issues.length}</div>
                 </div>
-                <div style={{ padding: 10, backgroundColor: '#091326', borderRadius: 6, border: '1px solid #1a2a47' }}>
-                  <div style={{ color: '#8fa2be', fontSize: 10 }}>Critical Issues</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#ef4444', marginTop: 2 }}>4</div>
+                <div style={{ padding: 10, backgroundColor: 'var(--bg-card-subtle)', borderRadius: 6, border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>Critical Issues</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#ef4444', marginTop: 2 }}>{criticalCount}</div>
                 </div>
-                <div style={{ padding: 10, backgroundColor: '#091326', borderRadius: 6, border: '1px solid #1a2a47' }}>
-                  <div style={{ color: '#8fa2be', fontSize: 10 }}>Fixed Rate</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#10b981', marginTop: 2 }}>75%</div>
+                <div style={{ padding: 10, backgroundColor: 'var(--bg-card-subtle)', borderRadius: 6, border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>Fixed Rate</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#10b981', marginTop: 2 }}>{issues.length > 0 ? `${Math.round((fixedCount / issues.length) * 100)}%` : '100%'}</div>
                 </div>
               </div>
 
-              <div style={{ color: '#91a6c6', lineHeight: 1.5 }}>
-                Report generated for repository <strong>AegisVault</strong> on <strong>{selectedBranch}</strong> ({dateRange}). All 24 issues indexed across 32 files. Automated sandbox tests verified zero syntax or typing regressions.
+              <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                Report generated for workspace on <strong>{selectedBranch}</strong> ({dateRange}). All {issues.length} issues indexed across {filesCount} files. Automated sandbox tests verified zero syntax or typing regressions.
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '12px 18px', borderTop: '1px solid var(--border-subtle)', backgroundColor: '#091326' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '12px 18px', borderTop: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-card-subtle)' }}>
               <button className="btn btn-secondary" onClick={handlePrint}>
                 <Printer size={13} />
                 <span>Print / PDF</span>

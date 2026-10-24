@@ -472,3 +472,87 @@
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
 }
 
+/* Reports Page Light Mode Styles */
+[data-theme="light"] .reports-page-container {
+  background-color: var(--bg-app) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .reports-page-container h1,
+[data-theme="light"] .reports-page-container h2,
+[data-theme="light"] .reports-page-container h3 {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .reports-page-container p {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="light"] .reports-empty-box {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-subtle) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .reports-empty-circle {
+  background-color: #e0f2fe !important;
+  border-color: #38bdf8 !important;
+}
+
+[data-theme="light"] .reports-page-container .card {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="light"] .reports-page-container table {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .reports-page-container th {
+  color: var(--text-muted) !important;
+  border-bottom-color: var(--border-subtle) !important;
+}
+
+[data-theme="light"] .reports-page-container td {
+  color: var(--text-secondary) !important;
+  border-bottom-color: var(--border-subtle) !important;
+}
+
+[data-theme="light"] .reports-page-container tr:hover:not(.selected) {
+  background-color: var(--bg-card-hover) !important;
+}
+
+[data-theme="light"] .reports-btn-dropdown,
+[data-theme="light"] .reports-page-container button:not(.btn-primary-gradient) {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .reports-btn-dropdown:hover,
+[data-theme="light"] .reports-page-container button:not(.btn-primary-gradient):hover {
+  background-color: var(--bg-card-hover) !important;
+}
+
+[data-theme="light"] .reports-dropdown-menu {
+  background-color: var(--bg-dropdown) !important;
+  border-color: var(--border-subtle) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="light"] .reports-dropdown-item {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .reports-dropdown-item:hover {
+  background-color: var(--bg-card-hover) !important;
+}
+
+[data-theme="light"] .reports-page-container input {
+  color: var(--text-primary) !important;
+  background-color: var(--bg-input) !important;
+  border-color: var(--border-subtle) !important;
+}
+

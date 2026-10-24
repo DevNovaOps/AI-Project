@@ -71,8 +71,8 @@ export default function IssueDetailsPanel({
     <div
       className="card"
       style={{
-        backgroundColor: '#061326',
-        border: '1px solid #12243e',
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-subtle)',
         borderRadius: 10,
         padding: '10px 12px',
         display: 'flex',
@@ -90,34 +90,34 @@ export default function IssueDetailsPanel({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 10.5, color: '#8fa2be', userSelect: 'none' }}>
+          <span style={{ fontSize: 10.5, color: 'var(--text-muted)', userSelect: 'none' }}>
             {currentIndex} of {totalCount}
           </span>
           <button
             className="icon-action-btn"
-            style={{ width: 20, height: 20, backgroundColor: '#0b1930', border: '1px solid #1a2a47', borderRadius: 4 }}
+            style={{ width: 20, height: 20, backgroundColor: 'var(--bg-card-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}
             onClick={onPrev}
             title="Previous issue"
           >
-            <ChevronLeft size={12} color="#8fa2be" />
+            <ChevronLeft size={12} color="var(--text-secondary)" />
           </button>
           <button
             className="icon-action-btn"
-            style={{ width: 20, height: 20, backgroundColor: '#0b1930', border: '1px solid #1a2a47', borderRadius: 4 }}
+            style={{ width: 20, height: 20, backgroundColor: 'var(--bg-card-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}
             onClick={onNext}
             title="Next issue"
           >
-            <ChevronRight size={12} color="#8fa2be" />
+            <ChevronRight size={12} color="var(--text-secondary)" />
           </button>
         </div>
       </div>
 
       {/* Title & Description */}
       <div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', lineHeight: 1.2 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
           {issue.title}
         </div>
-        <div style={{ fontSize: 10.5, color: '#8fa2be', marginTop: 2, lineHeight: 1.35 }}>
+        <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.35 }}>
           {issue.detail}
         </div>
       </div>
@@ -127,15 +127,15 @@ export default function IssueDetailsPanel({
         {/* Python File */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 4,
-          padding: '1px 6px', backgroundColor: '#0b1930',
-          border: '1px solid #1a2a47', borderRadius: 4, color: '#f8fafc'
+          padding: '1px 6px', backgroundColor: 'var(--bg-card-subtle)',
+          border: '1px solid var(--border-subtle)', borderRadius: 4, color: 'var(--text-primary)'
         }}>
           <span>🐍</span>
           <span style={{ fontWeight: 600 }}>{issue.file}</span>
         </div>
 
         {/* Line */}
-        <span style={{ color: '#8fa2be' }}>
+        <span style={{ color: 'var(--text-muted)' }}>
           Line {issue.line}
         </span>
 
@@ -174,18 +174,18 @@ export default function IssueDetailsPanel({
                 top: 'calc(100% + 4px)',
                 right: 0,
                 width: 90,
-                backgroundColor: '#0c1830',
-                border: '1px solid #1a2a47',
+                backgroundColor: 'var(--bg-dropdown)',
+                border: '1px solid var(--border-subtle)',
                 borderRadius: 6,
                 padding: 4,
                 zIndex: 20,
-                boxShadow: '0 8px 20px rgba(0,0,0,0.7)'
+                boxShadow: 'var(--shadow-md)'
               }}
             >
               <div
                 onClick={() => { setStatusDropdownOpen(false); }}
                 style={{ padding: '4px 6px', fontSize: 10, color: '#ef4444', cursor: 'pointer', borderRadius: 4 }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#16284a'}
+                onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-card-hover)'}
                 onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
               >
                 ● Open
@@ -193,7 +193,7 @@ export default function IssueDetailsPanel({
               <div
                 onClick={() => { setStatusDropdownOpen(false); if (onApplyFix) onApplyFix(issue.id); }}
                 style={{ padding: '4px 6px', fontSize: 10, color: '#10b981', cursor: 'pointer', borderRadius: 4 }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#16284a'}
+                onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-card-hover)'}
                 onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
               >
                 ● Fixed
@@ -206,13 +206,13 @@ export default function IssueDetailsPanel({
       {/* Code Snippet Box */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: '#ffffff' }}>Code Snippet</span>
+          <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-primary)' }}>Code Snippet</span>
           <button
             onClick={handleCopyCode}
             style={{
               display: 'flex', alignItems: 'center', gap: 3,
               background: 'transparent', border: 'none',
-              color: '#8fa2be', fontSize: 9.5, cursor: 'pointer'
+              color: 'var(--text-secondary)', fontSize: 9.5, cursor: 'pointer'
             }}
           >
             {copiedCode ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
@@ -221,14 +221,14 @@ export default function IssueDetailsPanel({
         </div>
 
         <div style={{
-          backgroundColor: '#040a16',
-          border: '1px solid #132744',
+          backgroundColor: 'var(--bg-code-block)',
+          border: '1px solid var(--border-subtle)',
           borderRadius: 4,
           padding: '4px 8px',
           fontFamily: 'var(--font-mono)',
           fontSize: 10,
           lineHeight: 1.45,
-          color: '#cbd5e1'
+          color: 'var(--text-primary)'
         }}>
           {(issue.codeSnippet || [
             { lineNum: 3, text: 'def calculate_average(numbers):' },
@@ -243,10 +243,10 @@ export default function IssueDetailsPanel({
                 backgroundColor: line.isError ? 'rgba(239, 68, 68, 0.16)' : 'transparent',
                 borderRadius: 2,
                 padding: '0 2px',
-                color: line.isError ? '#fca5a5' : '#cbd5e1'
+                color: line.isError ? '#ef4444' : 'var(--text-primary)'
               }}
             >
-              <span style={{ color: '#64748b', width: 20, userSelect: 'none' }}>
+              <span style={{ color: 'var(--text-muted)', width: 20, userSelect: 'none' }}>
                 {line.lineNum}
               </span>
               <span style={{ color: line.isError ? '#ef4444' : 'transparent', width: 10, userSelect: 'none' }}>
@@ -264,9 +264,9 @@ export default function IssueDetailsPanel({
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
           <Info size={12} color="#38bdf8" />
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: '#ffffff' }}>Explanation</span>
+          <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-primary)' }}>Explanation</span>
         </div>
-        <div style={{ fontSize: 10, color: '#8fa2be', lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
           {issue.explanation || "The function doesn't handle the case when the input list is empty. When len(numbers) is 0, division by zero occurs."}
         </div>
       </div>
@@ -277,11 +277,11 @@ export default function IssueDetailsPanel({
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <span style={{
               width: 12, height: 12, borderRadius: '50%', backgroundColor: '#10b981',
-              color: '#061326', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 900
+              color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 900
             }}>
               ✓
             </span>
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: '#ffffff' }}>Suggested Fix</span>
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-primary)' }}>Suggested Fix</span>
           </div>
 
           <button
@@ -289,7 +289,7 @@ export default function IssueDetailsPanel({
             style={{
               display: 'flex', alignItems: 'center', gap: 3,
               background: 'transparent', border: 'none',
-              color: '#8fa2be', fontSize: 9.5, cursor: 'pointer'
+              color: 'var(--text-secondary)', fontSize: 9.5, cursor: 'pointer'
             }}
           >
             {copiedFix ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
@@ -298,14 +298,14 @@ export default function IssueDetailsPanel({
         </div>
 
         <div style={{
-          backgroundColor: '#040a16',
-          border: '1px solid #132744',
+          backgroundColor: 'var(--bg-code-block)',
+          border: '1px solid var(--border-subtle)',
           borderRadius: 4,
           padding: '4px 8px',
           fontFamily: 'var(--font-mono)',
           fontSize: 10,
           lineHeight: 1.45,
-          color: '#cbd5e1'
+          color: 'var(--text-primary)'
         }}>
           {(issue.suggestedFixLines || [
             { lineNum: 3, text: '    def calculate_average(numbers):', prefix: '+' },
@@ -317,13 +317,13 @@ export default function IssueDetailsPanel({
               key={idx}
               style={{
                 display: 'flex',
-                color: line.prefix === '+' ? '#6ee7b7' : (line.prefix === '>' ? '#fca5a5' : '#cbd5e1'),
+                color: line.prefix === '+' ? '#10b981' : (line.prefix === '>' ? '#ef4444' : 'var(--text-primary)'),
                 backgroundColor: line.prefix === '+' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
                 borderRadius: 2,
                 padding: '0 2px'
               }}
             >
-              <span style={{ color: '#64748b', width: 20, userSelect: 'none' }}>
+              <span style={{ color: 'var(--text-muted)', width: 20, userSelect: 'none' }}>
                 {line.lineNum}
               </span>
               <span style={{ color: line.prefix === '+' ? '#10b981' : '#ef4444', width: 10, userSelect: 'none' }}>

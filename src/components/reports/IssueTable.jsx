@@ -115,8 +115,8 @@ export default function IssueTable({
     <div
       className="card"
       style={{
-        backgroundColor: '#061326',
-        border: '1px solid #12243e',
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-subtle)',
         borderRadius: 10,
         padding: '12px 14px',
         display: 'flex',
@@ -149,8 +149,8 @@ export default function IssueTable({
             <span>All Issues</span>
             <span
               style={{
-                backgroundColor: activeFilter === 'all' ? 'rgba(255, 255, 255, 0.25)' : '#16233d',
-                color: activeFilter === 'all' ? '#ffffff' : '#f87171',
+                backgroundColor: activeFilter === 'all' ? 'rgba(255, 255, 255, 0.25)' : 'var(--bg-card-subtle)',
+                color: activeFilter === 'all' ? '#ffffff' : 'var(--text-primary)',
                 padding: '1px 5px',
                 borderRadius: 4,
                 fontSize: 10,
@@ -173,9 +173,9 @@ export default function IssueTable({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              backgroundColor: activeFilter === 'critical' ? '#260e14' : '#0b1930',
-              border: activeFilter === 'critical' ? '1px solid #ef4444' : '1px solid #1a2b47',
-              color: '#f8fafc',
+              backgroundColor: activeFilter === 'critical' ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-card-subtle)',
+              border: activeFilter === 'critical' ? '1px solid #ef4444' : '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
               cursor: 'pointer'
             }}
           >
@@ -198,9 +198,9 @@ export default function IssueTable({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              backgroundColor: activeFilter === 'high' ? '#26190e' : '#0b1930',
-              border: activeFilter === 'high' ? '1px solid #f97316' : '1px solid #1a2b47',
-              color: '#f8fafc',
+              backgroundColor: activeFilter === 'high' ? 'rgba(249, 115, 22, 0.15)' : 'var(--bg-card-subtle)',
+              border: activeFilter === 'high' ? '1px solid #f97316' : '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
               cursor: 'pointer'
             }}
           >
@@ -223,9 +223,9 @@ export default function IssueTable({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              backgroundColor: activeFilter === 'medium' ? '#0e232c' : '#0b1930',
-              border: activeFilter === 'medium' ? '1px solid #06b6d4' : '1px solid #1a2b47',
-              color: '#f8fafc',
+              backgroundColor: activeFilter === 'medium' ? 'rgba(6, 182, 212, 0.15)' : 'var(--bg-card-subtle)',
+              border: activeFilter === 'medium' ? '1px solid #06b6d4' : '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
               cursor: 'pointer'
             }}
           >
@@ -248,9 +248,9 @@ export default function IssueTable({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              backgroundColor: activeFilter === 'low' ? '#180e2a' : '#0b1930',
-              border: activeFilter === 'low' ? '1px solid #a855f7' : '1px solid #1a2b47',
-              color: '#f8fafc',
+              backgroundColor: activeFilter === 'low' ? 'rgba(168, 85, 247, 0.15)' : 'var(--bg-card-subtle)',
+              border: activeFilter === 'low' ? '1px solid #a855f7' : '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
               cursor: 'pointer'
             }}
           >
@@ -273,16 +273,16 @@ export default function IssueTable({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              backgroundColor: activeFilter === 'fixed' ? '#0e281e' : '#0b1930',
-              border: activeFilter === 'fixed' ? '1px solid #10b981' : '1px solid #1a2b47',
-              color: '#f8fafc',
+              backgroundColor: activeFilter === 'fixed' ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-card-subtle)',
+              border: activeFilter === 'fixed' ? '1px solid #10b981' : '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
               cursor: 'pointer'
             }}
           >
             <CheckCircle2 size={12} color="#10b981" />
             <span>Fixed</span>
             <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '1px 5px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
-              18
+              {fixedCount}
             </span>
           </button>
         </div>
@@ -294,13 +294,13 @@ export default function IssueTable({
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            backgroundColor: '#091326',
-            border: '1px solid #1a2a47',
+            backgroundColor: 'var(--bg-input)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 6,
             padding: '4px 10px',
             width: 170
           }}>
-            <Search size={13} color="#64748b" />
+            <Search size={13} color="var(--text-muted)" />
             <input
               type="text"
               placeholder="Search issues..."
@@ -309,7 +309,7 @@ export default function IssueTable({
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: '#ffffff',
+                color: 'var(--text-primary)',
                 fontSize: 11,
                 outline: 'none',
                 width: '100%'
@@ -320,10 +320,10 @@ export default function IssueTable({
           {/* Filter Funnel Icon */}
           <button
             className="icon-action-btn"
-            style={{ width: 28, height: 28, backgroundColor: '#091326', border: '1px solid #1a2a47', borderRadius: 6 }}
+            style={{ width: 28, height: 28, backgroundColor: 'var(--bg-card-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 6 }}
             title="Filter configuration"
           >
-            <Filter size={13} color="#8fa2be" />
+            <Filter size={13} color="var(--text-secondary)" />
           </button>
 
           {/* Sort Dropdown */}
@@ -333,10 +333,10 @@ export default function IssueTable({
               style={{
                 height: 28,
                 padding: '0 8px',
-                backgroundColor: '#091326',
-                border: '1px solid #1a2a47',
+                backgroundColor: 'var(--bg-card-subtle)',
+                border: '1px solid var(--border-subtle)',
                 borderRadius: 6,
-                color: '#f8fafc',
+                color: 'var(--text-primary)',
                 fontSize: 11,
                 display: 'flex',
                 alignItems: 'center',
@@ -345,7 +345,7 @@ export default function IssueTable({
               }}
             >
               <span>{sortOrder === 'newest' ? 'Newest First' : (sortOrder === 'oldest' ? 'Oldest First' : 'By Severity')}</span>
-              <ChevronDown size={12} color="#8fa2be" />
+              <ChevronDown size={12} color="var(--text-muted)" />
             </button>
 
             {sortDropdownOpen && (
@@ -355,34 +355,34 @@ export default function IssueTable({
                   top: 'calc(100% + 4px)',
                   right: 0,
                   width: 130,
-                  backgroundColor: '#0c1830',
-                  border: '1px solid #1a2a47',
+                  backgroundColor: 'var(--bg-dropdown)',
+                  border: '1px solid var(--border-subtle)',
                   borderRadius: 6,
                   padding: 4,
                   zIndex: 20,
-                  boxShadow: '0 8px 20px rgba(0,0,0,0.7)'
+                  boxShadow: '0 8px 20px rgba(0,0,0,0.15)'
                 }}
               >
                 <div
                   onClick={() => { setSortOrder('newest'); setSortDropdownOpen(false); }}
-                  style={{ padding: '6px 8px', fontSize: 11, color: '#f8fafc', cursor: 'pointer', borderRadius: 4 }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#16284a'}
+                  style={{ padding: '6px 8px', fontSize: 11, color: 'var(--text-primary)', cursor: 'pointer', borderRadius: 4 }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-card-hover)'}
                   onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
                 >
                   Newest First
                 </div>
                 <div
                   onClick={() => { setSortOrder('oldest'); setSortDropdownOpen(false); }}
-                  style={{ padding: '6px 8px', fontSize: 11, color: '#f8fafc', cursor: 'pointer', borderRadius: 4 }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#16284a'}
+                  style={{ padding: '6px 8px', fontSize: 11, color: 'var(--text-primary)', cursor: 'pointer', borderRadius: 4 }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-card-hover)'}
                   onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
                 >
                   Oldest First
                 </div>
                 <div
                   onClick={() => { setSortOrder('severity'); setSortDropdownOpen(false); }}
-                  style={{ padding: '6px 8px', fontSize: 11, color: '#f8fafc', cursor: 'pointer', borderRadius: 4 }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#16284a'}
+                  style={{ padding: '6px 8px', fontSize: 11, color: 'var(--text-primary)', cursor: 'pointer', borderRadius: 4 }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-card-hover)'}
                   onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
                 >
                   By Severity
@@ -394,10 +394,10 @@ export default function IssueTable({
           {/* More Options */}
           <button
             className="icon-action-btn"
-            style={{ width: 28, height: 28, backgroundColor: '#091326', border: '1px solid #1a2a47', borderRadius: 6 }}
+            style={{ width: 28, height: 28, backgroundColor: 'var(--bg-card-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 6 }}
             title="More Options"
           >
-            <MoreHorizontal size={14} color="#8fa2be" />
+            <MoreHorizontal size={14} color="var(--text-secondary)" />
           </button>
         </div>
       </div>
@@ -406,7 +406,7 @@ export default function IssueTable({
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#64748b', fontSize: 11, fontWeight: 600 }}>
+            <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>
               <th style={{ padding: '8px 6px', width: 28, textAlign: 'center' }}>#</th>
               <th style={{ padding: '8px 10px', width: 95 }}>Severity</th>
               <th style={{ padding: '8px 10px' }}>Message</th>
@@ -428,21 +428,21 @@ export default function IssueTable({
                   key={item.id}
                   onClick={() => onSelectIssue(item.id)}
                   style={{
-                    backgroundColor: isSelected ? '#0d1e38' : 'transparent',
+                    backgroundColor: isSelected ? 'var(--bg-card-hover)' : 'transparent',
                     borderLeft: isSelected ? '3px solid #0070f3' : '3px solid transparent',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                    borderBottom: '1px solid var(--border-subtle)',
                     cursor: 'pointer',
                     transition: 'background-color 0.15s ease'
                   }}
                   onMouseEnter={(e) => {
-                    if (!isSelected) e.currentTarget.style.backgroundColor = '#0a162c';
+                    if (!isSelected) e.currentTarget.style.backgroundColor = 'var(--bg-card-subtle)';
                   }}
                   onMouseLeave={(e) => {
                     if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
                   }}
                 >
                   {/* # */}
-                  <td style={{ padding: '8px 6px', textAlign: 'center', color: '#64748b', fontSize: 11 }}>
+                  <td style={{ padding: '8px 6px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 11 }}>
                     {rowNum}
                   </td>
 
@@ -453,10 +453,10 @@ export default function IssueTable({
 
                   {/* Message */}
                   <td style={{ padding: '8px 10px' }}>
-                    <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: 12 }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 12 }}>
                       {item.title}
                     </div>
-                    <div style={{ color: '#64748b', fontSize: 10, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 280 }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: 10, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 280 }}>
                       {item.detail}
                     </div>
                   </td>
@@ -476,7 +476,7 @@ export default function IssueTable({
                   </td>
 
                   {/* Line */}
-                  <td style={{ padding: '8px 6px', color: '#8fa2be', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                  <td style={{ padding: '8px 6px', color: 'var(--text-secondary)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
                     {item.line}
                   </td>
 
@@ -499,7 +499,7 @@ export default function IssueTable({
                   </td>
 
                   {/* Detected */}
-                  <td style={{ padding: '8px 10px', color: '#64748b', fontSize: 10, whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '8px 10px', color: 'var(--text-muted)', fontSize: 10, whiteSpace: 'nowrap' }}>
                     {item.detected || '10 mins ago'}
                   </td>
 
@@ -515,7 +515,7 @@ export default function IssueTable({
                         }}
                         title="View in Editor"
                       >
-                        <Eye size={12} color="#8fa2be" />
+                        <Eye size={12} color="var(--text-secondary)" />
                       </button>
 
                       <button
@@ -538,7 +538,7 @@ export default function IssueTable({
                         }}
                         title="Actions"
                       >
-                        <MoreHorizontal size={12} color="#8fa2be" />
+                        <MoreHorizontal size={12} color="var(--text-secondary)" />
                       </button>
                     </div>
                   </td>

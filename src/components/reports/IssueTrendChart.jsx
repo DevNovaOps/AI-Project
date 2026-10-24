@@ -9,13 +9,13 @@ export default function IssueTrendChart({ data }) {
     if (active && payload && payload.length) {
       return (
         <div style={{
-          backgroundColor: '#0a1628',
-          border: '1px solid #1e355b',
+          backgroundColor: 'var(--bg-popup)',
+          border: '1px solid var(--border-subtle)',
           borderRadius: 8,
           padding: '8px 12px',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6)',
+          boxShadow: 'var(--shadow-md)',
           fontSize: 11,
-          color: '#ffffff'
+          color: 'var(--text-primary)'
         }}>
           <div style={{ fontWeight: 700, marginBottom: 4, color: '#38bdf8' }}>{label}</div>
           {payload.map((entry, index) => (
@@ -37,8 +37,8 @@ export default function IssueTrendChart({ data }) {
     <div
       className="card"
       style={{
-        backgroundColor: '#061326',
-        border: '1px solid #12243e',
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-subtle)',
         borderRadius: 10,
         padding: '14px 16px',
         display: 'flex',
@@ -49,10 +49,10 @@ export default function IssueTrendChart({ data }) {
       {/* Header with Title and Custom Legend */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
             Issue Trend
           </div>
-          <div style={{ fontSize: 11, color: '#8fa2be' }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
             Track issues over time
           </div>
         </div>
@@ -61,23 +61,23 @@ export default function IssueTrendChart({ data }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 11 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#a855f7' }} />
-            <span style={{ color: '#ffffff', fontWeight: 500 }}>Total</span>
+            <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Total</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#ef4444' }} />
-            <span style={{ color: '#8fa2be' }}>Critical</span>
+            <span style={{ color: 'var(--text-secondary)' }}>Critical</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#f97316' }} />
-            <span style={{ color: '#8fa2be' }}>High</span>
+            <span style={{ color: 'var(--text-secondary)' }}>High</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#06b6d4' }} />
-            <span style={{ color: '#8fa2be' }}>Medium</span>
+            <span style={{ color: 'var(--text-secondary)' }}>Medium</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#10b981' }} />
-            <span style={{ color: '#8fa2be' }}>Low</span>
+            <span style={{ color: 'var(--text-secondary)' }}>Low</span>
           </div>
         </div>
       </div>
@@ -92,18 +92,18 @@ export default function IssueTrendChart({ data }) {
                 <stop offset="95%" stopColor="#a855f7" stopOpacity={0.0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
             <XAxis
               dataKey="date"
-              stroke="#64748b"
+              stroke="var(--text-muted)"
               fontSize={10}
               tickLine={false}
-              axisLine={{ stroke: 'rgba(255, 255, 255, 0.08)' }}
+              axisLine={{ stroke: 'var(--border-subtle)' }}
             />
             <YAxis
               domain={[0, 40]}
               ticks={[0, 10, 20, 30, 40]}
-              stroke="#64748b"
+              stroke="var(--text-muted)"
               fontSize={10}
               tickLine={false}
               axisLine={false}
@@ -118,7 +118,7 @@ export default function IssueTrendChart({ data }) {
               strokeWidth={2.5}
               fillOpacity={1}
               fill="url(#totalGrad)"
-              dot={{ r: 3.5, fill: '#a855f7', stroke: '#061326', strokeWidth: 1.5 }}
+              dot={{ r: 3.5, fill: '#a855f7', stroke: 'var(--bg-card)', strokeWidth: 1.5 }}
               activeDot={{ r: 5, fill: '#c084fc' }}
             />
             {/* Critical Line */}
@@ -128,7 +128,7 @@ export default function IssueTrendChart({ data }) {
               stroke="#ef4444"
               strokeWidth={2}
               fill="none"
-              dot={{ r: 2.5, fill: '#ef4444', stroke: '#061326' }}
+              dot={{ r: 2.5, fill: '#ef4444', stroke: 'var(--bg-card)' }}
             />
             {/* High Line */}
             <Area
@@ -137,7 +137,7 @@ export default function IssueTrendChart({ data }) {
               stroke="#f97316"
               strokeWidth={2}
               fill="none"
-              dot={{ r: 2.5, fill: '#f97316', stroke: '#061326' }}
+              dot={{ r: 2.5, fill: '#f97316', stroke: 'var(--bg-card)' }}
             />
             {/* Medium Line */}
             <Area
@@ -146,7 +146,7 @@ export default function IssueTrendChart({ data }) {
               stroke="#06b6d4"
               strokeWidth={2}
               fill="none"
-              dot={{ r: 2.5, fill: '#06b6d4', stroke: '#061326' }}
+              dot={{ r: 2.5, fill: '#06b6d4', stroke: 'var(--bg-card)' }}
             />
             {/* Low Line */}
             <Area
@@ -155,7 +155,7 @@ export default function IssueTrendChart({ data }) {
               stroke="#10b981"
               strokeWidth={2}
               fill="none"
-              dot={{ r: 2.5, fill: '#10b981', stroke: '#061326' }}
+              dot={{ r: 2.5, fill: '#10b981', stroke: 'var(--bg-card)' }}
             />
           </AreaChart>
         </ResponsiveContainer>
