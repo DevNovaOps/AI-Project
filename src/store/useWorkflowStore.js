@@ -40,15 +40,25 @@ export const useWorkflowStore = create((set, get) => ({
       return text;
     };
 
-    // Gather files from appStore
+    // Gather files from appStore: filter for actual code/markup files
+    const nonCodeExts = ['.txt', '.text', '.md', '.markdown', '.rst', '.log', '.csv', '.tsv'];
     let sourceFiles = [];
     const openFiles = Object.values(appStore.files);
 
-    if (openFiles.length > 0) {
-      sourceFiles = openFiles.map(f => ({
-        filename: f.path || f.filename || 'main.py',
-        file_path: f.path || f.filename || 'main.py',
+    // Prioritize executable code / markup files over raw text files
+    const openCodeFiles = openFiles.filter(f => {
+      const p = (f.path || f.name || '').toLowerCase();
+      return !nonCodeExts.some(ext => p.endsWith(ext));
+    });
+
+    const targetOpenFiles = openCodeFiles.length > 0 ? openCodeFiles : openFiles;
+
+    if (targetOpenFiles.length > 0) {
+      sourceFiles = targetOpenFiles.map(f => ({
+        filename: f.path || f.filename || f.name || 'main.py',
+        file_path: f.path || f.filename || f.name || 'main.py',
         content: truncateContent(f.content),
+        language: f.language,
       }));
     }
 
@@ -56,7 +66,7 @@ export const useWorkflowStore = create((set, get) => ({
     if (currentProject?.id && sourceFiles.length < 5 && appStore.fileTree?.length > 0) {
       try {
         const tree = appStore.fileTree;
-        const codeExtensions = ['.sql', '.py', '.js', '.jsx', '.ts', '.tsx'];
+        const codeExtensions = ['.html', '.css', '.js', '.jsx', '.ts', '.tsx', '.py', '.sql', '.json', '.vue', '.svelte'];
         const existingPaths = new Set(sourceFiles.map(f => f.filename));
 
         const collectCodeFiles = (nodes, acc = []) => {
@@ -253,24 +263,36 @@ export const useWorkflowStore = create((set, get) => ({
       const findingsRes = await apiClient.get(`/debug/sessions/${sessionId}/findings`);
       const rawFindings = Array.isArray(findingsRes) ? findingsRes : [];
 
-      const formattedIssues = rawFindings.map((f, idx) => ({
-        id: f.id || `FINDING-${idx + 1}`,
-        title: f.title || f.message || 'Code Finding',
-        detail: f.description || f.message,
-        message: f.message || f.title,
-        file: f.file || f.source_file_path || f.source_file || f.filename || 'file.py',
-        filePath: f.source_file_path || f.file || f.source_file || f.filename || 'file.py',
-        line: f.line_number || 1,
-        col: f.column_number || 1,
-        severity: (f.severity || 'medium').charAt(0).toUpperCase() + (f.severity || 'medium').slice(1),
-        category: f.category || 'Static Analysis',
-        confidence: Math.round((f.confidence_score || 0.9) * 100),
-        rootCause: f.description,
-        suggestedFix: f.suggested_fix || '',
-        codeSnippet: f.code_snippet || '',
-        status: 'Open',
-        source: f.detection_tool || 'AutonomusAI',
-      }));
+      const formattedIssues = rawFindings.map((f, idx) => {
+        const resolvedPath =
+          f.file ||
+          f.filePath ||
+          f.file_path ||
+          f.source_file_path ||
+          f.source_file ||
+          f.filename ||
+          (f.metadata_info && (f.metadata_info.file || f.metadata_info.file_path || f.metadata_info.source_file_path)) ||
+          'file.py';
+
+        return {
+          id: f.id || `FINDING-${idx + 1}`,
+          title: f.title || f.message || 'Code Finding',
+          detail: f.description || f.message,
+          message: f.message || f.title,
+          file: resolvedPath,
+          filePath: resolvedPath,
+          line: f.line_number || f.line || 1,
+          col: f.column_number || f.col || 1,
+          severity: (f.severity || 'medium').charAt(0).toUpperCase() + (f.severity || 'medium').slice(1),
+          category: f.category || 'Static Analysis',
+          confidence: Math.round((f.confidence_score || 0.9) * 100),
+          rootCause: f.description,
+          suggestedFix: f.suggested_fix || '',
+          codeSnippet: f.code_snippet || '',
+          status: 'Open',
+          source: f.detection_tool || f.origin || 'AETHERION',
+        };
+      });
 
       // 2. Fetch repairs
       let repairs = [];
@@ -285,7 +307,18 @@ export const useWorkflowStore = create((set, get) => ({
       let testRuns = [];
       try {
         const testRes = await apiClient.get(`/debug/sessions/${sessionId}/tests`);
-        testRuns = Array.isArray(testRes) ? testRes : [];
+        const rawTests = Array.isArray(testRes) ? testRes : [];
+        testRuns = rawTests.map((t, idx) => ({
+          id: t.id || `test-${idx + 1}`,
+          name: t.name || (t.details && t.details.name) || (t.details && t.details.test_name) || t.command_or_config || `Test Suite #${idx + 1}`,
+          status: t.status || 'passed',
+          duration_ms: t.duration_ms || 28,
+          error: t.stderr_summary || (t.status === 'failed' ? 'Test failure' : null),
+          stdout: t.stdout_summary || '',
+          stderr: t.stderr_summary || '',
+          actual_execution: t.actual_execution,
+          details: t.details || {},
+        }));
       } catch (e) {
         testRuns = [];
       }

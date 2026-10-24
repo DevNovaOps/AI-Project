@@ -596,46 +596,104 @@ class StaticAnalysisService:
 
         return findings
 
+    def analyze_text_document(self, filename: str, content: str) -> List[Dict[str, Any]]:
+        """
+        Analyzes a plain text or markdown documentation file.
+        Text documents (guidelines, READMEs, licenses) do not have programming syntax errors.
+        Only performs credential/secret leakage checks.
+        """
+        findings: List[Dict[str, Any]] = []
+        secret_patterns = [
+            (r'(?i)(api[_-]?key|secret[_-]?key|access[_-]?token)\s*[:=]\s*["\']([a-zA-Z0-9_\-]{16,})["\']', "Potential exposed secret or API key in documentation"),
+            (r'ghp_[a-zA-Z0-9]{36}', "Exposed GitHub Personal Access Token"),
+            (r'AIza[0-9A-Za-z-_]{35}', "Exposed Google API Key"),
+        ]
+        for pattern, desc in secret_patterns:
+            for match in re.finditer(pattern, content):
+                lineno = content[:match.start()].count("\n") + 1
+                findings.append({
+                    "category": "Security",
+                    "severity": "High",
+                    "title": "Exposed Credential in Text File",
+                    "description": f"{desc} in '{filename}' at line {lineno}.",
+                    "file": filename,
+                    "file_path": filename,
+                    "source_file_path": filename,
+                    "line_number": lineno,
+                    "column_number": 1,
+                    "evidence": match.group(0)[:60] + "...",
+                    "origin": "Static Analyzer",
+                    "status": "Open",
+                })
+        return findings
+
     def analyze_file(self, filename: str, content: str, language: str = "python") -> List[Dict[str, Any]]:
         """Analyzes a source file based on extension and language."""
         ext = filename.split(".")[-1].lower() if "." in filename else ""
         lang = (language or "python").lower()
 
-        # HTML
-        if ext in ("html", "htm") or lang in ("html", "htm"):
-            return self.analyze_html(filename, content)
+        # Non-code documents: .txt, .md, .markdown, .rst, .log, .license, etc.
+        # NEVER parse plain text documents with programming language ASTs!
+        if ext in ("txt", "text", "md", "markdown", "rst", "log", "license", "guidelines") or lang in ("plaintext", "text", "markdown"):
+            findings = self.analyze_text_document(filename, content)
+            for f in findings:
+                f["file"] = filename
+                f["file_path"] = filename
+                f["source_file_path"] = filename
+            return findings
 
-        # CSS / SCSS / LESS
-        if ext in ("css", "scss", "sass", "less") or lang in ("css", "scss", "sass", "less"):
-            return self.analyze_css(filename, content)
-
-        # JSON
-        if ext in ("json",) or lang in ("json",):
-            return self.analyze_json(filename, content)
-
-        # JavaScript / TypeScript / React JSX / TSX / Vue / Svelte
-        if ext in ("js", "jsx", "mjs", "cjs", "ts", "tsx", "vue", "svelte") or lang in ("javascript", "js", "typescript", "ts", "jsx", "tsx", "react", "vue", "svelte"):
-            return self.analyze_javascript(filename, content, language)
-
-        # SQL
-        if ext in ("sql",) or lang in ("sql", "tsql", "mysql", "postgres", "postgresql", "sqlite"):
-            return self.analyze_sql(filename, content)
-
-        # CSV / TSV
-        if ext in ("csv", "tsv") or lang in ("csv",):
-            return self.analyze_csv(filename, content)
-
-        # Python
-        if ext in ("py", "pyw") or lang in ("python", "py"):
+        # 1. Determine by file extension first! Extension takes strict precedence over session fallback
+        if ext in ("html", "htm"):
+            findings = self.analyze_html(filename, content)
+        elif ext in ("css", "scss", "sass", "less"):
+            findings = self.analyze_css(filename, content)
+        elif ext in ("json",):
+            findings = self.analyze_json(filename, content)
+        elif ext in ("js", "jsx", "mjs", "cjs", "ts", "tsx", "vue", "svelte"):
+            findings = self.analyze_javascript(filename, content, ext)
+        elif ext in ("sql",):
+            findings = self.analyze_sql(filename, content)
+        elif ext in ("csv", "tsv"):
+            findings = self.analyze_csv(filename, content)
+        elif ext in ("py", "pyw"):
             ast_findings = self.analyze_python_ast(filename, content)
             has_syntax_error = any(f["category"] == "Syntax" for f in ast_findings)
             if has_syntax_error:
-                return ast_findings
-            ruff_findings = self.run_ruff(filename, content)
-            return ast_findings + ruff_findings
+                findings = ast_findings
+            else:
+                ruff_findings = self.run_ruff(filename, content)
+                findings = ast_findings + ruff_findings
+        # 2. If extension is unknown or absent, dispatch by session language
+        elif lang in ("html", "htm"):
+            findings = self.analyze_html(filename, content)
+        elif lang in ("css", "scss", "sass", "less"):
+            findings = self.analyze_css(filename, content)
+        elif lang in ("json",):
+            findings = self.analyze_json(filename, content)
+        elif lang in ("javascript", "js", "typescript", "ts", "jsx", "tsx", "react", "vue", "svelte"):
+            findings = self.analyze_javascript(filename, content, language)
+        elif lang in ("sql", "tsql", "mysql", "postgres", "postgresql", "sqlite"):
+            findings = self.analyze_sql(filename, content)
+        elif lang in ("csv",):
+            findings = self.analyze_csv(filename, content)
+        elif lang in ("python", "py"):
+            ast_findings = self.analyze_python_ast(filename, content)
+            has_syntax_error = any(f["category"] == "Syntax" for f in ast_findings)
+            if has_syntax_error:
+                findings = ast_findings
+            else:
+                ruff_findings = self.run_ruff(filename, content)
+                findings = ast_findings + ruff_findings
+        else:
+            findings = self.analyze_generic(filename, content, language or ext)
 
-        # General Fallback for all other programming languages (Java, C, C++, C#, Go, Rust, PHP, etc.)
-        return self.analyze_generic(filename, content, language or ext)
+        # Normalize file path fields on all findings
+        for f in findings:
+            f["file"] = filename
+            f["file_path"] = filename
+            f["source_file_path"] = filename
+
+        return findings
 
     def analyze_session_files(self, files: List[Dict[str, Any]], language: str = "python") -> List[Dict[str, Any]]:
         """Analyzes all files in a session and combines findings."""

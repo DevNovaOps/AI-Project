@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class FindingResponse(BaseModel):
@@ -25,6 +25,16 @@ class FindingResponse(BaseModel):
     confidence: Optional[int] = Field(default=90, description="Confidence score 0-100")
     metadata_info: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
+
+    @model_validator(mode="after")
+    def resolve_file(self):
+        if not self.file and self.metadata_info:
+            self.file = (
+                self.metadata_info.get("file")
+                or self.metadata_info.get("file_path")
+                or self.metadata_info.get("source_file_path")
+            )
+        return self
 
     # Frontend convenience aliases
     @property
