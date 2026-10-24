@@ -40,40 +40,57 @@ export const useWorkflowStore = create((set, get) => ({
       return text;
     };
 
-    // Gather files from appStore: filter for actual code/markup files
+    // Gather files from appStore: prioritize active file in editor!
     const nonCodeExts = ['.txt', '.text', '.md', '.markdown', '.rst', '.log', '.csv', '.tsv'];
     let sourceFiles = [];
-    const openFiles = Object.values(appStore.files);
 
-    // Prioritize executable code / markup files over raw text files
-    const openCodeFiles = openFiles.filter(f => {
-      const p = (f.path || f.name || '').toLowerCase();
-      return !nonCodeExts.some(ext => p.endsWith(ext));
-    });
+    const activePath = appStore.activeFilePath;
+    const activeFile = activePath ? appStore.files[activePath] : null;
 
-    const targetOpenFiles = openCodeFiles.length > 0 ? openCodeFiles : openFiles;
-
-    if (targetOpenFiles.length > 0) {
-      sourceFiles = targetOpenFiles.map(f => ({
-        filename: f.path || f.filename || f.name || 'main.py',
-        file_path: f.path || f.filename || f.name || 'main.py',
-        content: truncateContent(f.content),
-        language: f.language,
-      }));
+    // 1. If an active file is open and is a code/markup file, put it FIRST
+    if (activeFile && activeFile.content !== undefined) {
+      const p = (activeFile.path || activePath || '').toLowerCase();
+      if (!nonCodeExts.some(ext => p.endsWith(ext))) {
+        sourceFiles.push({
+          filename: activeFile.path || activePath || 'main.py',
+          file_path: activeFile.path || activePath || 'main.py',
+          content: truncateContent(activeFile.content),
+          language: activeFile.language,
+        });
+      }
     }
 
-    // Always supplement with project code files (up to 5 total) if available
-    if (currentProject?.id && sourceFiles.length < 5 && appStore.fileTree?.length > 0) {
+    // 2. Add other open tabs if any (up to 3 total open editor tabs)
+    const openTabs = appStore.openTabs || [];
+    for (const tabPath of openTabs) {
+      if (tabPath === activePath) continue;
+      const f = appStore.files[tabPath];
+      if (!f || f.content === undefined) continue;
+      const p = (f.path || f.name || tabPath).toLowerCase();
+      if (nonCodeExts.some(ext => p.endsWith(ext))) continue;
+
+      if (!sourceFiles.some(s => s.filename === (f.path || tabPath))) {
+        sourceFiles.push({
+          filename: f.path || tabPath,
+          file_path: f.path || tabPath,
+          content: truncateContent(f.content),
+          language: f.language,
+        });
+      }
+    }
+
+    // 3. ONLY if NO files are open in tabs at all, fallback to project tree
+    if (sourceFiles.length === 0 && currentProject?.id && appStore.fileTree?.length > 0) {
       try {
         const tree = appStore.fileTree;
-        const codeExtensions = ['.html', '.css', '.js', '.jsx', '.ts', '.tsx', '.py', '.sql', '.json', '.vue', '.svelte'];
+        const codeExtensions = ['.py', '.js', '.jsx', '.ts', '.tsx', '.sql', '.html', '.css', '.json'];
         const existingPaths = new Set(sourceFiles.map(f => f.filename));
 
         const collectCodeFiles = (nodes, acc = []) => {
           for (const n of nodes) {
             if (n.type === 'file' && !existingPaths.has(n.id)) {
               const lower = n.id.toLowerCase();
-              if (codeExtensions.some(ext => lower.endsWith(ext)) && (sourceFiles.length + acc.length) < 5) {
+              if (codeExtensions.some(ext => lower.endsWith(ext)) && acc.length < 3) {
                 acc.push(n.id);
               }
             }
@@ -260,10 +277,15 @@ export const useWorkflowStore = create((set, get) => ({
 
     try {
       // 1. Fetch real findings
-      const findingsRes = await apiClient.get(`/debug/sessions/${sessionId}/findings`);
       const rawFindings = Array.isArray(findingsRes) ? findingsRes : [];
 
-      const formattedIssues = rawFindings.map((f, idx) => {
+      // Exclude pure informational skip notices so clean code isn't flagged as an error
+      const actionFindings = rawFindings.filter(f => {
+        const title = (f.title || f.message || '').toLowerCase();
+        return !title.includes('static analysis skipped');
+      });
+
+      const formattedIssues = actionFindings.map((f, idx) => {
         const resolvedPath =
           f.file ||
           f.filePath ||
