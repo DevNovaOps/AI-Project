@@ -88,15 +88,24 @@ async def run_workflow_for_session(session_id: uuid.UUID) -> None:
 
                 elif node_name == "code_analysis":
                     findings = state_patch.get("findings", [])
+                    file_map = {sf.filename: sf.id for sf in session.files}
+                    # Persist findings to database
                     for finding_data in findings:
                         f_copy = dict(finding_data)
                         f_copy["session_id"] = session_id
-                        target_file = finding_data.get("file") or finding_data.get("file_path") or finding_data.get("source_file_path")
+                        target_file = (
+                            finding_data.get("file")
+                            or finding_data.get("file_path")
+                            or finding_data.get("source_file_path")
+                        )
+                        if target_file and target_file in file_map:
+                            f_copy["source_file_id"] = file_map[target_file]
                         if "metadata_info" not in f_copy or not isinstance(f_copy.get("metadata_info"), dict):
                             f_copy["metadata_info"] = {}
                         if target_file:
                             f_copy["metadata_info"]["file"] = target_file
                             f_copy["metadata_info"]["file_path"] = target_file
+                            f_copy["metadata_info"]["source_file_path"] = target_file
                         f_copy.pop("file", None)
                         f_copy.pop("file_path", None)
                         f_copy.pop("source_file_path", None)

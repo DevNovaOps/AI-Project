@@ -264,7 +264,16 @@ export const useWorkflowStore = create((set, get) => ({
       const rawFindings = Array.isArray(findingsRes) ? findingsRes : [];
 
       const formattedIssues = rawFindings.map((f, idx) => {
-        const resolvedPath = f.file || f.file_path || f.source_file_path || (f.metadata_info && f.metadata_info.file) || 'Code';
+        const resolvedPath =
+          f.file ||
+          f.filePath ||
+          f.file_path ||
+          f.source_file_path ||
+          f.source_file ||
+          f.filename ||
+          (f.metadata_info && (f.metadata_info.file || f.metadata_info.file_path || f.metadata_info.source_file_path)) ||
+          'file.py';
+
         return {
           id: f.id || `FINDING-${idx + 1}`,
           title: f.title || f.message || 'Code Finding',
