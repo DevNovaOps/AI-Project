@@ -442,19 +442,24 @@ export const useWorkflowStore = create((set, get) => ({
         repairs = [];
       }
 
-      // Merge repairs into formattedIssues so suggestedFix is always available
+      // Merge repairs into formattedIssues without cross-file bleeding
       const repairChanges = repairs.flatMap(r => r.proposed_changes || []);
       const enrichedIssues = formattedIssues.map((issue) => {
         const matchingRepair = repairChanges.find(
           rc => rc.filename === issue.file || rc.filename === issue.filePath || 
-                (issue.file && rc.filename && (rc.filename.endsWith('/' + issue.file) || issue.file.endsWith('/' + rc.filename)))
-        ) || repairChanges[0];
+                (issue.file && rc.filename && (rc.filename.endsWith('/' + issue.file) || issue.file.endsWith('/' + rc.filename))) ||
+                (issue.file && rc.filename?.endsWith(issue.file)) ||
+                (rc.filename && issue.file?.endsWith(rc.filename))
+        );
 
         return {
           ...issue,
-          suggestedFix: issue.suggestedFix || matchingRepair?.proposed_content || '',
+          suggestedFix: issue.suggestedFix || matchingRepair?.proposed_content || matchingRepair?.explanation || '',
           fullPatchedFile: matchingRepair?.proposed_content || '',
-          diff: matchingRepair?.diff || '',
+          proposedFileContent: matchingRepair?.proposed_content || null,
+          diff: matchingRepair?.diff || null,
+          repairDiff: matchingRepair?.diff || null,
+          repairExplanation: matchingRepair?.explanation || null,
           codeSnippet: issue.codeSnippet || matchingRepair?.original_snippet || '',
         };
       });
