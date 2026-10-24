@@ -98,7 +98,11 @@ export default function TestsPanel() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflowY: 'auto' }}>
           {filteredTests.map((test) => {
             const isPassed = test.status === 'passed';
+            const isSkipped = test.status === 'skipped';
+            const isFailed = test.status === 'failed';
             const isExpanded = expandedId === test.id;
+            const displayName = test.name || (test.details && test.details.name) || (test.details && test.details.test_name) || test.command_or_config || 'Validation Test';
+            const borderColor = isPassed ? 'var(--color-success, #10b981)' : (isSkipped ? 'var(--color-warning, #f59e0b)' : 'var(--color-critical, #ef4444)');
 
             return (
               <div 
@@ -106,7 +110,7 @@ export default function TestsPanel() {
                 className="card"
                 style={{
                   padding: '8px 10px',
-                  borderLeft: `3px solid ${isPassed ? 'var(--color-success)' : 'var(--color-critical)'}`,
+                  borderLeft: `3px solid ${borderColor}`,
                   gap: 4
                 }}
               >
@@ -115,17 +119,30 @@ export default function TestsPanel() {
                   onClick={() => setExpandedId(isExpanded ? null : test.id)}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {isPassed ? <CheckCircle2 size={13} color="var(--color-success)" /> : <XCircle size={13} color="var(--color-critical)" />}
+                    {isPassed ? (
+                      <CheckCircle2 size={13} color="var(--color-success, #10b981)" />
+                    ) : isSkipped ? (
+                      <Clock size={13} color="#f59e0b" />
+                    ) : (
+                      <XCircle size={13} color="var(--color-critical, #ef4444)" />
+                    )}
                     <span style={{ fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
-                      {test.name || test.test_name}
+                      {displayName}
                     </span>
                   </div>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                    {test.duration_ms ? `${test.duration_ms}ms` : '—'}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {isSkipped && (
+                      <span style={{ fontSize: 9, color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '1px 5px', borderRadius: 3, fontWeight: 600 }}>
+                        SKIPPED
+                      </span>
+                    )}
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                      {test.duration_ms ? `${test.duration_ms}ms` : '—'}
+                    </span>
+                  </div>
                 </div>
 
-                {isExpanded && (test.error || test.stderr || test.stdout) && (
+                {isExpanded && (test.error || test.stderr || test.stdout || test.stdout_summary || (test.details && test.details.reason)) && (
                   <div style={{
                     marginTop: 4,
                     padding: '6px 8px',
@@ -133,10 +150,10 @@ export default function TestsPanel() {
                     borderRadius: 4,
                     fontSize: 10,
                     fontFamily: 'var(--font-mono)',
-                    color: test.error ? 'var(--color-critical)' : 'var(--text-secondary)',
+                    color: isPassed ? 'var(--color-success)' : (isSkipped ? '#f59e0b' : 'var(--color-critical)'),
                     whiteSpace: 'pre-wrap'
                   }}>
-                    {test.traceback || test.stderr || test.error || test.stdout}
+                    {test.stdout_summary || test.stdout || test.traceback || test.stderr || test.error || (test.details && test.details.reason)}
                   </div>
                 )}
               </div>
