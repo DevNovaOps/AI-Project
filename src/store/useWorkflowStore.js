@@ -44,18 +44,35 @@ export const useWorkflowStore = create((set, get) => ({
     const nonCodeExts = ['.txt', '.text', '.md', '.markdown', '.rst', '.log', '.csv', '.tsv'];
     let sourceFiles = [];
 
-    const activePath = appStore.activeFilePath;
-    const activeFile = activePath ? appStore.files[activePath] : null;
+    const activePath = appStore.activeFilePath || 'main.py';
+
+    // Synchronize live unsaved buffer directly from Monaco Editor if mounted
+    let liveEditorContent = null;
+    if (typeof window !== 'undefined' && window.__AETHERION_EDITOR__ && typeof window.__AETHERION_EDITOR__.getValue === 'function') {
+      try {
+        liveEditorContent = window.__AETHERION_EDITOR__.getValue();
+      } catch (err) {
+        console.warn('Could not read from Monaco editor instance:', err);
+      }
+    }
+
+    if (liveEditorContent !== null && activePath) {
+      appStore.updateFileContent(activePath, liveEditorContent);
+    }
+
+    const currentFiles = useAppStore.getState().files;
+    const activeFile = currentFiles[activePath];
+    const effectiveContent = liveEditorContent !== null ? liveEditorContent : (activeFile ? activeFile.content : '');
 
     // 1. If an active file is open and is a code/markup file, put it FIRST
-    if (activeFile && activeFile.content !== undefined) {
-      const p = (activeFile.path || activePath || '').toLowerCase();
+    if (effectiveContent !== undefined && effectiveContent !== null) {
+      const p = (activeFile?.path || activePath || 'main.py').toLowerCase();
       if (!nonCodeExts.some(ext => p.endsWith(ext))) {
         sourceFiles.push({
-          filename: activeFile.path || activePath || 'main.py',
-          file_path: activeFile.path || activePath || 'main.py',
-          content: truncateContent(activeFile.content),
-          language: activeFile.language,
+          filename: activeFile?.path || activePath || 'main.py',
+          file_path: activeFile?.path || activePath || 'main.py',
+          content: truncateContent(effectiveContent),
+          language: activeFile?.language || 'python',
         });
       }
     }
@@ -277,6 +294,13 @@ export const useWorkflowStore = create((set, get) => ({
 
     try {
       // 1. Fetch real findings
+      let findingsRes = [];
+      try {
+        findingsRes = await apiClient.get(`/debug/sessions/${sessionId}/findings`);
+      } catch (e) {
+        console.warn('Could not fetch findings for session:', e);
+        findingsRes = [];
+      }
       const rawFindings = Array.isArray(findingsRes) ? findingsRes : [];
 
       // Exclude pure informational skip notices so clean code isn't flagged as an error

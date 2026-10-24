@@ -118,7 +118,43 @@ def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[st
         explanation = "Applied automated defensive repair and quality hardening."
         applied = False
 
-        # 1. Division by zero on empty collections / calculate_average
+        # 1. Java System.out.println / sout in Python
+        if re.search(r"System\.(?:out|err)\.(?:println|print)\b", patched_content):
+            patched_content = re.sub(r"System\.(?:out|err)\.(?:println|print)\b", "print", patched_content)
+            explanation = "Replaced Java 'System.out.println' with Python 'print'."
+            applied = True
+
+        # 2. JavaScript console.log in Python
+        if (fname.endswith(".py") or fname == "main.py") and re.search(r"\bconsole\.(?:log|error|warn|info)\b", patched_content):
+            patched_content = re.sub(r"\bconsole\.(?:log|error|warn|info)\b", "print", patched_content)
+            explanation = "Replaced JavaScript 'console.log' with Python 'print'."
+            applied = True
+
+        # 3. Invalid comparison operators in Python (====, ===)
+        if re.search(r"====+", patched_content):
+            patched_content = re.sub(r"====+", "==", patched_content)
+            explanation = "Repaired invalid comparison operator '====' to standard '=='."
+            applied = True
+        elif (fname.endswith(".py") or fname == "main.py") and re.search(r"(?<!=)===(?!=)", patched_content):
+            patched_content = re.sub(r"(?<!=)===(?!=)", "==", patched_content)
+            explanation = "Repaired JavaScript strict equality '===' to standard Python '=='."
+            applied = True
+
+        # 4. Built-in function typos (lenn, lenght, printt, etc.)
+        if re.search(r"\blenn\(", patched_content):
+            patched_content = re.sub(r"\blenn\(", "len(", patched_content)
+            explanation = "Corrected built-in typo 'lenn()' to 'len()'."
+            applied = True
+        if re.search(r"\b(?:lenght|lengt)\(", patched_content):
+            patched_content = re.sub(r"\b(?:lenght|lengt)\(", "len(", patched_content)
+            explanation = "Corrected built-in typo to 'len()'."
+            applied = True
+        if re.search(r"\b(?:printt|prnt|prntln|println)\(", patched_content):
+            patched_content = re.sub(r"\b(?:printt|prnt|prntln|println)\(", "print(", patched_content)
+            explanation = "Corrected built-in typo to 'print()'."
+            applied = True
+
+        # 5. Division by zero on empty collections / calculate_average
         if "sum(numbers) / len(numbers)" in patched_content and "len(numbers) == 0" not in patched_content:
             patched_content = patched_content.replace(
                 "return sum(numbers) / len(numbers)",
@@ -127,7 +163,7 @@ def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[st
             explanation = "Added defensive guard to prevent ZeroDivisionError on empty collections."
             applied = True
 
-        # 2. General len() division pattern
+        # 6. General len() division pattern
         elif re.search(r"/\s*len\(([a-zA-Z0-9_]+)\)", patched_content) and "== 0" not in patched_content:
             m = re.search(r"([a-zA-Z0-9_]+)\s*=\s*.*?\/\s*len\(([a-zA-Z0-9_]+)\)|return\s+.*?\/\s*len\(([a-zA-Z0-9_]+)\)", patched_content)
             col_var = m.group(2) or m.group(3) if m else "collection"
@@ -139,7 +175,7 @@ def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[st
             explanation = f"Added empty collection guard on '{col_var}' before division."
             applied = True
 
-        # 3. Direct division by zero literal
+        # 7. Direct division by zero literal
         elif re.search(r"/\s*0(?![0-9])", patched_content):
             patched_content = re.sub(r"/\s*0(?![0-9])", "/ 1  # Guarded against division by zero", patched_content)
             explanation = "Guarded division by literal 0 to eliminate ZeroDivisionError."

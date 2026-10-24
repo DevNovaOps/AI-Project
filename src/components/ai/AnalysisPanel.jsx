@@ -33,7 +33,7 @@ export default function AnalysisPanel() {
     const activePath = store.activeFilePath;
     const currentFile = activePath ? store.files[activePath] : null;
 
-    const demoSnippet = `\n\n# --- INJECTED DEMO DEFECT FOR AI DEBUGGER ---\ndef calculate_system_metrics(total_items, error_count=0, cached_results=[]):\n    """Sample defect function for testing AETHERION 5-Agent Pipeline."""\n    if error_count == None:\n        error_count = 0\n    # Intentional ZeroDivisionError runtime defect:\n    return total_items / 0\n`;
+    const demoSnippet = `\n\n# --- INJECTED DEMO DEFECT FOR AI DEBUGGER ---\ndef calculate_system_metrics(total_items, error_count=0, cached_results=[]):\n    """Sample defect function for testing AETHERION 5-Agent Pipeline."""\n    if error_count == None:\n        error_count = 0\n    # Intentional ZeroDivisionError runtime defect:\n    return total_items / 0\n\n# Multi-language syntax & operator defects:\nif lenn([1, 2, 3]) ==== 0:\n    System.out.println("Invalid Java print in Python")\n`;
 
     try {
       if (currentFile && activePath) {

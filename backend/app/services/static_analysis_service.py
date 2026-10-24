@@ -20,17 +20,107 @@ class SecurityASTVisitor(ast.NodeVisitor):
         self.filename = filename
         self.findings: List[Dict[str, Any]] = []
 
-    def visit_Call(self, node: ast.Call):
-        func_name = ""
-        if isinstance(node.func, ast.Name):
-            func_name = node.func.id
-        elif isinstance(node.func, ast.Attribute):
-            # e.g. os.system, subprocess.run
-            val = node.func.value
-            module_name = getattr(val, "id", "")
-            func_name = f"{module_name}.{node.func.attr}" if module_name else node.func.attr
+    def _get_call_chain(self, node: ast.AST) -> str:
+        parts = []
+        curr = node
+        while isinstance(curr, ast.Attribute):
+            parts.append(curr.attr)
+            curr = curr.value
+        if isinstance(curr, ast.Name):
+            parts.append(curr.id)
+        return ".".join(reversed(parts))
 
-        # Detect dangerous dynamic execution
+    def visit_Call(self, node: ast.Call):
+        func_name = self._get_call_chain(node.func)
+
+        # 1. Detect Java standard output / sout in Python (System.out.println / System.out.print)
+        if func_name in ("System.out.println", "System.out.print", "System.err.println", "System.err.print"):
+            self.findings.append({
+                "category": "Language Mismatch",
+                "severity": "Critical",
+                "title": "Java 'System.out.println' syntax used in Python",
+                "description": (
+                    f"Java standard output method '{func_name}' is invalid in Python. "
+                    "In Python, use the built-in 'print(...)' function. "
+                    "At runtime, this will raise 'NameError: name \\'System\\' is not defined'."
+                ),
+                "file": self.filename,
+                "line_number": getattr(node, "lineno", None),
+                "column_number": getattr(node, "col_offset", None),
+                "evidence": f"Call to '{func_name}(...)'",
+                "origin": "AST",
+                "status": "Open",
+                "suggested_fix": "Replace with print(...)",
+            })
+
+        # 2. Detect JavaScript console logging in Python (console.log / console.error)
+        elif func_name in ("console.log", "console.error", "console.warn", "console.info", "console.debug"):
+            self.findings.append({
+                "category": "Language Mismatch",
+                "severity": "Critical",
+                "title": f"JavaScript '{func_name}' syntax used in Python",
+                "description": f"JavaScript '{func_name}' is invalid in Python. Use 'print(...)' instead.",
+                "file": self.filename,
+                "line_number": getattr(node, "lineno", None),
+                "column_number": getattr(node, "col_offset", None),
+                "evidence": f"Call to '{func_name}(...)'",
+                "origin": "AST",
+                "status": "Open",
+                "suggested_fix": "Replace with print(...)",
+            })
+
+        # 3. Detect Go fmt output in Python (fmt.Println / fmt.Printf)
+        elif func_name in ("fmt.Println", "fmt.Printf", "fmt.Print"):
+            self.findings.append({
+                "category": "Language Mismatch",
+                "severity": "Critical",
+                "title": f"Go '{func_name}' syntax used in Python",
+                "description": f"Go '{func_name}' is invalid in Python. Use 'print(...)' instead.",
+                "file": self.filename,
+                "line_number": getattr(node, "lineno", None),
+                "column_number": getattr(node, "col_offset", None),
+                "evidence": f"Call to '{func_name}(...)'",
+                "origin": "AST",
+                "status": "Open",
+                "suggested_fix": "Replace with print(...)",
+            })
+
+        # 4. Detect common typos for built-in functions
+        builtin_typos = {
+            "lenn": "len",
+            "lenght": "len",
+            "lengt": "len",
+            "printt": "print",
+            "prnt": "print",
+            "prntln": "print",
+            "println": "print",
+            "rang": "range",
+            "rnge": "range",
+            "strr": "str",
+            "intr": "int",
+            "flot": "float",
+        }
+        if func_name in builtin_typos:
+            correct_name = builtin_typos[func_name]
+            self.findings.append({
+                "category": "Runtime Error",
+                "severity": "Critical",
+                "title": f"Undefined function '{func_name}' (typo for '{correct_name}')",
+                "description": (
+                    f"'{func_name}' is not a built-in Python function. "
+                    f"Did you mean '{correct_name}()'? At runtime, this will raise "
+                    f"'NameError: name \\'{func_name}\\' is not defined'."
+                ),
+                "file": self.filename,
+                "line_number": getattr(node, "lineno", None),
+                "column_number": getattr(node, "col_offset", None),
+                "evidence": f"Call to '{func_name}(...)'",
+                "origin": "AST",
+                "status": "Open",
+                "suggested_fix": f"Replace with {correct_name}(...)",
+            })
+
+        # 5. Detect dangerous dynamic execution
         if func_name in ("eval", "exec", "compile"):
             self.findings.append({
                 "category": "Security",
@@ -45,7 +135,7 @@ class SecurityASTVisitor(ast.NodeVisitor):
                 "status": "Open",
             })
 
-        # Detect shell execution
+        # 6. Detect shell execution
         if func_name in ("os.system", "os.popen", "subprocess.Popen", "subprocess.run", "subprocess.call"):
             self.findings.append({
                 "category": "Security",
@@ -60,7 +150,7 @@ class SecurityASTVisitor(ast.NodeVisitor):
                 "status": "Open",
             })
 
-        # Detect unsafe deserialization
+        # 7. Detect unsafe deserialization
         if func_name in ("pickle.loads", "pickle.load", "yaml.unsafe_load"):
             self.findings.append({
                 "category": "Security",
@@ -204,9 +294,144 @@ class StaticAnalysisService:
     Python AST and Ruff linter.
     """
 
+    def _analyze_python_lexical(self, filename: str, content: str) -> List[Dict[str, Any]]:
+        """
+        Scans Python code lexically for obvious foreign language syntax,
+        illegal operators, and builtin typos across all lines, even if AST parsing fails.
+        """
+        findings: List[Dict[str, Any]] = []
+        lines = content.splitlines()
+
+        for idx, line in enumerate(lines, start=1):
+            # 1. Invalid comparison operators: ====
+            if re.search(r"====+", line):
+                col = line.find("====") + 1
+                findings.append({
+                    "category": "Syntax",
+                    "severity": "Critical",
+                    "title": "Invalid comparison operator '===='",
+                    "description": f"Python uses '==' for equality comparison. Operator '====' is invalid syntax on line {idx}.",
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": col,
+                    "evidence": line.strip()[:80],
+                    "origin": "Lexical Syntax Check",
+                    "status": "Open",
+                    "suggested_fix": "Replace '====' with '=='",
+                })
+            elif re.search(r"(?<!=)===(?!=)", line):
+                col = line.find("===") + 1
+                findings.append({
+                    "category": "Language Mismatch",
+                    "severity": "Critical",
+                    "title": "JavaScript strict equality '===' used in Python",
+                    "description": f"Python uses '==' instead of JavaScript strict equality '===' on line {idx}.",
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": col,
+                    "evidence": line.strip()[:80],
+                    "origin": "Lexical Language Check",
+                    "status": "Open",
+                    "suggested_fix": "Replace '===' with '=='",
+                })
+            elif re.search(r"(?<!=)!==(?!=)", line):
+                col = line.find("!==") + 1
+                findings.append({
+                    "category": "Language Mismatch",
+                    "severity": "Critical",
+                    "title": "JavaScript strict inequality '!==' used in Python",
+                    "description": f"Python uses '!=' instead of JavaScript '!==' on line {idx}.",
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": col,
+                    "evidence": line.strip()[:80],
+                    "origin": "Lexical Language Check",
+                    "status": "Open",
+                    "suggested_fix": "Replace '!==' with '!='",
+                })
+
+            # 2. Java standard output / sout in Python
+            if re.search(r"\bSystem\.(?:out|err)\.(?:println|print)\b", line):
+                col = max(1, line.find("System.") + 1)
+                findings.append({
+                    "category": "Language Mismatch",
+                    "severity": "Critical",
+                    "title": "Java 'System.out.println' syntax used in Python",
+                    "description": (
+                        f"Java standard output ('System.out.println') on line {idx} is invalid in Python. "
+                        "In Python, use the built-in 'print(...)' function. "
+                        "At runtime, this will raise 'NameError: name \\'System\\' is not defined'."
+                    ),
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": col,
+                    "evidence": line.strip()[:80],
+                    "origin": "Lexical Language Check",
+                    "status": "Open",
+                    "suggested_fix": "Replace with print(...)",
+                })
+
+            # 3. JavaScript console output in Python
+            elif re.search(r"\bconsole\.(?:log|error|warn|info|debug)\b", line):
+                col = max(1, line.find("console.") + 1)
+                findings.append({
+                    "category": "Language Mismatch",
+                    "severity": "Critical",
+                    "title": "JavaScript 'console.log' syntax used in Python",
+                    "description": f"JavaScript 'console.log' on line {idx} is invalid in Python. In Python, use 'print(...)'.",
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": col,
+                    "evidence": line.strip()[:80],
+                    "origin": "Lexical Language Check",
+                    "status": "Open",
+                    "suggested_fix": "Replace with print(...)",
+                })
+
+            # 4. Built-in function typos
+            has_java_print = "System." in line
+            for typo, correct in [
+                ("lenn", "len"),
+                ("lenght", "len"),
+                ("lengt", "len"),
+                ("printt", "print"),
+                ("prnt", "print"),
+                ("prntln", "print"),
+                ("println", "print"),
+            ]:
+                if has_java_print and typo in ("println", "prntln", "printt", "prnt"):
+                    continue
+                pattern = rf"\b{typo}\s*\("
+                m = re.search(pattern, line)
+                if m:
+                    findings.append({
+                        "category": "Runtime Error",
+                        "severity": "Critical",
+                        "title": f"Undefined function '{typo}' (typo for '{correct}')",
+                        "description": (
+                            f"'{typo}' is not a built-in Python function. "
+                            f"Did you mean '{correct}()'? At runtime, this will raise "
+                            f"'NameError: name \\'{typo}\\' is not defined'."
+                        ),
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": m.start() + 1,
+                        "evidence": line.strip()[:80],
+                        "origin": "Lexical Identifier Check",
+                        "status": "Open",
+                        "suggested_fix": f"Replace with {correct}(...)",
+                    })
+
+        return findings
+
     def analyze_python_ast(self, filename: str, content: str) -> List[Dict[str, Any]]:
         findings: List[Dict[str, Any]] = []
 
+        # 1. Lexical scan for multi-language anomalies & syntax patterns across all lines
+        lexical_findings = self._analyze_python_lexical(filename, content)
+        findings.extend(lexical_findings)
+
+        # 2. AST parsing
         try:
             tree = ast.parse(content, filename=filename)
         except SyntaxError as e:
@@ -224,14 +449,30 @@ class StaticAnalysisService:
                 "origin": "AST",
                 "status": "Open",
             })
-            return findings
+            # Deduplicate findings
+            seen = set()
+            deduped = []
+            for f in findings:
+                key = (f.get("line_number"), f.get("title"))
+                if key not in seen:
+                    seen.add(key)
+                    deduped.append(f)
+            return deduped
 
-        # Run security and defect AST visitor
+        # 3. Security and defect AST visitor
         visitor = SecurityASTVisitor(filename=filename)
         visitor.visit(tree)
         findings.extend(visitor.findings)
 
-        return findings
+        # Deduplicate findings
+        seen = set()
+        deduped = []
+        for f in findings:
+            key = (f.get("line_number"), f.get("title"))
+            if key not in seen:
+                seen.add(key)
+                deduped.append(f)
+        return deduped
 
     def run_ruff(self, filename: str, content: str) -> List[Dict[str, Any]]:
         """

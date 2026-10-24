@@ -106,6 +106,14 @@ export default function CodeEditor() {
     monacoRef.current = monaco;
     window.__AETHERION_EDITOR__ = editor;
     window.__AETHERION_MONACO__ = monaco;
+    window.__AETHERION_SET_CODE__ = (newVal) => {
+      if (editor) {
+        editor.setValue(newVal);
+        if (activeFilePath && updateFileContent) {
+          updateFileContent(activeFilePath, newVal);
+        }
+      }
+    };
 
     // Listen to cursor position
     editor.onDidChangeCursorPosition((e) => {
