@@ -35,6 +35,7 @@ def fix_and_test_node(state: WorkflowState) -> Dict[str, Any]:
                 diagnosis=diagnosis,
                 attempt_number=current_attempt,
                 previous_test_output=prev_test.get("stderr_summary"),
+                model=state.get("model"),
             )
             proposed_patches = fix_output.patches
         except Exception as exc:

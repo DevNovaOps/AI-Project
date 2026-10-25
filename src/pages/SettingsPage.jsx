@@ -3,15 +3,23 @@ import { Settings, Sun, Moon, Sparkles, Sliders, Shield, Database, Check } from 
 import { useAppStore } from '../store/useAppStore';
 
 export default function SettingsPage() {
-  const { theme, setTheme, project } = useAppStore();
-  const [selectedModel, setSelectedModel] = useState('gemini-3.8-flash');
+  const { theme, setTheme, project, selectedModel, setSelectedModel, addNotification } = useAppStore();
+  const [activeModel, setActiveModel] = useState(selectedModel || 'qwen/qwen3.8-27b');
   const [fontSize, setFontSize] = useState(13);
   const [tabWidth, setTabWidth] = useState(4);
   const [autoApplyHighConfidence, setAutoApplyHighConfidence] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
+    setSelectedModel(activeModel);
     setSaved(true);
+    if (addNotification) {
+      addNotification({
+        title: 'Settings Saved',
+        message: `Active AI Agent Model set to ${activeModel}`,
+        type: 'success'
+      });
+    }
     setTimeout(() => setSaved(false), 2000);
   };
 
@@ -25,7 +33,7 @@ export default function SettingsPage() {
           </div>
           <div>
             <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Preferences &amp; Model Settings</h1>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Configure AI reasoning agents, editor layout, and workspace runtime</p>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Configure AI reasoning agents (Groq Cloud), editor layout, and workspace runtime</p>
           </div>
         </div>
 
@@ -73,22 +81,46 @@ export default function SettingsPage() {
 
       {/* AI Model Architecture Section */}
       <div className="card" style={{ padding: '16px', gap: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>AI Agent Model Pipeline</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>AI Agent Model Pipeline</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>High-throughput inference provided by Groq Cloud LPUs</div>
+          </div>
+          <span className="badge badge-success" style={{ fontSize: 10, padding: '2px 8px' }}>
+            ● Groq API Connected
+          </span>
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[
-            { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash (High Speed & Code Diagnosis)', desc: 'Optimized for sub-second AST analysis and deterministic patch generation' },
-            { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet (Extended Reasoning)', desc: 'Comprehensive reasoning across multi-file architectures' },
-            { id: 'gpt-4o', name: 'GPT-4o Omnichannel', desc: 'General coding and test synthesis' }
+            {
+              id: 'qwen/qwen3.8-27b',
+              name: 'Qwen 3.8 27B (High-Precision Code Synthesis & AST Diagnosis)',
+              tag: 'Recommended for Coding',
+              desc: 'Specialized 27B coding LLM on Groq. Sub-second AST syntax repairs, deterministic patch generation, and logic bug detection.'
+            },
+            {
+              id: 'openai/gpt-oss-120b',
+              name: 'GPT-OSS 120B (Deep Architectural Reasoning & Cross-File Logic)',
+              tag: 'Flagship Intelligence',
+              desc: 'High-parameter 120B reasoning model on Groq. Multi-file dependency graph analysis, deep root-cause debugging, and security boundary guards.'
+            },
+            {
+              id: 'openai/gpt-oss-20b',
+              name: 'GPT-OSS 20B (Ultra-Fast Instant Triage & Sub-Second Latency)',
+              tag: 'Sub-Second Speed',
+              desc: 'Ultra-fast lightweight reasoning engine on Groq. Real-time typing analysis, instant linting, and high-throughput micro-patches.'
+            }
           ].map((m) => (
             <label 
               key={m.id} 
               className="palette-item"
               style={{ 
-                padding: '10px 14px', 
+                padding: '12px 14px', 
                 border: '1px solid var(--border-subtle)', 
                 borderRadius: 'var(--radius-sm)',
-                background: selectedModel === m.id ? 'rgba(59, 130, 246, 0.08)' : 'var(--bg-card-subtle)',
-                borderColor: selectedModel === m.id ? 'var(--border-focus)' : undefined,
+                background: activeModel === m.id ? 'rgba(59, 130, 246, 0.08)' : 'var(--bg-card-subtle)',
+                borderColor: activeModel === m.id ? 'var(--border-focus)' : undefined,
                 cursor: 'pointer'
               }}
             >
@@ -96,13 +128,18 @@ export default function SettingsPage() {
                 <input
                   type="radio"
                   name="ai-model"
-                  checked={selectedModel === m.id}
-                  onChange={() => setSelectedModel(m.id)}
+                  checked={activeModel === m.id}
+                  onChange={() => setActiveModel(m.id)}
                   style={{ marginTop: 3 }}
                 />
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{m.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{m.desc}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{m.name}</div>
+                    <span style={{ fontSize: 10, color: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: 4 }}>
+                      {m.tag}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{m.desc}</div>
                 </div>
               </div>
             </label>

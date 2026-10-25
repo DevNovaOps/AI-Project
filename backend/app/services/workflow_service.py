@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
+from app.core.config import settings
 from app.core.logging import logger
 from app.db.session import SessionLocal
 from app.events.manager import event_manager
@@ -51,11 +52,13 @@ async def run_workflow_for_session(session_id: uuid.UUID) -> None:
             message="Autonomous debugging pipeline started.",
         )
 
+        selected_model = (session.configuration or {}).get("model") or settings.GROQ_MODEL
         initial_state = {
             "session_id": session_str,
             "title": session.title,
             "language": session.language,
             "task_description": session.task_description,
+            "model": selected_model,
             "files": [
                 {
                     "filename": f.filename,

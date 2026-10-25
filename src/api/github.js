@@ -6,4 +6,6 @@ export const githubApi = {
   getRepoMetadata: (projectId) => apiClient.get(`/projects/${projectId}/repository`),
   refreshRepo: (projectId) => apiClient.post(`/projects/${projectId}/repository/refresh`),
   disconnectRepo: (projectId) => apiClient.delete(`/projects/${projectId}/repository`),
+  pushChanges: (projectId, data) => apiClient.post(`/projects/${projectId}/repository/push`, data),
 };
+

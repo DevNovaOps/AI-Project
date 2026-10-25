@@ -17,6 +17,7 @@ class DebugSessionCreateRequest(BaseModel):
         description="List of requested static or dynamic checks",
     )
     max_repair_attempts: int = Field(default=3, ge=1, le=10, description="Max repair attempts within server limits")
+    model: Optional[str] = Field(default=None, description="Optional target Groq LLM model")
 
     @model_validator(mode="before")
     @classmethod

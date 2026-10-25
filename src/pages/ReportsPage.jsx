@@ -36,10 +36,11 @@ export default function ReportsPage() {
   const [toastMessage, setToastMessage] = useState(null);
 
   // Issues list merged with appliedFixes store
+  const safeApplied = Array.isArray(appliedFixes) ? appliedFixes : [];
   const issues = (storeIssues || []).map(item => ({
     ...item,
-    detected: item.source || 'Static AST',
-    status: appliedFixes.includes(item.id) ? 'Fixed' : (item.status || 'Open')
+    detected: item.source || item.origin || 'Static AST',
+    status: safeApplied.includes(item.id) ? 'Fixed' : (item.status || 'Open')
   }));
 
   const selectedIssue = issues.find(i => i.id === selectedIssueId) || issues[0] || null;
@@ -51,6 +52,47 @@ export default function ReportsPage() {
   const criticalCount = issues.filter(i => i.severity === 'Critical' || i.severity === 'High').length;
   const fixedCount = issues.filter(i => i.status === 'Fixed').length;
   const healthScore = issues.length === 0 ? 100 : Math.max(20, Math.round(100 - (criticalCount * 25) + (fixedCount * 20)));
+
+  // Dynamic charts computed from real repository issues
+  const dynamicSeverityData = React.useMemo(() => {
+    if (issues.length === 0) return severityDistributionData;
+    const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+    issues.forEach(i => {
+      const sev = i.severity || 'Medium';
+      if (counts[sev] !== undefined) counts[sev]++;
+      else counts.Medium++;
+    });
+    return [
+      { name: 'Critical', value: counts.Critical, percentage: `${Math.round((counts.Critical / issues.length) * 100)}%`, color: '#ef4444' },
+      { name: 'High', value: counts.High, percentage: `${Math.round((counts.High / issues.length) * 100)}%`, color: '#f97316' },
+      { name: 'Medium', value: counts.Medium, percentage: `${Math.round((counts.Medium / issues.length) * 100)}%`, color: '#06b6d4' },
+      { name: 'Low', value: counts.Low, percentage: `${Math.round((counts.Low / issues.length) * 100)}%`, color: '#10b981' }
+    ];
+  }, [issues]);
+
+  const dynamicCategoryData = React.useMemo(() => {
+    if (issues.length === 0) return categoryBreakdownData;
+    const catMap = {};
+    const catColors = {
+      Syntax: '#ef4444',
+      Security: '#f97316',
+      Runtime: '#ec4899',
+      'Runtime Error': '#ec4899',
+      AST: '#38bdf8',
+      'Code Quality': '#06b6d4',
+      Performance: '#a855f7',
+      General: '#10b981'
+    };
+    issues.forEach(i => {
+      const c = i.category || 'General';
+      catMap[c] = (catMap[c] || 0) + 1;
+    });
+    return Object.entries(catMap).map(([name, count]) => ({
+      name,
+      count,
+      color: catColors[name] || '#38bdf8'
+    }));
+  }, [issues]);
 
   // Dynamic metrics cards for the reports dashboard
   const dynamicMetrics = [
@@ -191,14 +233,14 @@ export default function ReportsPage() {
     const headers = ['#', 'Severity', 'Title', 'Detail', 'File', 'Line', 'Category', 'Status', 'Detected'];
     const rows = issues.map((i, idx) => [
       idx + 1,
-      i.severity,
-      `"${i.title.replace(/"/g, '""')}"`,
-      `"${i.detail.replace(/"/g, '""')}"`,
-      i.file,
-      i.line,
-      i.category,
-      i.status,
-      i.detected
+      i.severity || 'Medium',
+      `"${(i.title || '').replace(/"/g, '""')}"`,
+      `"${(i.detail || i.description || i.message || '').replace(/"/g, '""')}"`,
+      i.file || 'unknown',
+      i.line || 1,
+      i.category || 'General',
+      i.status || 'Open',
+      i.detected || 'Static AST'
     ]);
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -522,8 +564,8 @@ export default function ReportsPage() {
           {/* ANALYTICS ROW */}
           <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.05fr 1.15fr', gap: 10, minHeight: 240 }}>
             <IssueTrendChart data={issueTrendsData} />
-            <IssueDistributionChart data={severityDistributionData} totalCount={issues.length} />
-            <CategoryBreakdown data={categoryBreakdownData} />
+            <IssueDistributionChart data={dynamicSeverityData} totalCount={issues.length} />
+            <CategoryBreakdown data={dynamicCategoryData} />
           </div>
 
           {/* SPLIT ROW: ISSUE MANAGEMENT TABLE (LEFT) + RIGHT-SIDE ISSUE DETAILS PANEL (RIGHT) */}

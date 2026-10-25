@@ -25,6 +25,7 @@ def diagnosis_node(state: WorkflowState) -> Dict[str, Any]:
                 task_description=task_desc,
                 files=files,
                 findings=findings,
+                model=state.get("model"),
             )
             diagnosis = diag_output.model_dump()
         except Exception as exc:

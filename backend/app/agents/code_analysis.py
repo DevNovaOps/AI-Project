@@ -113,7 +113,7 @@ Format:
 ]"""
 
         try:
-            raw_text = llm_service.invoke_with_fallback(prompt)
+            raw_text = llm_service.invoke_with_fallback(prompt, preferred_model=state.get("model"))
             raw_text = raw_text.strip()
 
             # Handle <think>...</think> blocks from reasoning models

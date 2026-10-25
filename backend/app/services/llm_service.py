@@ -85,17 +85,21 @@ class LLMService:
             logger.error(f"Failed to initialize ChatGroq client for {target_model}: {e}")
             raise LLMServiceException(f"Failed to initialize Groq client: {str(e)}")
 
-    def _get_models_to_try(self) -> List[str]:
-        models = [settings.GROQ_MODEL] if settings.GROQ_MODEL else []
+    def _get_models_to_try(self, preferred_model: Optional[str] = None) -> List[str]:
+        models = []
+        if preferred_model and preferred_model.strip():
+            models.append(preferred_model.strip())
+        if settings.GROQ_MODEL and settings.GROQ_MODEL not in models:
+            models.append(settings.GROQ_MODEL)
         for m in self.FALLBACK_MODELS:
             if m not in models:
                 models.append(m)
         return models
 
-    def invoke_with_fallback(self, prompt: str) -> str:
+    def invoke_with_fallback(self, prompt: str, preferred_model: Optional[str] = None) -> str:
         """Invokes LLM with automatic failover across models."""
         last_error = None
-        for model in self._get_models_to_try():
+        for model in self._get_models_to_try(preferred_model):
             try:
                 client = self.get_client(model_name=model)
                 res = client.invoke(prompt)
@@ -113,6 +117,7 @@ class LLMService:
         task_description: Optional[str],
         files: List[Dict[str, Any]],
         findings: List[Dict[str, Any]],
+        model: Optional[str] = None,
     ) -> DiagnosisOutput:
         """
         Diagnoses root causes based on deterministic findings and source code.
@@ -141,9 +146,9 @@ class LLMService:
             f"6. Recommend a precise repair strategy that addresses ALL identified issues\n"
         )
 
-        for model in self._get_models_to_try():
+        for cand_model in self._get_models_to_try(model):
             try:
-                client = self.get_client(model_name=model)
+                client = self.get_client(model_name=cand_model)
                 try:
                     structured_llm = client.with_structured_output(DiagnosisOutput)
                     result = structured_llm.invoke(prompt)
@@ -157,7 +162,7 @@ class LLMService:
                     raw_text = self._extract_json(raw_text)
                     return DiagnosisOutput.model_validate_json(raw_text)
             except Exception as exc:
-                logger.warning(f"Diagnosis failed on model {model}: {exc}")
+                logger.warning(f"Diagnosis failed on model {cand_model}: {exc}")
 
         # Deterministic fallback diagnosis
         causes = [
@@ -185,6 +190,7 @@ class LLMService:
         diagnosis: Dict[str, Any],
         attempt_number: int = 1,
         previous_test_output: Optional[str] = None,
+        model: Optional[str] = None,
     ) -> FixOutput:
         """
         Generates minimal, targeted source repair proposals based on diagnosis.
@@ -234,9 +240,9 @@ class LLMService:
             f"5. Preserve code style, indentation, and structure\n"
         )
 
-        for model in self._get_models_to_try():
+        for cand_model in self._get_models_to_try(model):
             try:
-                client = self.get_client(model_name=model)
+                client = self.get_client(model_name=cand_model)
                 try:
                     structured_llm = client.with_structured_output(FixOutput)
                     result = structured_llm.invoke(prompt)
@@ -249,7 +255,7 @@ class LLMService:
                     raw_text = self._extract_json(raw_text)
                     return FixOutput.model_validate_json(raw_text)
             except Exception as exc:
-                logger.warning(f"Repair generation failed on model {model}: {exc}")
+                logger.warning(f"Repair generation failed on model {cand_model}: {exc}")
 
         raise LLMServiceException("Repair generation failed across all models.")
 

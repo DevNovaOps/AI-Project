@@ -7,9 +7,12 @@ from app.db.session import get_db
 from app.models.project import Project
 from app.models.repository import Repository
 from app.models.repository_import_job import RepositoryImportJob
+from app.models.workspace_file import WorkspaceFile
 from app.schemas.github import (
     GitHubImportJobResponse,
     GitHubImportRequest,
+    GitHubPushRequest,
+    GitHubPushResponse,
     RepositoryMetadataResponse,
 )
 from app.services.github_service import GitHubService
@@ -131,3 +134,54 @@ def disconnect_repository(project_id: UUID, db: Session = Depends(get_db)):
     db.delete(repo)
     db.commit()
     return None
+
+
+@router.post("/projects/{project_id}/repository/push", response_model=GitHubPushResponse)
+async def push_project_changes_to_github(
+    project_id: UUID,
+    payload: GitHubPushRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Pushes modified or selected workspace files directly to the connected GitHub repository.
+    Works for creators and collaborators with write access, or allows creating a new branch / PR.
+    """
+    repo = db.query(Repository).filter(Repository.project_id == project_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="No GitHub repository connected to this project")
+
+    # If payload provided specific files, use them; otherwise, pull all non-directory workspace files
+    files_to_commit = []
+    if payload.files:
+        files_to_commit = [{"path": f.path, "content": f.content} for f in payload.files]
+    else:
+        wf_files = (
+            db.query(WorkspaceFile)
+            .filter(
+                WorkspaceFile.project_id == project_id,
+                WorkspaceFile.is_directory == False,
+            )
+            .all()
+        )
+        files_to_commit = [{"path": wf.relative_path, "content": wf.content or ""} for wf in wf_files]
+
+    if not files_to_commit:
+        raise HTTPException(status_code=400, detail="No files found in workspace to push.")
+
+    service = GitHubService(db)
+    try:
+        result = await service.push_to_repository(
+            repository=repo,
+            commit_message=payload.commit_message,
+            files_to_commit=files_to_commit,
+            target_branch=payload.branch,
+            token=payload.github_token,
+            create_pr=payload.create_pr,
+            pr_title=payload.pr_title,
+        )
+        return GitHubPushResponse(**result)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to push to GitHub: {str(exc)}")
+

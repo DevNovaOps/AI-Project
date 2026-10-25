@@ -21,6 +21,7 @@ class SessionRepository:
         task_description: Optional[str] = None,
         requested_checks: Optional[List[str]] = None,
         max_repair_attempts: int = 3,
+        model: Optional[str] = None,
     ) -> DebugSession:
         session = DebugSession(
             title=title or f"Debug Session - {language}",
@@ -34,6 +35,7 @@ class SessionRepository:
             configuration={
                 "requested_checks": requested_checks or ["syntax", "style", "runtime", "security"],
                 "max_repair_attempts": max_repair_attempts,
+                "model": model,
             },
         )
         self.db.add(session)

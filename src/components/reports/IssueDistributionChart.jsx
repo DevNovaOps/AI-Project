@@ -1,7 +1,13 @@
 import React from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 
-export default function IssueDistributionChart({ data, totalCount = 24 }) {
+export default function IssueDistributionChart({ data = [], totalCount = 0 }) {
+  const chartData = Array.isArray(data) && data.length > 0 ? data : [
+    { name: 'Critical', value: 0, percentage: '0%', color: '#ef4444' },
+    { name: 'High', value: 0, percentage: '0%', color: '#f97316' },
+    { name: 'Medium', value: 0, percentage: '0%', color: '#06b6d4' },
+    { name: 'Low', value: 0, percentage: '0%', color: '#10b981' }
+  ];
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const entry = payload[0];
@@ -59,7 +65,7 @@ export default function IssueDistributionChart({ data, totalCount = 24 }) {
                 dataKey="value"
                 stroke="none"
               >
-                {data.map((entry, index) => (
+                {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
@@ -87,7 +93,7 @@ export default function IssueDistributionChart({ data, totalCount = 24 }) {
 
         {/* Legend List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, paddingLeft: 4 }}>
-          {data.map((item) => (
+          {chartData.map((item) => (
             <div
               key={item.name}
               style={{

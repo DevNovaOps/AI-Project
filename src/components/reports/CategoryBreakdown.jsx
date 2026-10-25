@@ -1,7 +1,8 @@
 import React from 'react';
 
-export default function CategoryBreakdown({ data }) {
-  const maxVal = Math.max(...data.map(d => d.count), 8);
+export default function CategoryBreakdown({ data = [] }) {
+  const safeData = Array.isArray(data) ? data : [];
+  const maxVal = Math.max(...safeData.map(d => d.count || 0), 8);
 
   return (
     <div
@@ -24,7 +25,7 @@ export default function CategoryBreakdown({ data }) {
 
       {/* Progress Rows */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, justifyContent: 'center' }}>
-        {data.map((cat) => {
+        {safeData.map((cat) => {
           const widthPct = Math.round((cat.count / maxVal) * 100);
 
           return (

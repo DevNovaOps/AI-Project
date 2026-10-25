@@ -38,3 +38,29 @@ class RepositoryMetadataResponse(BaseModel):
     last_imported_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class GitHubFileCommitInput(BaseModel):
+    path: str = Field(..., description="File relative path in repository")
+    content: str = Field(..., description="Full updated content of the file")
+
+
+class GitHubPushRequest(BaseModel):
+    branch: Optional[str] = Field(None, description="Target branch to push to (defaults to selected branch or default branch)")
+    commit_message: str = Field(default="fix: apply verified AI repairs and workspace changes", description="Git commit message")
+    files: Optional[list[GitHubFileCommitInput]] = Field(None, description="Optional list of specific files to commit. If omitted, all workspace files are committed.")
+    github_token: Optional[str] = Field(None, description="Personal Access Token with 'repo' scope")
+    create_pr: bool = Field(default=False, description="Whether to create a Pull Request instead of direct push")
+    pr_title: Optional[str] = Field(None, description="Optional Pull Request title")
+
+
+class GitHubPushResponse(BaseModel):
+    success: bool
+    commit_sha: Optional[str] = None
+    commit_url: Optional[str] = None
+    branch: str
+    files_committed: int
+    pr_url: Optional[str] = None
+    pr_number: Optional[int] = None
+    message: str
+

@@ -255,13 +255,14 @@ export const useWorkflowStore = create((set, get) => ({
     });
 
     try {
-      // 1. Create real DebugSession on FastAPI backend
+      const activeModel = useAppStore.getState().selectedModel || 'qwen/qwen3.8-27b';
       const session = await sessionsApi.create({
         title: `Analysis: ${currentProject?.name || 'Workspace'}`,
         language: detectedLang,
         task_description: 'Analyze source files, detect runtime and syntax errors, diagnose root causes, and propose verified patches.',
         files: sourceFiles,
         source_files: sourceFiles,
+        model: activeModel,
       });
 
       const sessionId = session.id;

@@ -382,3 +382,192 @@ class GitHubService:
             repository.import_status = "failed"
             self.db.commit()
             raise exc
+
+    async def push_to_repository(
+        self,
+        repository: Repository,
+        commit_message: str,
+        files_to_commit: List[Dict[str, str]],
+        target_branch: Optional[str] = None,
+        token: Optional[str] = None,
+        create_pr: bool = False,
+        pr_title: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Pushes modified workspace files directly to GitHub using the Git Database API.
+        Creates blobs, a new tree, a commit, and updates the branch ref (or creates a PR).
+        """
+        auth_token = (token or "").strip() or settings.GITHUB_TOKEN
+        if not auth_token:
+            raise ValueError(
+                "GitHub Personal Access Token is required to push changes. "
+                "Please enter your GitHub token in the Push modal or configure GITHUB_TOKEN."
+            )
+
+        owner = repository.owner
+        repo = repository.repository_name
+        base_branch = repository.selected_branch or repository.default_branch or "main"
+        push_branch = target_branch.strip() if target_branch and target_branch.strip() else base_branch
+
+        if create_pr and push_branch == base_branch:
+            push_branch = f"aetherion-patch-{int(datetime.now().timestamp())}"
+
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "AutonomusAI-Platform/1.0",
+            "Authorization": f"Bearer {auth_token}",
+        }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # 1. Fetch base branch ref
+            ref_url = f"https://api.github.com/repos/{owner}/{repo}/git/ref/heads/{base_branch}"
+            res = await client.get(ref_url, headers=headers)
+            if res.status_code == 401:
+                raise ValueError("GitHub authentication failed. Please verify your Personal Access Token.")
+            elif res.status_code == 403:
+                raise ValueError("GitHub permission denied. Ensure your token has write / 'repo' scope access.")
+            elif res.status_code == 404:
+                raise ValueError(f"Base branch '{base_branch}' not found on GitHub repository {owner}/{repo}.")
+            elif res.status_code != 200:
+                raise ValueError(f"GitHub API error fetching branch ref: {res.status_code} - {res.text}")
+
+            commit_sha = res.json().get("object", {}).get("sha")
+            if not commit_sha:
+                raise ValueError("Could not determine base commit SHA from GitHub branch ref.")
+
+            # 2. Fetch base commit to get tree SHA
+            commit_res = await client.get(
+                f"https://api.github.com/repos/{owner}/{repo}/git/commits/{commit_sha}",
+                headers=headers,
+            )
+            if commit_res.status_code != 200:
+                raise ValueError(f"GitHub API error fetching commit details: {commit_res.status_code}")
+            base_tree_sha = commit_res.json().get("tree", {}).get("sha")
+
+            # 3. Create blobs for each modified file
+            tree_entries = []
+            for f in files_to_commit:
+                raw_path = f.get("path") or f.get("relative_path") or f.get("filename")
+                clean_path = raw_path.replace("\\", "/").lstrip("/")
+                content_str = f.get("content", "")
+
+                blob_res = await client.post(
+                    f"https://api.github.com/repos/{owner}/{repo}/git/blobs",
+                    headers=headers,
+                    json={"content": content_str, "encoding": "utf-8"},
+                )
+                if blob_res.status_code not in (200, 201):
+                    raise ValueError(f"Failed to create GitHub blob for {clean_path}: {blob_res.text}")
+
+                blob_sha = blob_res.json().get("sha")
+                tree_entries.append({
+                    "path": clean_path,
+                    "mode": "100644",
+                    "type": "blob",
+                    "sha": blob_sha,
+                })
+
+            if not tree_entries:
+                raise ValueError("No valid file changes found to commit.")
+
+            # 4. Create new tree
+            tree_res = await client.post(
+                f"https://api.github.com/repos/{owner}/{repo}/git/trees",
+                headers=headers,
+                json={"base_tree": base_tree_sha, "tree": tree_entries},
+            )
+            if tree_res.status_code not in (200, 201):
+                raise ValueError(f"Failed to create GitHub tree: {tree_res.text}")
+            new_tree_sha = tree_res.json().get("sha")
+
+            # 5. Create new commit
+            final_msg = commit_message.strip() or "fix: apply verified AI repairs and workspace changes"
+            new_commit_res = await client.post(
+                f"https://api.github.com/repos/{owner}/{repo}/git/commits",
+                headers=headers,
+                json={
+                    "message": final_msg,
+                    "tree": new_tree_sha,
+                    "parents": [commit_sha],
+                },
+            )
+            if new_commit_res.status_code not in (200, 201):
+                raise ValueError(f"Failed to create GitHub commit: {new_commit_res.text}")
+
+            new_commit_data = new_commit_res.json()
+            new_commit_sha = new_commit_data.get("sha")
+            commit_url = new_commit_data.get("html_url") or f"https://github.com/{owner}/{repo}/commit/{new_commit_sha}"
+
+            # 6. Update existing branch ref or create new branch ref
+            check_ref_res = await client.get(
+                f"https://api.github.com/repos/{owner}/{repo}/git/ref/heads/{push_branch}",
+                headers=headers,
+            )
+
+            if check_ref_res.status_code == 200:
+                # Update existing branch
+                update_ref_res = await client.patch(
+                    f"https://api.github.com/repos/{owner}/{repo}/git/refs/heads/{push_branch}",
+                    headers=headers,
+                    json={"sha": new_commit_sha, "force": False},
+                )
+                if update_ref_res.status_code not in (200, 201):
+                    raise ValueError(f"Failed to update branch '{push_branch}': {update_ref_res.text}")
+            else:
+                # Create new branch ref
+                create_ref_res = await client.post(
+                    f"https://api.github.com/repos/{owner}/{repo}/git/refs",
+                    headers=headers,
+                    json={"ref": f"refs/heads/{push_branch}", "sha": new_commit_sha},
+                )
+                if create_ref_res.status_code not in (200, 201):
+                    raise ValueError(f"Failed to create branch '{push_branch}': {create_ref_res.text}")
+
+            pr_url = None
+            pr_number = None
+
+            # 7. Optionally create Pull Request
+            if create_pr:
+                pr_body = (
+                    f"### AETHERION Autonomous Code Patch\n\n"
+                    f"- **Committed Files**: {len(tree_entries)}\n"
+                    f"- **Target Branch**: `{base_branch}`\n"
+                    f"- **Source Branch**: `{push_branch}`\n"
+                    f"- **Commit**: [{new_commit_sha[:7]}]({commit_url})\n\n"
+                    f"Verified by AETHERION Autonomous AI Debugging & Testing Pipeline."
+                )
+                pr_res = await client.post(
+                    f"https://api.github.com/repos/{owner}/{repo}/pulls",
+                    headers=headers,
+                    json={
+                        "title": pr_title or final_msg,
+                        "head": push_branch,
+                        "base": base_branch,
+                        "body": pr_body,
+                    },
+                )
+                if pr_res.status_code in (200, 201):
+                    pr_data = pr_res.json()
+                    pr_url = pr_data.get("html_url")
+                    pr_number = pr_data.get("number")
+                else:
+                    logger.warning(f"PR creation returned {pr_res.status_code}: {pr_res.text}")
+
+            # Update repository record
+            repository.last_imported_at = datetime.now(timezone.utc)
+            self.db.commit()
+
+            return {
+                "success": True,
+                "commit_sha": new_commit_sha,
+                "commit_url": commit_url,
+                "branch": push_branch,
+                "files_committed": len(tree_entries),
+                "pr_url": pr_url,
+                "pr_number": pr_number,
+                "message": (
+                    f"Successfully pushed {len(tree_entries)} file(s) to branch '{push_branch}'"
+                    + (f" and created PR #{pr_number}" if pr_number else "")
+                ),
+            }
+

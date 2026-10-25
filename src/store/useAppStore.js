@@ -411,6 +411,11 @@ export const useAppStore = create((set, get) => ({
   setSelectedBranch: (branch) => set({ selectedBranch: branch }),
   activeLanguage: 'python',
   setLanguage: (lang) => set({ activeLanguage: lang }),
+  selectedModel: localStorage.getItem('aetherion_model') || 'qwen/qwen3.8-27b',
+  setSelectedModel: (model) => {
+    localStorage.setItem('aetherion_model', model);
+    set({ selectedModel: model });
+  },
 
   // Explorer & Workspace Files
   fileTree: [],
@@ -489,6 +494,146 @@ export const useAppStore = create((set, get) => ({
   // Applied Fixes & Repairs
   appliedFixes: [],
   repairs: [],
+
+  // Source Control & Commits
+  commits: [],
+  isPushing: false,
+  loadProjectCommits: (projectId) => {
+    if (!projectId) return;
+    try {
+      const stored = localStorage.getItem(`aetherion_commits_${projectId}`);
+      if (stored) {
+        set({ commits: JSON.parse(stored) });
+      } else {
+        set({ commits: [] });
+      }
+    } catch (e) {
+      set({ commits: [] });
+    }
+  },
+  recordCommit: async (message) => {
+    const { files, currentProject, commits, selectedBranch } = get();
+    if (!message || !message.trim()) return;
+
+    // Detect all changed files
+    const changedEntries = Object.values(files).filter(
+      (f) => f.isDirty || (f.content && f.originalContent && f.content !== f.originalContent)
+    );
+    const paths = Array.from(new Set(changedEntries.map((f) => f.path || f.name)));
+
+    const sha = Math.random().toString(16).substring(2, 9);
+    const newCommit = {
+      id: sha,
+      sha: sha,
+      message: message.trim(),
+      branch: selectedBranch || 'main',
+      timestamp: 'Just now',
+      date: new Date().toISOString(),
+      filesCount: paths.length,
+      files: paths,
+      pushed: false,
+    };
+
+    // Save modified files to backend workspace
+    if (currentProject?.id) {
+      for (const f of changedEntries) {
+        try {
+          await filesApi.saveContent(currentProject.id, f.path || f.name, f.content, f.version);
+        } catch (err) {
+          console.warn(`Could not sync ${f.path} during commit:`, err);
+        }
+      }
+    }
+
+    // Mark files as clean in state
+    const nextFiles = { ...files };
+    for (const key of Object.keys(nextFiles)) {
+      if (paths.includes(nextFiles[key].path) || paths.includes(nextFiles[key].name)) {
+        nextFiles[key] = {
+          ...nextFiles[key],
+          originalContent: nextFiles[key].content,
+          isDirty: false,
+        };
+      }
+    }
+
+    const nextCommits = [newCommit, ...commits];
+    if (currentProject?.id) {
+      try {
+        localStorage.setItem(`aetherion_commits_${currentProject.id}`, JSON.stringify(nextCommits));
+      } catch (e) {}
+    }
+
+    set({ commits: nextCommits, files: nextFiles });
+
+    get().addNotification({
+      title: 'Commit Recorded',
+      message: `[${sha}] ${message.trim()} (${paths.length} file(s) recorded)`,
+      type: 'success',
+    });
+
+    return newCommit;
+  },
+
+  pushToGitHub: async ({ branch, commitMessage, token, createPr, prTitle }) => {
+    const { currentProject, files, commits, selectedBranch } = get();
+    if (!currentProject?.id) {
+      throw new Error('No active project found.');
+    }
+
+    set({ isPushing: true });
+    try {
+      const fileList = Object.values(files)
+        .filter((f) => f.content && typeof f.content === 'string')
+        .map((f) => ({ path: f.path || f.name, content: f.content }));
+
+      const effectiveToken = token || localStorage.getItem('aetherion_github_token') || '';
+      if (token) {
+        localStorage.setItem('aetherion_github_token', token);
+      }
+
+      const res = await githubApi.pushChanges(currentProject.id, {
+        branch: branch || selectedBranch || 'main',
+        commit_message: commitMessage || (commits[0]?.message || 'fix: apply verified AI repairs and workspace changes'),
+        files: fileList,
+        github_token: effectiveToken,
+        create_pr: Boolean(createPr),
+        pr_title: prTitle,
+      });
+
+      const updatedCommits = commits.map((c) => ({
+        ...c,
+        pushed: true,
+        commitUrl: res.commit_url || c.commitUrl,
+        prUrl: res.pr_url || c.prUrl,
+      }));
+
+      if (currentProject?.id) {
+        try {
+          localStorage.setItem(`aetherion_commits_${currentProject.id}`, JSON.stringify(updatedCommits));
+        } catch (e) {}
+      }
+
+      set({ commits: updatedCommits, isPushing: false });
+
+      get().addNotification({
+        title: res.pr_url ? 'Pull Request Created' : 'Pushed to GitHub Successfully',
+        message: res.message || `Successfully committed and pushed to GitHub branch '${res.branch}'.`,
+        type: 'success',
+      });
+
+      return res;
+    } catch (err) {
+      set({ isPushing: false });
+      const errMsg = normalizeError(err);
+      get().addNotification({
+        title: 'GitHub Push Failed',
+        message: errMsg,
+        type: 'critical',
+      });
+      throw err;
+    }
+  },
 
   // Test Runner State
   testCases: [],
@@ -579,6 +724,7 @@ export const useAppStore = create((set, get) => ({
     });
 
     if (projectId) {
+      get().loadProjectCommits(projectId);
       await get().loadProjectFiles(projectId);
     }
   },
@@ -694,6 +840,7 @@ export const useAppStore = create((set, get) => ({
             path: path,
             content: f.content || '',
             originalContent: f.content || '',
+            baseContent: f.content || '',
             language: langInfo.monacoLang,
             version: f.version || 1,
             isDirty: false,
@@ -899,6 +1046,7 @@ export const useAppStore = create((set, get) => ({
           path: resolvedPath,
           content: loadedContent,
           originalContent: loadedContent,
+          baseContent: state.files[resolvedPath]?.baseContent ?? loadedContent,
           language: langInfo.monacoLang,
           version: fileVersion,
           isDirty: false,
@@ -908,6 +1056,7 @@ export const useAppStore = create((set, get) => ({
           path: resolvedPath,
           content: loadedContent,
           originalContent: loadedContent,
+          baseContent: state.files[filePath]?.baseContent ?? loadedContent,
           language: langInfo.monacoLang,
           version: fileVersion,
           isDirty: false,

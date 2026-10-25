@@ -45,6 +45,7 @@ def create_debug_session(
         task_description=request.task_description,
         requested_checks=request.requested_checks,
         max_repair_attempts=request.max_repair_attempts,
+        model=request.model,
     )
 
     # Record initial event

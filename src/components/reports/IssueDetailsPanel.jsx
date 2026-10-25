@@ -22,14 +22,28 @@ export default function IssueDetailsPanel({
   if (!issue) return null;
 
   const handleCopyCode = () => {
-    const raw = (issue.codeSnippet || []).map(l => l.text).join('\n') || issue.detail;
+    let raw = '';
+    if (Array.isArray(issue.codeSnippet)) {
+      raw = issue.codeSnippet.map(l => (typeof l === 'string' ? l : l.text || '')).join('\n');
+    } else if (typeof issue.codeSnippet === 'string') {
+      raw = issue.codeSnippet;
+    } else {
+      raw = issue.evidence || issue.detail || issue.message || '';
+    }
     navigator.clipboard.writeText(raw);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
   const handleCopyFix = () => {
-    const raw = issue.fixSnippet || (issue.suggestedFixLines || []).map(l => l.text).join('\n') || '';
+    let raw = '';
+    if (typeof issue.suggestedFix === 'string' && issue.suggestedFix) {
+      raw = issue.suggestedFix;
+    } else if (typeof issue.fixSnippet === 'string' && issue.fixSnippet) {
+      raw = issue.fixSnippet;
+    } else if (Array.isArray(issue.suggestedFixLines)) {
+      raw = issue.suggestedFixLines.map(l => (typeof l === 'string' ? l : l.text || '')).join('\n');
+    }
     navigator.clipboard.writeText(raw);
     setCopiedFix(true);
     setTimeout(() => setCopiedFix(false), 2000);
@@ -230,33 +244,50 @@ export default function IssueDetailsPanel({
           lineHeight: 1.45,
           color: 'var(--text-primary)'
         }}>
-          {(issue.codeSnippet || [
-            { lineNum: 3, text: 'def calculate_average(numbers):' },
-            { lineNum: 4, text: '    if len(numbers) == 0:' },
-            { lineNum: 5, text: '        return 0' },
-            { lineNum: 6, text: '    return sum(numbers) / len(numbers)', isError: true }
-          ]).map((line, idx) => (
-            <div
-              key={idx}
-              style={{
-                display: 'flex',
-                backgroundColor: line.isError ? 'rgba(239, 68, 68, 0.16)' : 'transparent',
-                borderRadius: 2,
-                padding: '0 2px',
-                color: line.isError ? '#ef4444' : 'var(--text-primary)'
-              }}
-            >
-              <span style={{ color: 'var(--text-muted)', width: 20, userSelect: 'none' }}>
-                {line.lineNum}
-              </span>
-              <span style={{ color: line.isError ? '#ef4444' : 'transparent', width: 10, userSelect: 'none' }}>
-                {line.isError ? '>' : ''}
-              </span>
-              <span style={{ flex: 1, whiteSpace: 'pre' }}>
-                {line.text}
-              </span>
-            </div>
-          ))}
+          {(() => {
+            let lines = [];
+            if (Array.isArray(issue.codeSnippet)) {
+              lines = issue.codeSnippet;
+            } else if (typeof issue.codeSnippet === 'string' && issue.codeSnippet.trim()) {
+              lines = issue.codeSnippet.split('\n').map((text, idx) => ({
+                lineNum: (issue.line || 1) + idx,
+                text,
+                isError: true
+              }));
+            } else if (typeof issue.evidence === 'string' && issue.evidence.trim()) {
+              lines = issue.evidence.split('\n').map((text, idx) => ({
+                lineNum: (issue.line || 1) + idx,
+                text,
+                isError: true
+              }));
+            } else {
+              lines = [
+                { lineNum: issue.line || 1, text: issue.detail || issue.title || 'Code inspection required', isError: true }
+              ];
+            }
+            return lines.map((line, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: 'flex',
+                  backgroundColor: line.isError ? 'rgba(239, 68, 68, 0.16)' : 'transparent',
+                  borderRadius: 2,
+                  padding: '0 2px',
+                  color: line.isError ? '#ef4444' : 'var(--text-primary)'
+                }}
+              >
+                <span style={{ color: 'var(--text-muted)', width: 22, userSelect: 'none' }}>
+                  {line.lineNum || (idx + 1)}
+                </span>
+                <span style={{ color: line.isError ? '#ef4444' : 'transparent', width: 10, userSelect: 'none' }}>
+                  {line.isError ? '>' : ''}
+                </span>
+                <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                  {typeof line === 'string' ? line : (line.text || '')}
+                </span>
+              </div>
+            ));
+          })()}
         </div>
       </div>
 
@@ -267,7 +298,7 @@ export default function IssueDetailsPanel({
           <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-primary)' }}>Explanation</span>
         </div>
         <div style={{ fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-          {issue.explanation || "The function doesn't handle the case when the input list is empty. When len(numbers) is 0, division by zero occurs."}
+          {issue.explanation || issue.detail || issue.rootCause || "Analysis identified a defect requiring defensive validation."}
         </div>
       </div>
 
@@ -307,33 +338,50 @@ export default function IssueDetailsPanel({
           lineHeight: 1.45,
           color: 'var(--text-primary)'
         }}>
-          {(issue.suggestedFixLines || [
-            { lineNum: 3, text: '    def calculate_average(numbers):', prefix: '+' },
-            { lineNum: 4, text: '        if len(numbers) == 0:', prefix: '+' },
-            { lineNum: 5, text: '            return 0', prefix: '+' },
-            { lineNum: 6, text: '        return sum(numbers) / len(numbers)', prefix: '>' }
-          ]).map((line, idx) => (
-            <div
-              key={idx}
-              style={{
-                display: 'flex',
-                color: line.prefix === '+' ? '#10b981' : (line.prefix === '>' ? '#ef4444' : 'var(--text-primary)'),
-                backgroundColor: line.prefix === '+' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                borderRadius: 2,
-                padding: '0 2px'
-              }}
-            >
-              <span style={{ color: 'var(--text-muted)', width: 20, userSelect: 'none' }}>
-                {line.lineNum}
-              </span>
-              <span style={{ color: line.prefix === '+' ? '#10b981' : '#ef4444', width: 10, userSelect: 'none' }}>
-                {line.prefix}
-              </span>
-              <span style={{ flex: 1, whiteSpace: 'pre' }}>
-                {line.text}
-              </span>
-            </div>
-          ))}
+          {(() => {
+            let lines = [];
+            if (Array.isArray(issue.suggestedFixLines)) {
+              lines = issue.suggestedFixLines;
+            } else if (typeof issue.suggestedFix === 'string' && issue.suggestedFix.trim()) {
+              lines = issue.suggestedFix.split('\n').map((text, idx) => ({
+                lineNum: (issue.line || 1) + idx,
+                text,
+                prefix: '+'
+              }));
+            } else if (typeof issue.fixSnippet === 'string' && issue.fixSnippet.trim()) {
+              lines = issue.fixSnippet.split('\n').map((text, idx) => ({
+                lineNum: (issue.line || 1) + idx,
+                text,
+                prefix: '+'
+              }));
+            } else {
+              lines = [
+                { lineNum: issue.line || 1, text: '// Automated defensive fix recommended', prefix: '+' }
+              ];
+            }
+            return lines.map((line, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: 'flex',
+                  color: line.prefix === '+' ? '#10b981' : (line.prefix === '>' ? '#ef4444' : 'var(--text-primary)'),
+                  backgroundColor: line.prefix === '+' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                  borderRadius: 2,
+                  padding: '0 2px'
+                }}
+              >
+                <span style={{ color: 'var(--text-muted)', width: 22, userSelect: 'none' }}>
+                  {line.lineNum || (idx + 1)}
+                </span>
+                <span style={{ color: line.prefix === '+' ? '#10b981' : '#ef4444', width: 10, userSelect: 'none' }}>
+                  {line.prefix || '+'}
+                </span>
+                <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                  {typeof line === 'string' ? line : (line.text || '')}
+                </span>
+              </div>
+            ));
+          })()}
         </div>
       </div>
 
