@@ -466,6 +466,13 @@ class GitHubService:
                     json={"content": content_str, "encoding": "utf-8"},
                 )
                 if blob_res.status_code not in (200, 201):
+                    if blob_res.status_code == 403 and "not accessible" in blob_res.text:
+                        raise ValueError(
+                            "GitHub write access denied (403). Your token lacks write permission for this repository. "
+                            "Fix: 1) If using a Classic token, ensure the '[✓] repo' box was checked. "
+                            "2) If using a Fine-grained token, grant 'Contents: Read and write' on this repository. "
+                            "3) Ensure you have accepted the collaborator invitation on GitHub."
+                        )
                     raise ValueError(f"Failed to create GitHub blob for {clean_path}: {blob_res.text}")
 
                 blob_sha = blob_res.json().get("sha")
