@@ -77,3 +77,10 @@ class FindingRepository:
             self.db.commit()
             self.db.refresh(finding)
         return finding
+
+    def delete_by_session(self, session_id: uuid.UUID) -> int:
+        from sqlalchemy import delete
+        stmt = delete(Finding).where(Finding.session_id == session_id)
+        res = self.db.execute(stmt)
+        self.db.commit()
+        return res.rowcount

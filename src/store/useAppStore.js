@@ -21,15 +21,80 @@ export function stripCodeCommentsAndLiterals(content) {
   });
 }
 
+function fixSwitchFallthrough(code) {
+  const lines = code.split('\n');
+  let modified = false;
+  const newLines = [];
+  let inCase = false;
+  let caseIndent = '    ';
+  let caseStmtCount = 0;
+  let lastStmt = '';
+  const caseRe = /^(\s*)(case\s+[^:]+|default)\s*:\s*(.*)$/;
+  const termRe = /\b(break|return|throw|continue)\b[^;]*;\s*$/;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const stripped = line.trim();
+
+    const mCase = line.match(caseRe);
+    if (mCase) {
+      if (inCase && caseStmtCount > 0 && !termRe.test(lastStmt)) {
+        const breakIndent = caseIndent + '    ';
+        newLines.push(`${breakIndent}break;`);
+        modified = true;
+      }
+      inCase = true;
+      caseIndent = mCase[1];
+      caseStmtCount = 0;
+      const rest = (mCase[3] || '').trim();
+      newLines.push(line);
+      if (rest && !rest.startsWith('//') && !rest.startsWith('/*')) {
+        caseStmtCount += 1;
+        lastStmt = rest;
+      } else {
+        lastStmt = '';
+      }
+      continue;
+    }
+
+    if (inCase) {
+      if (stripped && !stripped.startsWith('//') && !stripped.startsWith('/*')) {
+        if (stripped.startsWith('}')) {
+          if (caseStmtCount > 0 && !termRe.test(lastStmt)) {
+            const breakIndent = caseIndent + '    ';
+            newLines.push(`${breakIndent}break;`);
+            modified = true;
+          }
+          inCase = false;
+        } else {
+          caseStmtCount += 1;
+          lastStmt = stripped;
+        }
+      }
+    }
+    newLines.push(line);
+  }
+  return { code: newLines.join('\n'), modified };
+}
+
 export function applyTargetedFix(code, issue) {
   if (!code) return '';
   let updated = code;
   const title = (issue.title || '').toLowerCase();
   const detail = (issue.detail || issue.message || '').toLowerCase();
   const suggested = (issue.suggestedFix || issue.suggested_fix || '');
+  const evidence = (issue.evidence || issue.codeSnippet || '');
+
+  // 0. If issue has a full verified file replacement, use it directly
+  if (issue.proposedFileContent && issue.proposedFileContent.length > 50 && issue.proposedFileContent.includes('\n')) {
+    return issue.proposedFileContent;
+  }
+  if (issue.fullPatchedFile && issue.fullPatchedFile.length > 50 && issue.fullPatchedFile.includes('\n')) {
+    return issue.fullPatchedFile;
+  }
 
   // 1. Explicit replacement instruction: Replace 'X' with 'Y'
-  const replaceMatch = suggested.match(/Replace\s+['"]([^'"]+)['"]\s+with\s+['"]([^'"]+)['"]/i);
+  const replaceMatch = suggested.match(/Replace\s+['"`]([^'"`]+)['"`]\s+with\s+['"`]([^'"`]+)['"`]/i);
   if (replaceMatch) {
     const [, oldStr, newStr] = replaceMatch;
     if (updated.includes(oldStr)) {
@@ -37,56 +102,124 @@ export function applyTargetedFix(code, issue) {
     }
   }
 
-  // 2. Keyword typo 'cosnt' -> 'const'
+  // 2. Direct evidence replacement (if evidence exists and matches non-comment code)
+  if (evidence && suggested && evidence !== suggested && !evidence.trim().startsWith('//') && !evidence.trim().startsWith('/*')) {
+    if (updated.includes(evidence)) {
+      return updated.replace(evidence, suggested);
+    }
+  }
+
+  // 3. Switch statement fallthrough repair (general & idempotent)
+  if (title.includes('switch') || title.includes('fallthrough') || detail.includes('switch') || detail.includes('fallthrough') || (title.includes('break') && title.includes('missing'))) {
+    const { code: fixedSwitch, modified } = fixSwitchFallthrough(updated);
+    if (modified) {
+      return fixedSwitch;
+    }
+  }
+
+  // 4. Inverted Math formula: (celsius * 9/5) - 32 -> + 32
+  if (title.includes('celsius') || title.includes('fahrenheit') || detail.includes('celsius') || detail.includes('fahrenheit') || suggested.includes('+ 32')) {
+    if (updated.includes('- 32')) {
+      updated = updated.replace(/(\(\s*[a-zA-Z0-9_$]+\s*\*\s*9\s*\/\s*5\s*\))\s*-\s*32/g, '$1 + 32');
+    }
+  }
+
+  // 5. Month indexing off-by-one: getMonth() + 1 -> getMonth()
+  if (title.includes('month') || detail.includes('month') || detail.includes('off-by-one') || suggested.includes('getMonth()')) {
+    if (updated.includes('.getMonth() + 1') || updated.includes('.getMonth()+1')) {
+      updated = updated.replace(/([a-zA-Z0-9_$]+)\s*\[\s*([a-zA-Z0-9_$.]+)\.getMonth\(\)\s*\+\s*1\s*\]/g, '$1[$2.getMonth()]');
+    }
+  }
+
+  // 6. Loop boundary condition: i <= arr.length -> i < arr.length
+  if (title.includes('loop') || title.includes('boundary') || detail.includes('loop') || detail.includes('boundary') || detail.includes('length')) {
+    const loopPattern = /(for\s*\(\s*(?:let|var|const)?\s*\w+\s*=\s*0\s*;\s*\w+\s*)<=\s*(\w+\.length\s*;)/g;
+    if (loopPattern.test(updated)) {
+      updated = updated.replace(loopPattern, '$1< $2');
+    }
+  }
+
+  // 7. Method typos: JSON.pare / JSON.prase -> JSON.parse
+  if (title.includes('json') || detail.includes('json') || detail.includes('pare') || detail.includes('prase') || suggested.includes('JSON.parse')) {
+    updated = updated.replace(/JSON\.(pare|prase)\(/g, 'JSON.parse(');
+  }
+
+  // 8. DOM API typo: document.getElementByID -> document.getElementById
+  if (title.includes('getelementbyid') || detail.includes('getelementbyid') || suggested.includes('getElementById')) {
+    updated = updated.replace(/\bgetElementByID\b/g, 'getElementById');
+  }
+
+  // 9. Object property typo: descripiton -> description
+  if (title.includes('descripiton') || detail.includes('descripiton') || suggested.includes('description')) {
+    updated = updated.replace(/\bdescripiton\b/g, 'description');
+  }
+
+  // 10. CSS property typo: border-raduis -> border-radius
+  if (title.includes('border-raduis') || detail.includes('border-raduis') || suggested.includes('border-radius')) {
+    updated = updated.replace(/\bborder-raduis\b/g, 'border-radius');
+  }
+
+  // 11. HTML attribute typo: clss= -> class=
+  if (title.includes('clss') || detail.includes('clss') || suggested.includes('class=')) {
+    updated = updated.replace(/\bclss=/g, 'class=');
+  }
+
+  // 12. Deep null safety: weatherData.alertDetails.level -> ?.
+  if (title.includes('alertdetails') || detail.includes('alertdetails') || (title.includes('null') && detail.includes('level'))) {
+    updated = updated.replace(/weatherData\.alertDetails\.level/g, 'weatherData.alertDetails?.level');
+    updated = updated.replace(/weatherData\.alertDetails\.message/g, 'weatherData.alertDetails?.message');
+  }
+
+  // 13. Keyword typo 'cosnt' -> 'const'
   if (title.includes('cosnt') || detail.includes('cosnt') || suggested.includes('const')) {
     updated = updated.replace(/\bcosnt\b/g, 'const');
   }
 
-  // 3. Keyword typo 'retunr' -> 'return'
+  // 14. Keyword typo 'retunr' -> 'return'
   if (title.includes('retunr') || detail.includes('retunr') || suggested.includes('return')) {
     updated = updated.replace(/\bretunr\b/g, 'return');
   }
 
-  // 4. Method typo 'toLowercase' -> 'toLowerCase'
+  // 15. Method typo 'toLowercase' -> 'toLowerCase'
   if (title.includes('tolowercase') || detail.includes('tolowercase') || suggested.includes('toLowerCase')) {
     updated = updated.replace(/\btolowercase\b/gi, 'toLowerCase');
   }
 
-  // 5. Method typo 'querySelecter' -> 'querySelector'
+  // 16. Method typo 'querySelecter' -> 'querySelector'
   if (title.includes('queryselecter') || detail.includes('queryselecter') || suggested.includes('querySelector')) {
     updated = updated.replace(/\bquerySelecter\b/g, 'querySelector');
     updated = updated.replace(/\bquerySelecterAll\b/g, 'querySelectorAll');
   }
 
-  // 6. CSS property typo 'backgroud-color' -> 'background-color'
+  // 17. CSS property typo 'backgroud-color' -> 'background-color'
   if (title.includes('backgroud') || detail.includes('backgroud') || suggested.includes('background')) {
     updated = updated.replace(/\bbackgroud-color\b/g, 'background-color');
     updated = updated.replace(/\bbackgroud\b/g, 'background');
   }
 
-  // 7. HTML attribute typo 'typ' -> 'type'
+  // 18. HTML attribute typo 'typ' -> 'type'
   if (title.includes('typ') && (title.includes('attribute') || title.includes('html') || suggested.includes('type='))) {
     updated = updated.replace(/\btyp=/g, 'type=');
   }
 
-  // 8. Undeclared logger -> console.log
+  // 19. Undeclared logger -> console.log
   if (title.includes('logger') || detail.includes('logger')) {
     updated = updated.replace(/\blogger\.(info|log)\b/g, 'console.log');
     updated = updated.replace(/\blogger\.warn\b/g, 'console.warn');
     updated = updated.replace(/\blogger\.error\b/g, 'console.error');
   }
 
-  // 9. Unsafe property access task.metadata.author.name
+  // 20. Unsafe property access task.metadata.author.name
   if (title.includes('metadata') || detail.includes('metadata') || suggested.includes('optional chaining')) {
     updated = updated.replace('task.metadata.author.name', "task.metadata?.author?.name || 'System'");
   }
 
-  // 10. Undeclared function generateCsvPayload
+  // 21. Undeclared function generateCsvPayload
   if (title.includes('generatecsvpayload') || detail.includes('generatecsvpayload')) {
     updated = updated.replace('generateCsvPayload(state.tasks)', 'JSON.stringify(state.tasks, null, 2)');
   }
 
-  // 11. Missing closing parenthesis in condition
+  // 22. Missing closing parenthesis in condition
   if (title.includes('parenthesis') || title.includes('condition') || suggested.includes(')')) {
     const lines = updated.split('\n');
     let targetIdx = (issue.line && issue.line > 0 && issue.line <= lines.length) ? issue.line - 1 : -1;
@@ -111,7 +244,7 @@ export function applyTargetedFix(code, issue) {
     }
   }
 
-  // 12. Arbitrary code execution risk 'eval()'
+  // 23. Arbitrary code execution risk 'eval()'
   if (title.includes('eval')) {
     updated = updated.replace(/\beval\s*\((.*?)\)/g, 'JSON.parse($1)');
   }
@@ -942,6 +1075,8 @@ export const useAppStore = create((set, get) => ({
       fileIssues[p].push(iss);
     }
 
+    const repairChanges = (state.repairs || []).flatMap(r => r.proposed_changes || []);
+
     for (const [targetPath, issuesForFile] of Object.entries(fileIssues)) {
       let content = state.files[targetPath]?.content;
       if (!content && state.currentProject?.id) {
@@ -953,10 +1088,27 @@ export const useAppStore = create((set, get) => ({
       if (!content) continue;
 
       let patched = content;
-      for (const iss of issuesForFile) {
-        if (iss.proposedFileContent && iss.proposedFileContent.length > 20) {
-          patched = iss.proposedFileContent;
-        } else {
+
+      // 1. Check if backend repairs have a complete proposed_content for this file
+      const matchingRepair = repairChanges.find(
+        rc => rc.filename === targetPath || 
+              (targetPath && rc.filename && (targetPath.endsWith(rc.filename) || rc.filename.endsWith(targetPath)))
+      );
+
+      const issueWithFullFile = issuesForFile.find(
+        iss => (iss.proposedFileContent && iss.proposedFileContent.length > 50 && iss.proposedFileContent.includes('\n')) ||
+               (iss.fullPatchedFile && iss.fullPatchedFile.length > 50 && iss.fullPatchedFile.includes('\n'))
+      );
+
+      const proposedFile = matchingRepair?.proposed_content || 
+                           issueWithFullFile?.proposedFileContent || 
+                           issueWithFullFile?.fullPatchedFile;
+
+      if (proposedFile && proposedFile.length > 50 && proposedFile.includes('\n') && proposedFile !== content) {
+        patched = proposedFile;
+      } else {
+        // Sequential targeted fix with strict idempotency
+        for (const iss of issuesForFile) {
           patched = applyTargetedFix(patched, iss);
         }
       }

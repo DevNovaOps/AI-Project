@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from app.core.logging import logger
 from app.graph.state import WorkflowState
@@ -104,6 +104,61 @@ def fix_and_test_node(state: WorkflowState) -> Dict[str, Any]:
     }
 
 
+def _fix_switch_fallthrough(code: str) -> Tuple[str, bool]:
+    """
+    Finds switch cases with executable statements that fall through into the next case/default
+    without a break, return, throw, or continue statement, and safely inserts break;.
+    Strictly idempotent: returns (code, False) if break is already present.
+    """
+    import re
+    lines = code.splitlines()
+    modified = False
+    new_lines = []
+    in_case = False
+    case_indent = "    "
+    case_stmt_count = 0
+    last_stmt = ""
+    case_re = re.compile(r"^(\s*)(case\s+[^:]+|default)\s*:\s*(.*)$")
+    term_re = re.compile(r"\b(break|return|throw|continue)\b[^;]*;\s*$")
+
+    for line in lines:
+        stripped = line.strip()
+        m_case = case_re.match(line)
+        if m_case:
+            if in_case and case_stmt_count > 0 and not term_re.search(last_stmt):
+                break_indent = case_indent + "    "
+                new_lines.append(f"{break_indent}break;")
+                modified = True
+
+            in_case = True
+            case_indent = m_case.group(1)
+            case_stmt_count = 0
+            rest = m_case.group(3).strip()
+            new_lines.append(line)
+            if rest and not rest.startswith(("//", "/*")):
+                case_stmt_count += 1
+                last_stmt = rest
+            else:
+                last_stmt = ""
+            continue
+
+        if in_case:
+            if stripped and not stripped.startswith(("//", "/*", "*")):
+                if stripped.startswith("}"):
+                    if case_stmt_count > 0 and not term_re.search(last_stmt):
+                        break_indent = case_indent + "    "
+                        new_lines.append(f"{break_indent}break;")
+                        modified = True
+                    in_case = False
+                else:
+                    case_stmt_count += 1
+                    last_stmt = stripped
+
+        new_lines.append(line)
+
+    return ("\n".join(new_lines), modified)
+
+
 def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Deterministic fallback patch engine for multi-language error repair.
@@ -177,6 +232,10 @@ def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[st
         explanations = []
         applied = False
         ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else ""
+
+        # Skip test suite verification files and documentation to preserve test integrity
+        if any(p in fname.lower() for p in ("test-suite", "test_suite", ".spec.", ".test.")) or ext in ("md", "markdown", "txt", "rst"):
+            continue
 
         # ═══════════════════════════════════════════
         # JavaScript / TypeScript fixes
@@ -259,16 +318,11 @@ def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[st
                 explanations.append("Fixed object property typo 'descripiton:' → 'description:'")
                 applied = True
 
-            # Switch missing break statement before next case
-            if "case 0:" in patched_content and "case 1:" in patched_content and "direction = 'N';" in patched_content:
-                if re.search(r"case\s+0:\s*\n\s*direction\s*=\s*'N';(?!\s*\n\s*break;)", patched_content):
-                    patched_content = re.sub(
-                        r"(case\s+0:\s*\n\s*direction\s*=\s*'N';)",
-                        r"\1\n                break;",
-                        patched_content
-                    )
-                    explanations.append("Added missing 'break;' in switch statement to prevent fallthrough")
-                    applied = True
+            # Switch missing break statement before next case (universal & idempotent)
+            patched_content, switch_fixed = _fix_switch_fallthrough(patched_content)
+            if switch_fixed:
+                explanations.append("Added missing 'break;' in switch statement to prevent fallthrough")
+                applied = True
 
             # Deep null-safety property access
             if "weatherData.alertDetails.level" in patched_content:
@@ -413,29 +467,23 @@ def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[st
 
                 # Case B: Direct evidence replacement in content
                 if evidence and suggested and evidence != suggested:
-                    if evidence in patched_content:
-                        patched_content = patched_content.replace(evidence, suggested, 1)
-                        explanations.append(f"Applied suggested fix: '{evidence[:40]}' → '{suggested[:40]}'")
-                        applied = True
-                        continue
+                    if not evidence.strip().startswith(("//", "/*", "*", "#")):
+                        if evidence in patched_content:
+                            patched_content = patched_content.replace(evidence, suggested, 1)
+                            explanations.append(f"Applied suggested fix: '{evidence[:40]}' → '{suggested[:40]}'")
+                            applied = True
+                            continue
 
-                # Case C: Line-targeted replacement
-                if line_no and isinstance(line_no, int) and suggested:
+                # Case C: Line-targeted replacement (strictly verified with evidence)
+                if line_no and isinstance(line_no, int) and evidence and suggested:
                     lines = patched_content.splitlines()
                     if 1 <= line_no <= len(lines):
                         target_line = lines[line_no - 1]
-                        if evidence and evidence in target_line:
-                            lines[line_no - 1] = target_line.replace(evidence, suggested, 1)
-                            patched_content = "\n".join(lines)
-                            explanations.append(f"Applied line {line_no} fix: '{evidence[:30]}' → '{suggested[:30]}'")
-                            applied = True
-                        elif not target_line.strip().startswith("//") and not target_line.strip().startswith("#"):
-                            # If suggested is a clean replacement for the statement
-                            if suggested.endswith(";") or "\n" in suggested or "=" in suggested or "return" in suggested:
-                                indent = target_line[:len(target_line) - len(target_line.lstrip())]
-                                lines[line_no - 1] = indent + suggested.lstrip()
+                        if not target_line.strip().startswith(("//", "/*", "*", "#")):
+                            if evidence in target_line:
+                                lines[line_no - 1] = target_line.replace(evidence, suggested, 1)
                                 patched_content = "\n".join(lines)
-                                explanations.append(f"Replaced line {line_no} with validated patch")
+                                explanations.append(f"Applied line {line_no} fix: '{evidence[:30]}' → '{suggested[:30]}'")
                                 applied = True
 
         explanation = "; ".join(explanations) if explanations else "Applied automated repair."

@@ -89,6 +89,8 @@ async def run_workflow_for_session(session_id: uuid.UUID) -> None:
                 elif node_name == "code_analysis":
                     findings = state_patch.get("findings", [])
                     file_map = {sf.filename: sf.id for sf in session.files}
+                    # Purge any previous findings for this session to prevent accumulation
+                    finding_repo.delete_by_session(session_id)
                     # Persist findings to database
                     for finding_data in findings:
                         f_copy = dict(finding_data)
