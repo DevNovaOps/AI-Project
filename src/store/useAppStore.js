@@ -77,6 +77,25 @@ function fixSwitchFallthrough(code) {
   return { code: newLines.join('\n'), modified };
 }
 
+function isNaturalLanguageText(str) {
+  if (!str || typeof str !== 'string') return false;
+  const trimmed = str.trim();
+  if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('#') || trimmed.startsWith('<!--')) {
+    return false;
+  }
+  const sentenceStarter = /^(?:remove|delete|omit|eliminate|strip|drop|replace|change|fix|add|use|ensure|consider|avoid|update|refactor|check|clean|simplify|note|warning|should|must|please)\b/i;
+  if (sentenceStarter.test(trimmed)) {
+    if (trimmed.endsWith('.') || !/[;={}()\[\]><+\-*\/]/.test(trimmed)) {
+      return true;
+    }
+  }
+  const words = trimmed.split(/\s+/);
+  if (words.length >= 4 && !/[;={}()\[\]><+\-*\/]/.test(trimmed)) {
+    return true;
+  }
+  return false;
+}
+
 export function applyTargetedFix(code, issue) {
   if (!code) return '';
   let updated = code;
@@ -102,11 +121,31 @@ export function applyTargetedFix(code, issue) {
     }
   }
 
-  // 2. Direct evidence replacement (if evidence exists and matches non-comment code)
+  // 2. Direct evidence replacement (strictly guard against inserting natural language sentences as raw code)
   if (evidence && suggested && evidence !== suggested && !evidence.trim().startsWith('//') && !evidence.trim().startsWith('/*')) {
     if (updated.includes(evidence)) {
+      if (isNaturalLanguageText(suggested)) {
+        // If it's a natural language removal instruction, comment out the code instead of inserting bare text!
+        if (/^(?:remove|delete|omit|eliminate|strip|drop)\b/i.test(suggested.trim())) {
+          const commented = evidence.split('\n').map(l => {
+            const indent = l.match(/^\s*/)[0];
+            return `${indent}// [Removed]: ${l.trim()}`;
+          }).join('\n');
+          return updated.replace(evidence, commented);
+        } else {
+          // If it is another instruction, add as a clean comment instead of raw text
+          const indent = evidence.match(/^\s*/)[0];
+          const asComment = `${indent}// [Auto-Fix]: ${suggested.trim()}`;
+          return updated.replace(evidence, asComment);
+        }
+      }
       return updated.replace(evidence, suggested);
     }
+  }
+
+  // DOM event typo: "clik" -> "click"
+  if (updated.includes('"clik"') || updated.includes("'clik'")) {
+    updated = updated.replace(/["']clik["']/g, '"click"');
   }
 
   // 3. Switch statement fallthrough repair (general & idempotent)

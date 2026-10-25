@@ -91,7 +91,7 @@ IMPORTANT INSTRUCTIONS:
 - Review EVERY file thoroughly. If a repository has multiple files, report bugs in all of them.
 - Identify the exact filename and exact 1-indexed line number for every issue.
 - Even if comments indicate 'intentional bug' or 'buggy code', you MUST report it as a bug.
-- Provide a clear, actionable `suggested_fix` for each issue.
+- Provide a clear, actionable `suggested_fix` containing ONLY valid replacement code or valid code comment. NEVER provide plain English sentences (like 'Remove this line') in `suggested_fix` because raw text causes syntax errors in code.
 
 SOURCE FILES TO ANALYZE (Batch {batch_idx + 1} of {len(batches)}):
 {files_block}
@@ -108,7 +108,7 @@ Format:
     "file": "exact_filename.ext",
     "line_number": 123,
     "evidence": "the exact problematic line or expression",
-    "suggested_fix": "the exact corrected code"
+    "suggested_fix": "exact replacement code (or comment if removing: // [Removed])"
   }}
 ]"""
 

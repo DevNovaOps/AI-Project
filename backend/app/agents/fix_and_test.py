@@ -159,6 +159,27 @@ def _fix_switch_fallthrough(code: str) -> Tuple[str, bool]:
     return ("\n".join(new_lines), modified)
 
 
+def _is_natural_language_text(text: str) -> bool:
+    """Detects if a suggested fix string is an English instruction/comment rather than code."""
+    import re
+    if not text or not isinstance(text, str):
+        return False
+    trimmed = text.strip()
+    if trimmed.startswith(("//", "/*", "*", "#", "<!--")):
+        return False
+    sentence_starters = re.compile(
+        r"^(?:remove|delete|omit|eliminate|strip|drop|replace|change|fix|add|use|ensure|consider|avoid|update|refactor|check|clean|simplify|note|warning|should|must|please)\b",
+        re.IGNORECASE,
+    )
+    if sentence_starters.search(trimmed):
+        if trimmed.endswith(".") or not re.search(r"[;={}()\[\]><+\-*/]", trimmed):
+            return True
+    words = trimmed.split()
+    if len(words) >= 4 and not re.search(r"[;={}()\[\]><+\-*/]", trimmed):
+        return True
+    return False
+
+
 def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Deterministic fallback patch engine for multi-language error repair.
@@ -181,7 +202,7 @@ def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[st
         "reqiure": "require", "requrie": "require", "requir": "require", "rquire": "require",
     }
 
-    # ── JS method typo replacements ──
+    # ── JS method & event typo replacements ──
     js_method_fixes = {
         "toLowercase": "toLowerCase", "toUppercase": "toUpperCase",
         "querySelecter": "querySelector", "querySeletor": "querySelector",
@@ -190,6 +211,7 @@ def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[st
         "getElementByID": "getElementById", "document.getElementByID": "document.getElementById",
         "addEventListner": "addEventListener", "addEventlistener": "addEventListener",
         "removeEventListner": "removeEventListener",
+        '"clik"': '"click"', "'clik'": "'click'",
         "JSON.prase": "JSON.parse", "JSON.pare": "JSON.parse",
         "JSON.parce": "JSON.parse", "JSON.pasre": "JSON.parse",
         "JSON.stirngify": "JSON.stringify", "JSON.stingify": "JSON.stringify",
@@ -469,10 +491,32 @@ def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[st
                 if evidence and suggested and evidence != suggested:
                     if not evidence.strip().startswith(("//", "/*", "*", "#")):
                         if evidence in patched_content:
-                            patched_content = patched_content.replace(evidence, suggested, 1)
-                            explanations.append(f"Applied suggested fix: '{evidence[:40]}' → '{suggested[:40]}'")
-                            applied = True
-                            continue
+                            if _is_natural_language_text(suggested):
+                                # If it's a removal instruction, comment it out instead of bare text
+                                if re.search(r"^(?:remove|delete|omit|eliminate|strip|drop)\b", suggested.strip(), re.IGNORECASE):
+                                    comment_pfx = "# " if ext in ("py", "pyw") else "// "
+                                    commented = "\n".join(
+                                        f"{l[:len(l) - len(l.lstrip())]}{comment_pfx}[Removed]: {l.lstrip()}"
+                                        for l in evidence.splitlines()
+                                    )
+                                    patched_content = patched_content.replace(evidence, commented, 1)
+                                    explanations.append(f"Commented out redundant block: '{evidence[:40]}'")
+                                    applied = True
+                                    continue
+                                else:
+                                    # Format as clean comment
+                                    indent = evidence[:len(evidence) - len(evidence.lstrip())]
+                                    comment_pfx = "# " if ext in ("py", "pyw") else "// "
+                                    as_comment = f"{indent}{comment_pfx}[Auto-Fix]: {suggested.strip()}"
+                                    patched_content = patched_content.replace(evidence, as_comment, 1)
+                                    explanations.append(f"Added fix comment for: '{evidence[:40]}'")
+                                    applied = True
+                                    continue
+                            else:
+                                patched_content = patched_content.replace(evidence, suggested, 1)
+                                explanations.append(f"Applied suggested fix: '{evidence[:40]}' → '{suggested[:40]}'")
+                                applied = True
+                                continue
 
                 # Case C: Line-targeted replacement (strictly verified with evidence)
                 if line_no and isinstance(line_no, int) and evidence and suggested:
@@ -481,7 +525,12 @@ def _generate_fallback_patch(files: List[Dict[str, Any]], findings: List[Dict[st
                         target_line = lines[line_no - 1]
                         if not target_line.strip().startswith(("//", "/*", "*", "#")):
                             if evidence in target_line:
-                                lines[line_no - 1] = target_line.replace(evidence, suggested, 1)
+                                if _is_natural_language_text(suggested):
+                                    comment_pfx = "# " if ext in ("py", "pyw") else "// "
+                                    indent = target_line[:len(target_line) - len(target_line.lstrip())]
+                                    lines[line_no - 1] = f"{indent}{comment_pfx}[Auto-Fix]: {suggested.strip()}"
+                                else:
+                                    lines[line_no - 1] = target_line.replace(evidence, suggested, 1)
                                 patched_content = "\n".join(lines)
                                 explanations.append(f"Applied line {line_no} fix: '{evidence[:30]}' → '{suggested[:30]}'")
                                 applied = True
