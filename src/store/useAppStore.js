@@ -386,6 +386,37 @@ export function applyTargetedFix(code, issue) {
     updated = updated.replace(/\beval\s*\((.*?)\)/g, 'JSON.parse($1)');
   }
 
+  // 32. Spring Boot annotation typos
+  if (title.includes('spring') || title.includes('annotation') || detail.includes('annotation')) {
+    updated = updated.replace(/@GetMappng\b/g, '@GetMapping');
+    updated = updated.replace(/@PostMappng\b/g, '@PostMapping');
+    updated = updated.replace(/@PutMappng\b/g, '@PutMapping');
+    updated = updated.replace(/@DeleteMappng\b/g, '@DeleteMapping');
+    updated = updated.replace(/@RequestMappng\b/g, '@RequestMapping');
+    updated = updated.replace(/@RestControlller\b/g, '@RestController');
+    updated = updated.replace(/@Autowire\b(?![d])/g, '@Autowired');
+    updated = updated.replace(/@Componentt\b/g, '@Component');
+    updated = updated.replace(/@Servicee\b/g, '@Service');
+    updated = updated.replace(/@Repositoryy\b/g, '@Repository');
+  }
+
+  // 33. Java String equality == with string literal
+  if ((title.includes('string') && title.includes('equality')) || detail.includes('reference equality')) {
+    updated = updated.replace(/(\b[a-zA-Z0-9_$]+)\s*==\s*"([^"]+)"/g, '"$2".equals($1)');
+    updated = updated.replace(/"([^"]+)"\s*==\s*(\b[a-zA-Z0-9_$]+)/g, '"$1".equals($2)');
+  }
+
+  // 34. Java System.out typo
+  if (title.includes('println') || detail.includes('println')) {
+    updated = updated.replace(/System\.out\.prntln\b/g, 'System.out.println');
+    updated = updated.replace(/System\.out\.printl\b/g, 'System.out.println');
+  }
+
+  // 35. Java / C# list loop boundary (size() / length)
+  if (title.includes('loop') || title.includes('boundary') || detail.includes('indexoutofbounds')) {
+    updated = updated.replace(/(for\s*\([^;]+;\s*\w+\s*)<=\s*(\w+\.(?:size\(\)|length);)/g, '$1< $2');
+  }
+
   return updated;
 }
 

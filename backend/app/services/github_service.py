@@ -37,20 +37,29 @@ IGNORED_EXTENSIONS = {
 }
 
 PRIMARY_CODE_EXTENSIONS = {
+    # Java & Spring Boot ecosystem
+    ".java", ".kt", ".kts", ".groovy", ".gradle", ".properties", ".scala", ".sc", ".clj", ".cljs",
+    # Web & Frontend frameworks
     ".html", ".htm", ".css", ".scss", ".sass", ".less",
-    ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".vue", ".svelte",
-    ".py", ".pyw", ".java", ".go", ".rs", ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp",
-    ".cs", ".php", ".rb", ".kt", ".kts", ".swift", ".dart",
-    ".sql", ".graphql", ".gql"
+    ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".vue", ".svelte", ".astro",
+    # Backend & Systems languages
+    ".py", ".pyw", ".go", ".rs", ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hxx",
+    ".cs", ".csx", ".fs", ".php", ".rb", ".rake", ".swift", ".dart",
+    # Modern data, cloud & contracts
+    ".sql", ".prisma", ".graphql", ".gql", ".sol", ".proto",
+    # Functional & scripting
+    ".ex", ".exs", ".erl", ".hs", ".lua", ".pl", ".pm", ".r", ".jl", ".zig", ".nim"
 }
 
 CONFIG_DOC_EXTENSIONS = {
-    ".json", ".yaml", ".yml", ".xml", ".toml", ".ini",
-    ".md", ".markdown", ".sh", ".bash", ".zsh", ".ps1"
+    ".json", ".jsonc", ".yaml", ".yml", ".xml", ".toml", ".ini", ".properties",
+    ".md", ".markdown", ".sh", ".bash", ".zsh", ".ps1", ".env.example"
 }
 
 SPECIAL_CODE_NAMES = {
-    "dockerfile", "procfile", ".env.example", ".gitignore", "makefile"
+    "pom.xml", "build.gradle", "settings.gradle", "application.properties", "application.yml",
+    "dockerfile", "procfile", ".env.example", ".gitignore", "makefile", "cmakelists.txt",
+    "cargo.toml", "go.mod", "go.sum", "package.json", "tsconfig.json"
 }
 
 

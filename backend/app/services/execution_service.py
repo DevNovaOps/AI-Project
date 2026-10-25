@@ -56,8 +56,8 @@ class ExecutionService:
                     except Exception as e:
                         syntax_clean = False
                         syntax_errors.append(f"{fname}: {e}")
-                # Check JS/HTML braces
-                elif ext in ("js", "jsx", "ts", "tsx"):
+                # Check JS/Java/C#/C++/Go/Rust/Kotlin/PHP braces & delimiters
+                elif ext in ("js", "jsx", "ts", "tsx", "java", "kt", "kts", "groovy", "scala", "cs", "cpp", "c", "h", "hpp", "go", "rs", "php", "swift", "dart"):
                     stack = []
                     pairs = {')': '(', '}': '{', ']': '['}
                     for line_idx, line in enumerate(content.splitlines(), start=1):

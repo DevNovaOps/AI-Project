@@ -124,7 +124,7 @@ async def run_workflow_for_session(session_id: uuid.UUID) -> None:
                         payload={"findings_count": len(findings)},
                     )
 
-                elif node_name == "diagnosis":
+                elif node_name in ("diagnosis", "diagnosis_agent"):
                     diag = state_patch.get("diagnosis", {})
                     await event_manager.broadcast_event(
                         session_id=session_str,
@@ -200,7 +200,7 @@ async def run_workflow_for_session(session_id: uuid.UUID) -> None:
                         payload={"validation_status": val_status},
                     )
 
-                elif node_name == "final_report":
+                elif node_name in ("final_report", "reporting_agent"):
                     report_data = state_patch.get("final_report", {})
                     # Persist final report
                     report_repo.create_or_update(session_id, report_data)

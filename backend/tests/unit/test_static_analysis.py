@@ -41,7 +41,7 @@ def test_division_by_zero_potential_detection():
 
 def test_unsupported_language_notice():
     code = "function test() { return 1; }"
-    findings = static_analysis_service.analyze_file("test.js", code, "javascript")
+    findings = static_analysis_service.analyze_file("test.xyz", code, "unsupported_lang")
     assert len(findings) == 1
     assert "skipped" in findings[0]["title"].lower()
     assert findings[0]["severity"] == "Info"
@@ -100,3 +100,68 @@ def test_python_semicolon_detection():
     assert semi2["category"] == "Syntax"
     assert semi2["severity"] == "Critical"
     assert semi2["line_number"] == 1
+
+
+def test_springboot_java_defect_detection():
+    java_code = (
+        "package com.example.demo.controller;\n\n"
+        "import org.springframework.web.bind.annotation.*;\n\n"
+        "@RestControlller\n"
+        "@RequestMapping(\"/api/v1\")\n"
+        "public class UserController {\n\n"
+        "    @GetMappng(\"/users\")\n"
+        "    public String getUser(String name) {\n"
+        "        if (name == \"admin\") {\n"
+        "            return \"Access Granted\";\n"
+        "        }\n"
+        "        return \"User: \" + name;\n"
+        "    }\n"
+        "}\n"
+    )
+    findings = static_analysis_service.analyze_file("UserController.java", java_code, "springboot")
+    assert len(findings) >= 3
+
+    # Spring annotation typo @RestControlller
+    controller_typo = next((f for f in findings if "@RestController" in f.get("title", "")), None)
+    assert controller_typo is not None
+    assert controller_typo["severity"] == "Critical"
+    assert controller_typo["line_number"] == 5
+
+    # Spring annotation typo @GetMappng
+    mapping_typo = next((f for f in findings if "@GetMapping" in f.get("title", "")), None)
+    assert mapping_typo is not None
+    assert mapping_typo["severity"] == "Critical"
+    assert mapping_typo["line_number"] == 9
+
+    # Java string equality ==
+    equality_hazard = next((f for f in findings if ".equals()" in f.get("title", "")), None)
+    assert equality_hazard is not None
+    assert equality_hazard["category"] in ("Logic", "Runtime")
+    assert equality_hazard["line_number"] == 11
+
+
+def test_springboot_properties_security():
+    props_content = (
+        "server.port=8080\n"
+        "spring.datasource.url=jdbc:mysql://localhost:3306/mydb\n"
+        "spring.datasource.username=root\n"
+        "spring.datasource.password=superSecretPassword123\n"
+    )
+    findings = static_analysis_service.analyze_file("application.properties", props_content, "properties")
+    assert len(findings) >= 1
+    secret_finding = next((f for f in findings if "secret" in f.get("title", "").lower() or "password" in f.get("title", "").lower()), None)
+    assert secret_finding is not None
+    assert secret_finding["category"] == "Security"
+    assert secret_finding["line_number"] == 4
+
+
+def test_universal_framework_session_limits():
+    from app.security.input_limits import validate_session_limits
+
+    files = [{"filename": "Main.java", "content": "public class Main { public static void main(String[] args) {} }"}]
+    
+    # Should cleanly validate Spring Boot and enterprise frameworks without security violations
+    for fw in ["springboot", "spring", "django", "fastapi", "express", "nextjs", "dotnet", "flutter", "custom_lang"]:
+        validate_session_limits(files, language=fw, max_repair_attempts=3)
+
+

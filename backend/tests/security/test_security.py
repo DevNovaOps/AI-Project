@@ -1,5 +1,6 @@
 import pytest
 
+from app.core.config import settings
 from app.core.exceptions import SecurityViolationException
 from app.security.filename_validation import sanitize_and_validate_filename
 from app.security.input_limits import validate_session_limits
@@ -49,7 +50,7 @@ def test_forbidden_characters_rejection():
 
 
 def test_oversized_source_file_rejection():
-    large_content = "x" * 250_000  # Exceeds 200 KB default limit
+    large_content = "x" * (settings.MAX_SOURCE_FILE_SIZE_BYTES + 10_000)
     files = [{"filename": "large.py", "content": large_content}]
     with pytest.raises(SecurityViolationException) as exc:
         validate_session_limits(files, language="python", max_repair_attempts=2)

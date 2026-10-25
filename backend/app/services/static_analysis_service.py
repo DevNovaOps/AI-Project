@@ -1688,8 +1688,177 @@ class StaticAnalysisService:
                 "status": "Open",
             }]
 
+    def analyze_java_springboot(self, filename: str, content: str) -> List[Dict[str, Any]]:
+        """Static analysis for Java and Spring Boot applications."""
+        findings = []
+        lines = content.splitlines()
+
+        spring_typos = [
+            (r'@GetMappng\b', '@GetMapping', 'Spring annotation typo: @GetMappng -> @GetMapping'),
+            (r'@PostMappng\b', '@PostMapping', 'Spring annotation typo: @PostMappng -> @PostMapping'),
+            (r'@PutMappng\b', '@PutMapping', 'Spring annotation typo: @PutMappng -> @PutMapping'),
+            (r'@DeleteMappng\b', '@DeleteMapping', 'Spring annotation typo: @DeleteMappng -> @DeleteMapping'),
+            (r'@RequestMappng\b', '@RequestMapping', 'Spring annotation typo: @RequestMappng -> @RequestMapping'),
+            (r'@RestControlller\b', '@RestController', 'Spring annotation typo: @RestControlller -> @RestController'),
+            (r'@Autowire\b(?![d])', '@Autowired', 'Spring annotation typo: @Autowire -> @Autowired'),
+            (r'@Componentt\b', '@Component', 'Spring annotation typo: @Componentt -> @Component'),
+            (r'@Servicee\b', '@Service', 'Spring annotation typo: @Servicee -> @Service'),
+            (r'@Repositoryy\b', '@Repository', 'Spring annotation typo: @Repositoryy -> @Repository'),
+        ]
+
+        for idx, line in enumerate(lines, start=1):
+            s_line = line.strip()
+            if s_line.startswith("//") or s_line.startswith("*") or s_line.startswith("/*"):
+                continue
+
+            # 1. Spring annotation typos
+            for pattern, fix, desc in spring_typos:
+                if re.search(pattern, s_line):
+                    findings.append({
+                        "category": "Syntax",
+                        "severity": "Critical",
+                        "title": desc,
+                        "description": f"Misspelled Spring Boot annotation on line {idx}. Application context will fail to register this bean or route.",
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": 1,
+                        "evidence": s_line,
+                        "origin": "Spring Boot Analyzer",
+                        "status": "Open",
+                        "suggested_fix": fix,
+                    })
+
+            # 2. String comparison with ==
+            if re.search(r'==\s*"(?:[^"\\]|\\.)*"|"(?:[^"\\]|\\.)*"\s*==', s_line):
+                findings.append({
+                    "category": "Runtime",
+                    "severity": "High",
+                    "title": "String comparison using '==' instead of '.equals()' in Java",
+                    "description": (
+                        f"Comparing strings with '==' on line {idx} checks pointer reference identity instead of string value equality. "
+                        "Use '.equals(...)' or 'Objects.equals(a, b)' to prevent runtime logic errors."
+                    ),
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": 1,
+                    "evidence": s_line,
+                    "origin": "Java AST Linter",
+                    "status": "Open",
+                    "suggested_fix": "Use .equals(...)",
+                })
+
+            # 3. Off-by-one loop boundary on List/Array
+            if re.search(r'for\s*\([^;]+;\s*\w+\s*<=\s*\w+\.(?:size\(\)|length);', s_line):
+                findings.append({
+                    "category": "Runtime",
+                    "severity": "Critical",
+                    "title": "Off-by-one loop boundary (IndexOutOfBoundsException risk)",
+                    "description": (
+                        f"Loop condition '<=' with size()/length on line {idx} will cause an IndexOutOfBoundsException. "
+                        "Use '<' instead."
+                    ),
+                    "file": filename,
+                    "line_number": idx,
+                    "column_number": 1,
+                    "evidence": s_line,
+                    "origin": "Java Boundary Checker",
+                    "status": "Open",
+                    "suggested_fix": s_line.replace("<=", "<"),
+                })
+
+            # 4. Direct Optional.get() without null safety check
+            if re.search(r'\w+\.get\(\)', s_line) and not ("orElse" in s_line or "isPresent" in s_line):
+                if any(k in s_line.lower() for k in ("opt", "optional", "findby")):
+                    findings.append({
+                        "category": "Runtime",
+                        "severity": "Medium",
+                        "title": "Unsafe direct Optional.get() access (NoSuchElementException risk)",
+                        "description": (
+                            f"Calling .get() directly on an Optional on line {idx} will throw NoSuchElementException if empty. "
+                            "Use .orElseThrow() or .orElse(...) instead."
+                        ),
+                        "file": filename,
+                        "line_number": idx,
+                        "column_number": 1,
+                        "evidence": s_line,
+                        "origin": "Java Null Safety",
+                        "status": "Open",
+                        "suggested_fix": "Use .orElseThrow() or .orElse(null)",
+                    })
+
+            # 5. Missing break in switch statement
+            if s_line.startswith("case ") and idx > 1:
+                prev_line = lines[idx - 2].strip()
+                if prev_line and not any(term in prev_line for term in ("break;", "return", "throw", "{", "case ", ":")):
+                    findings.append({
+                        "category": "Runtime",
+                        "severity": "High",
+                        "title": "Switch statement missing 'break;' causing accidental fallthrough",
+                        "description": f"Missing 'break;' statement before line {idx} causes unintended execution of the next case.",
+                        "file": filename,
+                        "line_number": idx - 1,
+                        "column_number": 1,
+                        "evidence": prev_line,
+                        "origin": "Java Control Flow",
+                        "status": "Open",
+                        "suggested_fix": "break;",
+                    })
+
+        # Delimiter balance check
+        open_b = content.count("{")
+        close_b = content.count("}")
+        if open_b != close_b:
+            findings.append({
+                "category": "Syntax",
+                "severity": "Critical",
+                "title": f"Mismatched curly braces: {open_b} opening vs {close_b} closing",
+                "description": f"File has unbalanced braces ({open_b} '{{' and {close_b} '}}'). This will prevent Java compilation.",
+                "file": filename,
+                "line_number": len(lines),
+                "column_number": 1,
+                "evidence": f"Brace mismatch: {open_b} != {close_b}",
+                "origin": "Java Syntax Parser",
+                "status": "Open",
+            })
+
+        return findings
+
+    def analyze_properties(self, filename: str, content: str) -> List[Dict[str, Any]]:
+        """Static analysis for Java properties & Spring Boot configuration files."""
+        findings = []
+        lines = content.splitlines()
+
+        for idx, line in enumerate(lines, start=1):
+            s_line = line.strip()
+            if not s_line or s_line.startswith("#") or s_line.startswith("!"):
+                continue
+
+            if "=" in s_line:
+                key, val = s_line.split("=", 1)
+                key_clean = key.strip().lower()
+                val_clean = val.strip()
+
+                # Check for hardcoded plaintext passwords in properties
+                if any(k in key_clean for k in ("password", "secret", "private-key", "token")) and val_clean and not val_clean.startswith("${"):
+                    if len(val_clean) > 3 and val_clean not in ("null", "none", "false", "true", "password", "root"):
+                        findings.append({
+                            "category": "Security",
+                            "severity": "High",
+                            "title": f"Exposed plaintext secret in properties: '{key.strip()}'",
+                            "description": f"Hardcoded credential on line {idx}. Use environment variables or Spring Cloud Config (e.g. ${{DB_PASSWORD}}).",
+                            "file": filename,
+                            "line_number": idx,
+                            "column_number": 1,
+                            "evidence": f"{key.strip()}=********",
+                            "origin": "Spring Config Scanner",
+                            "status": "Open",
+                            "suggested_fix": f"{key.strip()}=${{{key.strip().upper().replace('.', '_')}}}",
+                        })
+
+        return findings
+
     def analyze_generic(self, filename: str, content: str, language: str) -> List[Dict[str, Any]]:
-        """General static checks for Java, C++, C#, Go, Rust, PHP, Ruby, etc."""
+        """General static checks for all languages (C++, C#, Go, Rust, PHP, Ruby, etc.)."""
         findings = []
         lines = content.splitlines()
 
@@ -1719,6 +1888,23 @@ class StaticAnalysisService:
                     })
                     break
 
+        # Delimiter balance check
+        open_b = content.count("{")
+        close_b = content.count("}")
+        if open_b != close_b and abs(open_b - close_b) > 0 and len(content) > 20:
+            findings.append({
+                "category": "Syntax",
+                "severity": "Critical",
+                "title": f"Mismatched braces in {language}: {open_b} opening vs {close_b} closing",
+                "description": f"File '{filename}' has unbalanced curly braces.",
+                "file": filename,
+                "line_number": len(lines),
+                "column_number": 1,
+                "evidence": f"Brace mismatch: {open_b} != {close_b}",
+                "origin": "Delimiter Balancer",
+                "status": "Open",
+            })
+
         if not findings:
             return [{
                 "category": "Code Quality",
@@ -1730,7 +1916,7 @@ class StaticAnalysisService:
                 "column_number": None,
                 "evidence": f"Language: {language}",
                 "origin": "Static Analyzer",
-                "status": "Open",
+                "status": "Skipped",
             }]
 
         return findings
@@ -1807,20 +1993,24 @@ class StaticAnalysisService:
             else:
                 ruff_findings = self.run_ruff(filename, content)
                 findings = ast_findings + ruff_findings
-        # 2. If extension is unknown or absent, dispatch by session language
+        elif ext in ("java", "kt", "kts", "groovy", "scala"):
+            findings = self.analyze_java_springboot(filename, content)
+        elif ext in ("properties",):
+            findings = self.analyze_properties(filename, content)
+        # 2. If extension is unknown or absent, dispatch by session language / framework
         elif lang in ("html", "htm"):
             findings = self.analyze_html(filename, content)
         elif lang in ("css", "scss", "sass", "less"):
             findings = self.analyze_css(filename, content)
         elif lang in ("json",):
             findings = self.analyze_json(filename, content)
-        elif lang in ("javascript", "js", "typescript", "ts", "jsx", "tsx", "react", "vue", "svelte"):
+        elif lang in ("javascript", "js", "typescript", "ts", "jsx", "tsx", "react", "vue", "svelte", "express", "nextjs"):
             findings = self.analyze_javascript(filename, content, language)
         elif lang in ("sql", "tsql", "mysql", "postgres", "postgresql", "sqlite"):
             findings = self.analyze_sql(filename, content)
         elif lang in ("csv",):
             findings = self.analyze_csv(filename, content)
-        elif lang in ("python", "py"):
+        elif lang in ("python", "py", "django", "fastapi", "flask"):
             ast_findings = self.analyze_python_ast(filename, content)
             has_syntax_error = any(f["category"] == "Syntax" for f in ast_findings)
             if has_syntax_error:
@@ -1828,6 +2018,10 @@ class StaticAnalysisService:
             else:
                 ruff_findings = self.run_ruff(filename, content)
                 findings = ast_findings + ruff_findings
+        elif lang in ("java", "springboot", "spring", "spring-boot", "kotlin", "scala"):
+            findings = self.analyze_java_springboot(filename, content)
+        elif lang in ("properties",):
+            findings = self.analyze_properties(filename, content)
         else:
             findings = self.analyze_generic(filename, content, language or ext)
 

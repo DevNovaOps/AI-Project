@@ -1,7 +1,7 @@
 import json
 import re
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from app.core.logging import logger
 from app.graph.state import WorkflowState
@@ -9,7 +9,7 @@ from app.services.llm_service import llm_service
 from app.services.static_analysis_service import static_analysis_service
 
 
-def _run_llm_deep_analysis(files: List[Dict[str, Any]], language: str, task_desc: str = None) -> List[Dict[str, Any]]:
+def _run_llm_deep_analysis(files: List[Dict[str, Any]], language: str, task_desc: str = None, model: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Uses the LLM to perform deep, multi-language code analysis across repository files.
     Chunks files into safe token batches (< 3,000 tokens each) to guarantee zero HTTP 413/429
@@ -113,7 +113,7 @@ Format:
 ]"""
 
         try:
-            raw_text = llm_service.invoke_with_fallback(prompt, preferred_model=state.get("model"))
+            raw_text = llm_service.invoke_with_fallback(prompt, preferred_model=model)
             raw_text = raw_text.strip()
 
             # Handle <think>...</think> blocks from reasoning models
@@ -317,7 +317,7 @@ def code_analysis_node(state: WorkflowState) -> Dict[str, Any]:
     logger.info(f"[{session_id}] Phase 1 (Static): {len(real_static_findings)} finding(s)")
 
     # PHASE 2: LLM deep analysis (all files together for whole-repo context)
-    llm_findings = _run_llm_deep_analysis(files, language, task_desc)
+    llm_findings = _run_llm_deep_analysis(files, language, task_desc, model=state.get("model"))
     logger.info(f"[{session_id}] Phase 2 (LLM): {len(llm_findings)} finding(s)")
 
     # MERGE, FILTER COMMENTS, AND DEDUPLICATE CANONICALLY

@@ -22,16 +22,16 @@ def create_workflow_graph():
     # Register Agent Nodes
     workflow.add_node("planner", planner_node)
     workflow.add_node("code_analysis", code_analysis_node)
-    workflow.add_node("diagnosis", diagnosis_node)
+    workflow.add_node("diagnosis_agent", diagnosis_node)
     workflow.add_node("fix_and_test", fix_and_test_node)
     workflow.add_node("validation", validation_node)
-    workflow.add_node("final_report", final_report_node)
+    workflow.add_node("reporting_agent", final_report_node)
 
     # Linear Transitions
     workflow.add_edge(START, "planner")
     workflow.add_edge("planner", "code_analysis")
-    workflow.add_edge("code_analysis", "diagnosis")
-    workflow.add_edge("diagnosis", "fix_and_test")
+    workflow.add_edge("code_analysis", "diagnosis_agent")
+    workflow.add_edge("diagnosis_agent", "fix_and_test")
     workflow.add_edge("fix_and_test", "validation")
 
     # Conditional Routing on Validation Outcome
@@ -39,12 +39,12 @@ def create_workflow_graph():
         "validation",
         should_retry_or_finish,
         {
-            "diagnosis": "diagnosis",
-            "final_report": "final_report",
+            "diagnosis_agent": "diagnosis_agent",
+            "reporting_agent": "reporting_agent",
         },
     )
 
-    workflow.add_edge("final_report", END)
+    workflow.add_edge("reporting_agent", END)
 
     return workflow.compile()
 

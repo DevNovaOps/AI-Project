@@ -219,18 +219,69 @@ export const useWorkflowStore = create((set, get) => ({
       return;
     }
 
-    // Detect target language
+    // Detect target language & framework
     let detectedLang = appStore.activeLanguage || 'python';
-    const firstCodeFile = sourceFiles.find(f => {
-      const lower = f.filename.toLowerCase();
-      return lower.endsWith('.py') || lower.endsWith('.sql') || lower.endsWith('.js') || lower.endsWith('.ts');
+
+    // 1. Detect Spring Boot or Java ecosystem
+    const hasSpringBoot = sourceFiles.some(f => {
+      const lower = (f.filename || '').toLowerCase();
+      const content = f.content || '';
+      return (
+        (lower === 'pom.xml' && content.includes('spring-boot')) ||
+        (lower.includes('build.gradle') && content.includes('org.springframework')) ||
+        (lower.endsWith('.java') && (content.includes('@SpringBootApplication') || content.includes('org.springframework') || content.includes('@RestController')))
+      );
     });
-    if (firstCodeFile) {
-      const lower = firstCodeFile.filename.toLowerCase();
-      if (lower.endsWith('.sql')) detectedLang = 'sql';
-      else if (lower.endsWith('.py')) detectedLang = 'python';
-      else if (lower.endsWith('.js') || lower.endsWith('.jsx')) detectedLang = 'javascript';
-      else if (lower.endsWith('.ts') || lower.endsWith('.tsx')) detectedLang = 'typescript';
+
+    if (hasSpringBoot) {
+      detectedLang = 'springboot';
+    } else {
+      // 2. Detect language based on primary source files
+      const firstCodeFile = sourceFiles.find(f => {
+        const lower = (f.filename || '').toLowerCase();
+        return (
+          lower.endsWith('.java') || lower.endsWith('.kt') || lower.endsWith('.scala') ||
+          lower.endsWith('.cs') || lower.endsWith('.go') || lower.endsWith('.rs') ||
+          lower.endsWith('.py') || lower.endsWith('.sql') || lower.endsWith('.js') ||
+          lower.endsWith('.jsx') || lower.endsWith('.ts') || lower.endsWith('.tsx') ||
+          lower.endsWith('.php') || lower.endsWith('.rb') || lower.endsWith('.swift') ||
+          lower.endsWith('.dart') || lower.endsWith('.cpp') || lower.endsWith('.c') ||
+          lower.endsWith('.html') || lower.endsWith('.css')
+        );
+      });
+
+      if (firstCodeFile) {
+        const lower = (firstCodeFile.filename || '').toLowerCase();
+        const content = firstCodeFile.content || '';
+
+        if (lower.endsWith('.java')) detectedLang = 'java';
+        else if (lower.endsWith('.kt') || lower.endsWith('.kts')) detectedLang = 'kotlin';
+        else if (lower.endsWith('.scala')) detectedLang = 'scala';
+        else if (lower.endsWith('.cs')) detectedLang = 'csharp';
+        else if (lower.endsWith('.go')) detectedLang = 'go';
+        else if (lower.endsWith('.rs')) detectedLang = 'rust';
+        else if (lower.endsWith('.php')) detectedLang = 'php';
+        else if (lower.endsWith('.rb')) detectedLang = 'ruby';
+        else if (lower.endsWith('.swift')) detectedLang = 'swift';
+        else if (lower.endsWith('.dart')) detectedLang = 'dart';
+        else if (lower.endsWith('.cpp') || lower.endsWith('.c') || lower.endsWith('.h') || lower.endsWith('.hpp')) detectedLang = 'cpp';
+        else if (lower.endsWith('.sql')) detectedLang = 'sql';
+        else if (lower.endsWith('.py')) {
+          if (content.includes('django')) detectedLang = 'django';
+          else if (content.includes('fastapi')) detectedLang = 'fastapi';
+          else if (content.includes('flask')) detectedLang = 'flask';
+          else detectedLang = 'python';
+        }
+        else if (lower.endsWith('.jsx')) detectedLang = 'react';
+        else if (lower.endsWith('.tsx')) detectedLang = 'typescript';
+        else if (lower.endsWith('.ts')) detectedLang = 'typescript';
+        else if (lower.endsWith('.js')) {
+          if (content.includes('express()')) detectedLang = 'express';
+          else detectedLang = 'javascript';
+        }
+        else if (lower.endsWith('.html') || lower.endsWith('.htm')) detectedLang = 'html';
+        else if (lower.endsWith('.css') || lower.endsWith('.scss')) detectedLang = 'css';
+      }
     }
 
     set({
