@@ -132,3 +132,34 @@ code, pre, .font-mono {
   opacity: 1;
   transform: translateX(-50%) scale(1);
 }
+
+/* Media Print Rules for High-Fidelity PDF & Print Export */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html, body, #root, .app-layout, .main-content, .reports-page-container {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  /* Hide app chrome, overlays, sidebar, chat, and cursors */
+  .modal-overlay,
+  .top-bar,
+  .activity-bar,
+  .sidebar,
+  .ai-sidebar,
+  .plasma-cursor-layer,
+  .plasma-cursor-orb,
+  .reports-btn-dropdown,
+  .reports-dropdown-menu,
+  button {
+    display: none !important;
+  }
+}
+

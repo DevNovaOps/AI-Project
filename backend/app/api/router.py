@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    chat,
     debug_sessions,
     events,
     files,
@@ -15,6 +16,7 @@ from app.api.v1 import (
 
 api_router = APIRouter()
 api_router.include_router(health.router)
+api_router.include_router(chat.router)
 api_router.include_router(projects.router)
 api_router.include_router(github.router)
 api_router.include_router(files.router)

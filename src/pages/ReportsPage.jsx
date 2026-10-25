@@ -20,6 +20,7 @@ import {
   categoryBreakdownData,
   detailedIssuesList
 } from '../data/reportData';
+import { generateAndPrintFullReport } from '../utils/printReport';
 
 export default function ReportsPage() {
   const navigate = useNavigate();
@@ -332,7 +333,20 @@ export default function ReportsPage() {
   };
 
   const handlePrint = () => {
-    window.print();
+    setReportModalOpen(false);
+    showToast('Preparing complete audit report with all graphs & diagnostics...');
+    generateAndPrintFullReport({
+      project: currentProject,
+      branch: selectedBranch,
+      dateRange,
+      issues,
+      filesCount,
+      analysisDuration,
+      healthScore,
+      severityData: dynamicSeverityData,
+      categoryData: dynamicCategoryData,
+      trendData: dynamicTrendData,
+    });
   };
 
   return (
@@ -710,7 +724,17 @@ export default function ReportsPage() {
               </div>
 
               <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Report generated for workspace on <strong>{selectedBranch}</strong> ({dateRange}). All {issues.length} issues indexed across {filesCount} files. Automated sandbox tests verified zero syntax or typing regressions.
+                Comprehensive audit report for workspace <strong>{selectedBranch}</strong> ({dateRange}). All {issues.length} issues indexed across {filesCount} files.
+              </div>
+
+              <div style={{ padding: '8px 12px', background: 'rgba(56, 189, 248, 0.08)', borderRadius: 6, border: '1px solid rgba(56, 189, 248, 0.2)', fontSize: 11, color: 'var(--text-secondary)' }}>
+                <strong style={{ color: '#38bdf8' }}>Print / PDF Document Includes:</strong>
+                <ul style={{ margin: '4px 0 0 16px', padding: 0, lineHeight: 1.5 }}>
+                  <li>Executive summary and 6 Key Performance Indicator cards</li>
+                  <li>Full vector Pipeline Stage Trend and Severity Donut charts</li>
+                  <li>Defects by Category comparison breakdown</li>
+                  <li>Complete {issues.length} defect diagnostics table with code snippets and AI patches</li>
+                </ul>
               </div>
             </div>
 
