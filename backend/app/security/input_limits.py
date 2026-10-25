@@ -20,32 +20,56 @@ SUPPORTED_LANGUAGES = {
 }
 
 
+from app.core.logging import logger
+
+
 def validate_session_limits(files_data: List[dict], language: str, max_repair_attempts: int) -> None:
     """
-    Validates file count, per-file size, total session size, language support, and max repair attempts.
+    Validates and sanitizes file count, per-file size, total session size, language support, and max repair attempts.
+    Gracefully trims files exceeding limits to keep sessions resilient across large repositories.
     """
     if not files_data:
         raise SecurityViolationException("At least one source file must be provided.")
 
+    # Gracefully prioritize and cap files if exceeding MAX_FILES_PER_SESSION
     if len(files_data) > settings.MAX_FILES_PER_SESSION:
-        raise SecurityViolationException(
-            f"Exceeded maximum file count ({settings.MAX_FILES_PER_SESSION}). Submitted: {len(files_data)}."
+        logger.info(
+            f"Submitted {len(files_data)} files exceeding MAX_FILES_PER_SESSION ({settings.MAX_FILES_PER_SESSION}). "
+            f"Prioritizing primary source code files and capping to {settings.MAX_FILES_PER_SESSION}."
         )
+        def file_priority(f):
+            fn = (f.get("filename") or "").lower()
+            if fn.endswith((".py", ".js", ".jsx", ".ts", ".tsx", ".java", ".c", ".cpp", ".cs", ".go", ".rs", ".php")):
+                return 0
+            if fn.endswith((".html", ".htm", ".css", ".scss", ".sql")):
+                return 1
+            if fn.endswith((".json", ".yaml", ".yml", ".toml", ".xml")):
+                return 2
+            return 3
+        files_data.sort(key=file_priority)
+        del files_data[settings.MAX_FILES_PER_SESSION:]
 
     total_bytes = 0
+    valid_files = []
     for f in files_data:
         content = f.get("content", "")
-        size = len(content.encode("utf-8"))
-        if size > settings.MAX_SOURCE_FILE_SIZE_BYTES:
-            raise SecurityViolationException(
-                f"File '{f.get('filename')}' exceeds max size limit of {settings.MAX_SOURCE_FILE_SIZE_BYTES} bytes."
-            )
-        total_bytes += size
+        if not isinstance(content, str):
+            content = str(content)
+        encoded = content.encode("utf-8")
+        if len(encoded) > settings.MAX_SOURCE_FILE_SIZE_BYTES:
+            # Truncate rather than failing session
+            content = encoded[:settings.MAX_SOURCE_FILE_SIZE_BYTES].decode("utf-8", errors="ignore")
+            f["content"] = content
+            encoded = content.encode("utf-8")
 
-    if total_bytes > settings.MAX_SESSION_SOURCE_SIZE_BYTES:
-        raise SecurityViolationException(
-            f"Total session source size ({total_bytes} bytes) exceeds limit of {settings.MAX_SESSION_SOURCE_SIZE_BYTES} bytes."
-        )
+        if total_bytes + len(encoded) > settings.MAX_SESSION_SOURCE_SIZE_BYTES:
+            logger.warning(f"Total session size reached limit of {settings.MAX_SESSION_SOURCE_SIZE_BYTES} bytes. Omitting remaining files.")
+            break
+        total_bytes += len(encoded)
+        valid_files.append(f)
+
+    files_data.clear()
+    files_data.extend(valid_files)
 
     if language.lower() not in SUPPORTED_LANGUAGES:
         raise SecurityViolationException(

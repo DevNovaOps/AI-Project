@@ -21,11 +21,11 @@ class Settings(BaseSettings):
 
     # Workflow & Limits
     MAX_REPAIR_ATTEMPTS: int = Field(default=3, ge=1, le=10)
-    MAX_FILES_PER_SESSION: int = Field(default=50, ge=1, le=200)
-    MAX_SOURCE_FILE_SIZE_BYTES: int = Field(default=200_000, ge=1)  # 200 KB per file
-    MAX_SESSION_SOURCE_SIZE_BYTES: int = Field(default=1_000_000, ge=1)  # 1 MB total
-    MAX_EXECUTION_SECONDS: int = Field(default=10, ge=1, le=120)
-    MAX_STDOUT_BYTES: int = Field(default=50_000, ge=1000)
+    MAX_FILES_PER_SESSION: int = Field(default=150, ge=1, le=500)
+    MAX_SOURCE_FILE_SIZE_BYTES: int = Field(default=500_000, ge=1)  # 500 KB per file
+    MAX_SESSION_SOURCE_SIZE_BYTES: int = Field(default=10_000_000, ge=1)  # 10 MB total
+    MAX_EXECUTION_SECONDS: int = Field(default=30, ge=1, le=120)
+    MAX_STDOUT_BYTES: int = Field(default=100_000, ge=1000)
 
     # GitHub Integration
     GITHUB_TOKEN: Optional[str] = Field(default=None, description="Optional GitHub Personal Access Token for rate limits")
