@@ -31,6 +31,21 @@ export default function ProjectExplorer() {
     loadProjects();
   }, []);
 
+  // Auto-expand top-level folders when fileTree loads
+  useEffect(() => {
+    if (fileTree && fileTree.length > 0) {
+      setExpandedFolders(prev => {
+        const next = { ...prev };
+        fileTree.forEach(node => {
+          if (node.type === 'folder' && next[node.id] === undefined) {
+            next[node.id] = true;
+          }
+        });
+        return next;
+      });
+    }
+  }, [fileTree]);
+
   if (!isLeftSidebarOpen) return null;
 
   const toggleFolder = (folderId) => {

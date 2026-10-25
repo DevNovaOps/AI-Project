@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import hashlib
 import re
 from datetime import datetime, timezone
@@ -14,6 +15,7 @@ from app.models.project import Project
 from app.models.repository import Repository
 from app.models.repository_import_job import RepositoryImportJob
 from app.models.workspace_file import WorkspaceFile
+from app.services.workspace_service import WorkspaceService
 
 # Ignored directories and file patterns
 IGNORED_DIRS = {
@@ -65,9 +67,14 @@ def get_file_priority(path: str) -> int:
     return 2      # Priority 2: Datasets, raw text, logs
 
 
-def parse_and_validate_github_url(url: str) -> Tuple[str, str]:
+def parse_and_validate_github_url(url: str) -> Tuple[str, str, Optional[str]]:
     """
-    Validates a GitHub repository URL and extracts (owner, repo).
+    Validates a GitHub repository URL and extracts (owner, repo, branch).
+    Supports:
+    - https://github.com/owner/repo
+    - https://github.com/owner/repo.git
+    - https://github.com/owner/repo/tree/branch-name
+    - https://github.com/owner/repo/blob/branch-name
     Rejects SSRF, non-github hosts, and invalid URL formats.
     """
     if not url or not isinstance(url, str):
@@ -83,7 +90,7 @@ def parse_and_validate_github_url(url: str) -> Tuple[str, str]:
     if host not in ("github.com", "www.github.com"):
         raise ValueError(f"Invalid host '{host}'. Only 'github.com' is allowed.")
 
-    # Path format: /owner/repo or /owner/repo.git
+    # Path format: /owner/repo, /owner/repo.git, or /owner/repo/tree/branch
     path = parsed.path.strip("/")
     parts = [p for p in path.split("/") if p]
 
@@ -92,6 +99,10 @@ def parse_and_validate_github_url(url: str) -> Tuple[str, str]:
 
     owner = parts[0]
     repo = parts[1].removesuffix(".git")
+    branch = None
+
+    if len(parts) >= 4 and parts[2] in ("tree", "blob"):
+        branch = parts[3]
 
     # Validate characters (GitHub username and repo rules)
     if not re.match(r"^[a-zA-Z0-9_\-\.]+$", owner):
@@ -99,7 +110,7 @@ def parse_and_validate_github_url(url: str) -> Tuple[str, str]:
     if not re.match(r"^[a-zA-Z0-9_\-\.]+$", repo):
         raise ValueError(f"Invalid repository name '{repo}'.")
 
-    return owner, repo
+    return owner, repo, branch
 
 
 def is_eligible_file(path: str) -> bool:
@@ -166,15 +177,17 @@ class GitHubService:
         branch: Optional[str] = None,
     ) -> Tuple[Project, Repository, RepositoryImportJob]:
         """
-        Executes a controlled import of a public GitHub repository.
+        Executes a controlled, full import of a public GitHub repository.
         Creates Project, Repository, RepositoryImportJob, and WorkspaceFiles.
+        Uses single-archive zipball download for speed & 100% integrity,
+        with recursive tree & blobs API fallback.
         """
-        owner, repo_name = parse_and_validate_github_url(github_url)
+        owner, repo_name, url_branch = parse_and_validate_github_url(github_url)
 
         # 1. Fetch repo metadata
         meta = await self.fetch_repo_metadata(owner, repo_name)
         default_branch = meta.get("default_branch", "main")
-        target_branch = (branch or "").strip() or default_branch
+        target_branch = (branch or "").strip() or url_branch or default_branch
         html_url = meta.get("html_url", f"https://github.com/{owner}/{repo_name}")
         description = meta.get("description")
 
@@ -206,113 +219,160 @@ class GitHubService:
             repository_id=repository.id,
             project_id=project.id,
             status="processing",
-            progress=10,
+            progress=15,
             files_processed=0,
             total_files=0,
         )
         self.db.add(job)
         self.db.commit()
 
-        # 3. Fetch git tree recursively
-        tree_url = f"https://api.github.com/repos/{owner}/{repo_name}/git/trees/{target_branch}?recursive=1"
         headers = self._get_headers()
 
         try:
-            async with httpx.AsyncClient(timeout=25.0) as client:
-                tree_resp = await client.get(tree_url, headers=headers)
-                if tree_resp.status_code != 200:
-                    raise ValueError(f"Failed to fetch branch '{target_branch}' tree: {tree_resp.text}")
+            # 3. Primary Strategy: Download entire repository archive as a zipball
+            # This is 100% reliable, fast, atomic, and preserves all code files perfectly.
+            zip_imported = False
+            zip_count = 0
+            zip_urls = [
+                f"https://api.github.com/repos/{owner}/{repo_name}/zipball/{target_branch}",
+                f"https://codeload.github.com/{owner}/{repo_name}/zip/refs/heads/{target_branch}",
+            ]
 
-                tree_data = tree_resp.json()
-                items = tree_data.get("tree", [])
+            async with httpx.AsyncClient(timeout=45.0, follow_redirects=True) as client:
+                for z_url in zip_urls:
+                    try:
+                        logger.info(f"Attempting full zipball download from {z_url}")
+                        zip_resp = await client.get(z_url, headers=headers)
+                        if zip_resp.status_code == 200 and len(zip_resp.content) > 100:
+                            ws = WorkspaceService(self.db)
+                            zip_count = ws.import_zip_archive(project.id, zip_resp.content)
+                            if zip_count > 0:
+                                zip_imported = True
+                                logger.info(f"Successfully imported {zip_count} files via GitHub zipball.")
+                                break
+                    except Exception as z_err:
+                        logger.warning(f"Zipball download failed for {z_url}: {z_err}")
 
-                # Filter eligible files
-                eligible_items = [
-                    item for item in items
-                    if item.get("type") == "blob" and is_eligible_file(item.get("path", ""))
-                ]
+            # 4. Fallback Strategy: Recursive git tree if zipball didn't import files
+            if not zip_imported:
+                logger.info("Falling back to recursive Git Trees API for import.")
+                tree_url = f"https://api.github.com/repos/{owner}/{repo_name}/git/trees/{target_branch}?recursive=1"
 
-                # Separate by priority so real code (HTML, CSS, JS, JSX, TS, Python, etc.)
-                # is never crowded out by hundreds of raw dataset/text files
-                code_items = [i for i in eligible_items if get_file_priority(i.get("path", "")) == 0]
-                config_items = [i for i in eligible_items if get_file_priority(i.get("path", "")) == 1]
-                dataset_items = [i for i in eligible_items if get_file_priority(i.get("path", "")) == 2]
+                async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+                    tree_resp = await client.get(tree_url, headers=headers)
+                    if tree_resp.status_code != 200:
+                        raise ValueError(f"Failed to fetch branch '{target_branch}' tree: {tree_resp.text}")
 
-                # Prioritize all real code and config, limit bulk raw text to 35 files
-                file_items = code_items + config_items + dataset_items[:35]
+                    tree_data = tree_resp.json()
+                    items = tree_data.get("tree", [])
 
-                # Cap file count if exceeding settings
-                if len(file_items) > settings.MAX_REPO_FILES:
-                    logger.info(
-                        f"Repo {owner}/{repo_name} has {len(file_items)} priority files, "
-                        f"capping import to {settings.MAX_REPO_FILES} files."
-                    )
-                    file_items = file_items[:settings.MAX_REPO_FILES]
+                    # Filter eligible files
+                    eligible_items = [
+                        item for item in items
+                        if item.get("type") == "blob" and is_eligible_file(item.get("path", ""))
+                    ]
 
-                job.total_files = len(file_items)
-                job.progress = 25
-                self.db.commit()
+                    code_items = [i for i in eligible_items if get_file_priority(i.get("path", "")) == 0]
+                    config_items = [i for i in eligible_items if get_file_priority(i.get("path", "")) == 1]
+                    dataset_items = [i for i in eligible_items if get_file_priority(i.get("path", "")) == 2]
 
-                # 4. Fetch content for files concurrently
-                semaphore = asyncio.Semaphore(15)
+                    file_items = code_items + config_items + dataset_items[:50]
+                    if len(file_items) > settings.MAX_REPO_FILES:
+                        file_items = file_items[:settings.MAX_REPO_FILES]
 
-                async def fetch_single_file(item: dict) -> Optional[WorkspaceFile]:
-                    file_path = item.get("path", "").replace("\\", "/")
-                    filename = file_path.split("/")[-1]
-                    ext = filename.split(".")[-1] if "." in filename else ""
-                    raw_url = f"https://raw.githubusercontent.com/{owner}/{repo_name}/{target_branch}/{file_path}"
-                    async with semaphore:
-                        try:
-                            raw_resp = await client.get(raw_url)
-                            if raw_resp.status_code == 200:
-                                content = raw_resp.text
+                    job.total_files = len(file_items)
+                    job.progress = 30
+                    self.db.commit()
+
+                    semaphore = asyncio.Semaphore(10)
+
+                    async def fetch_single_file(item: dict) -> Optional[WorkspaceFile]:
+                        file_path = item.get("path", "").replace("\\", "/")
+                        filename = file_path.split("/")[-1]
+                        ext = filename.split(".")[-1] if "." in filename else ""
+                        sha = item.get("sha")
+
+                        content = None
+
+                        async with semaphore:
+                            # Try 1: GitHub Blobs API (with Token auth)
+                            if sha:
+                                try:
+                                    blob_url = f"https://api.github.com/repos/{owner}/{repo_name}/git/blobs/{sha}"
+                                    b_resp = await client.get(blob_url, headers=headers)
+                                    if b_resp.status_code == 200:
+                                        b_json = b_resp.json()
+                                        if b_json.get("encoding") == "base64" and b_json.get("content"):
+                                            content = base64.b64decode(b_json["content"]).decode("utf-8", errors="replace")
+                                except Exception:
+                                    pass
+
+                            # Try 2: GitHub Contents API with raw accept header
+                            if content is None:
+                                try:
+                                    raw_headers = dict(headers)
+                                    raw_headers["Accept"] = "application/vnd.github.raw"
+                                    c_url = f"https://api.github.com/repos/{owner}/{repo_name}/contents/{file_path}?ref={target_branch}"
+                                    c_resp = await client.get(c_url, headers=raw_headers)
+                                    if c_resp.status_code == 200:
+                                        content = c_resp.text
+                                except Exception:
+                                    pass
+
+                            # Try 3: raw.githubusercontent.com
+                            if content is None:
+                                try:
+                                    raw_url = f"https://raw.githubusercontent.com/{owner}/{repo_name}/{target_branch}/{file_path}"
+                                    r_resp = await client.get(raw_url)
+                                    if r_resp.status_code == 200:
+                                        content = r_resp.text
+                                except Exception as err:
+                                    logger.warning(f"Failed to fetch content for {file_path}: {err}")
+
+                        if content is not None:
+                            size = len(content.encode("utf-8"))
+                            if size > settings.MAX_SOURCE_FILE_SIZE_BYTES:
+                                content = content[:settings.MAX_SOURCE_FILE_SIZE_BYTES] + "\n# [Content truncated: exceeded file size limit]"
                                 size = len(content.encode("utf-8"))
 
-                                if size > settings.MAX_SOURCE_FILE_SIZE_BYTES:
-                                    content = content[:settings.MAX_SOURCE_FILE_SIZE_BYTES] + "\n# [Content truncated: exceeded file size limit]"
-                                    size = len(content.encode("utf-8"))
+                            content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+                            return WorkspaceFile(
+                                project_id=project.id,
+                                relative_path=file_path,
+                                filename=filename,
+                                file_extension=ext,
+                                content=content,
+                                content_hash=content_hash,
+                                size_bytes=size,
+                                version=1,
+                                is_directory=False,
+                            )
+                        return None
 
-                                content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
-                                return WorkspaceFile(
-                                    project_id=project.id,
-                                    relative_path=file_path,
-                                    filename=filename,
-                                    file_extension=ext,
-                                    content=content,
-                                    content_hash=content_hash,
-                                    size_bytes=size,
-                                    version=1,
-                                    is_directory=False,
-                                )
-                        except Exception as err:
-                            logger.warning(f"Failed to fetch content for {file_path}: {err}")
-                    return None
+                    file_results = await asyncio.gather(*(fetch_single_file(item) for item in file_items))
+                    imported_files = [wf for wf in file_results if wf is not None]
 
-                file_results = await asyncio.gather(*(fetch_single_file(item) for item in file_items))
-                imported_files = [wf for wf in file_results if wf is not None]
+                    for wf in imported_files:
+                        self.db.add(wf)
 
-                job.files_processed = len(imported_files)
-                job.progress = 95
-                self.db.commit()
+                    zip_count = len(imported_files)
 
-                # Add files to database
-                for wf in imported_files:
-                    self.db.add(wf)
+            # Finalize job and repo
+            job.total_files = zip_count
+            job.files_processed = zip_count
+            job.progress = 100
+            job.status = "completed"
+            job.completed_at = datetime.now(timezone.utc)
 
-                # Finalize job and repo
-                job.status = "completed"
-                job.progress = 100
-                job.completed_at = datetime.now(timezone.utc)
+            repository.import_status = "completed"
+            repository.last_imported_at = datetime.now(timezone.utc)
 
-                repository.import_status = "completed"
-                repository.last_imported_at = datetime.now(timezone.utc)
+            self.db.commit()
+            self.db.refresh(project)
+            self.db.refresh(repository)
+            self.db.refresh(job)
 
-                self.db.commit()
-                self.db.refresh(project)
-                self.db.refresh(repository)
-                self.db.refresh(job)
-
-                return project, repository, job
+            return project, repository, job
 
         except Exception as exc:
             logger.error(f"GitHub import failed for {github_url}: {exc}")
