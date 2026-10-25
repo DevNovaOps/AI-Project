@@ -3,7 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   AlertCircle, Lightbulb, CheckCircle2, ChevronRight, Copy, Check, 
   Sparkles, FlaskConical, ExternalLink, ShieldCheck, ChevronLeft, Play, FileCode,
-  RefreshCw, Bug, Activity, Globe, CheckSquare, Layers
+  RefreshCw, Bug, Activity, Globe, CheckSquare, Layers,
+  Zap, UploadCloud
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useWorkflowStore } from '../../store/useWorkflowStore';
@@ -21,7 +22,8 @@ export default function AnalysisPanel() {
   const { 
     startAutonomousWorkflow, workflowState, 
     activeAgent, progress, agentLogs,
-    targetScope, setTargetScope, setTargetModalOpen, selectedTargetFiles
+    targetScope, setTargetScope, setTargetModalOpen, selectedTargetFiles,
+    isAutoPush, lastPushedCommitUrl
   } = useWorkflowStore();
   const [copied, setCopied] = useState(false);
   const [isInjecting, setIsInjecting] = useState(false);
@@ -498,7 +500,37 @@ export default function AnalysisPanel() {
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-          {/* Main Action 1: Analyze Entire Codebase */}
+          {/* Main Action 1: Autonomous Fix & Push */}
+          <button
+            className="btn"
+            onClick={() => {
+              setTargetScope('project');
+              startAutonomousWorkflow({ autoPush: true });
+            }}
+            disabled={workflowState !== 'idle' && workflowState !== 'completed' && workflowState !== 'failed'}
+            style={{
+              height: 38,
+              fontSize: 12,
+              width: '100%',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              background: 'linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)',
+              color: '#ffffff',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: '0 4px 14px rgba(245, 158, 11, 0.35)',
+              border: 'none',
+              cursor: 'pointer'
+            }}
+            title="Autonomously detect defects, synthesize verified patches, and directly push commit to GitHub"
+          >
+            <Zap size={14} fill="#ffffff" />
+            <span>⚡ Auto-Fix &amp; Push to GitHub</span>
+          </button>
+
+          {/* Main Action 2: Analyze Entire Codebase */}
           <button
             className="btn btn-primary-gradient"
             onClick={() => {
@@ -506,11 +538,11 @@ export default function AnalysisPanel() {
               startAutonomousWorkflow();
             }}
             disabled={workflowState !== 'idle' && workflowState !== 'completed' && workflowState !== 'failed'}
-            style={{ height: 36, fontSize: 11, width: '100%', fontWeight: 700 }}
+            style={{ height: 34, fontSize: 11, width: '100%', fontWeight: 700 }}
             title="Scan and verify every file in the entire repository"
           >
             <Globe size={13} fill="#ffffff" />
-            <span>Analyze Entire Codebase</span>
+            <span>Run 5-Agent Analysis Only</span>
           </button>
 
           {/* Main Action 2: Select Specific Files */}
@@ -608,6 +640,33 @@ export default function AnalysisPanel() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {renderScopeBanner(true)}
+
+      {lastPushedCommitUrl && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '8px 12px',
+          background: 'rgba(16, 185, 129, 0.12)',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid rgba(16, 185, 129, 0.35)',
+          fontSize: 11
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#10b981', fontWeight: 600 }}>
+            <CheckCircle2 size={14} />
+            <span>Pushed to GitHub Successfully</span>
+          </div>
+          <a
+            href={lastPushedCommitUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{ color: '#38bdf8', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}
+          >
+            <span>View Commit</span>
+            <ExternalLink size={11} />
+          </a>
+        </div>
+      )}
 
       {/* Context Pill */}
       <div style={{ 

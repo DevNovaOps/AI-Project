@@ -447,6 +447,16 @@ export const useAppStore = create((set, get) => ({
     localStorage.setItem('aetherion_model', model);
     set({ selectedModel: model });
   },
+  githubToken: localStorage.getItem('aetherion_github_token') || '',
+  setGithubToken: (token) => {
+    const clean = (token || '').trim();
+    if (clean) {
+      localStorage.setItem('aetherion_github_token', clean);
+    } else {
+      localStorage.removeItem('aetherion_github_token');
+    }
+    set({ githubToken: clean });
+  },
 
   // Explorer & Workspace Files
   fileTree: [],

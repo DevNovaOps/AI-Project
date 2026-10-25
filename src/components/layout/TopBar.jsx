@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   Sparkles, Search, Sun, Moon, Bell, Settings, Play,
   ChevronDown, Check, Terminal, ExternalLink, ShieldCheck, CheckCircle2,
-  Globe, CheckSquare, FileCode
+  Globe, CheckSquare, FileCode, Zap
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useWorkflowStore } from '../../store/useWorkflowStore';
@@ -25,7 +25,8 @@ export default function TopBar() {
 
   const { 
     workflowState, startAutonomousWorkflow, activeAgent, progress,
-    targetScope, setTargetScope, setTargetModalOpen, selectedTargetFiles
+    targetScope, setTargetScope, setTargetModalOpen, selectedTargetFiles,
+    isAutoPush
   } = useWorkflowStore();
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -250,12 +251,12 @@ export default function TopBar() {
         {/* Primary CTA: Run with AI Agents */}
         <button
           className="btn btn-ai-primary"
-          onClick={startAutonomousWorkflow}
+          onClick={() => startAutonomousWorkflow()}
           disabled={isRunning}
-          style={{ opacity: isRunning ? 0.9 : 1 }}
+          style={{ opacity: isRunning && !isAutoPush ? 0.9 : (isRunning ? 0.6 : 1) }}
           title="Execute 5-Agent Autonomous Debugging & Verification Pipeline"
         >
-          {isRunning ? (
+          {isRunning && !isAutoPush ? (
             <>
               <div className="animate-spin" style={{ width: 12, height: 12, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%' }} />
               <span>
@@ -273,6 +274,44 @@ export default function TopBar() {
             <>
               <Play size={13} fill="#ffffff" />
               <span>Run with AI Agents</span>
+            </>
+          )}
+        </button>
+
+        {/* ⚡ Autonomous Auto-Fix & Push CTA Button */}
+        <button
+          className="btn"
+          onClick={() => startAutonomousWorkflow({ autoPush: true })}
+          disabled={isRunning}
+          style={{
+            height: 28,
+            padding: '0 12px',
+            fontSize: 11,
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            background: 'linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: '0 0 12px rgba(245, 158, 11, 0.35)',
+            cursor: isRunning ? 'not-allowed' : 'pointer',
+            opacity: isRunning && isAutoPush ? 0.95 : (isRunning ? 0.6 : 1)
+          }}
+          title="Autonomously detect defects, synthesize verified patches, and directly push commit to GitHub"
+        >
+          {isRunning && isAutoPush ? (
+            <>
+              <div className="animate-spin" style={{ width: 12, height: 12, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%' }} />
+              <span>
+                ⚡ Auto-Fix &amp; Push ({progress}%)
+              </span>
+            </>
+          ) : (
+            <>
+              <Zap size={13} fill="#ffffff" />
+              <span>Auto-Fix &amp; Push</span>
             </>
           )}
         </button>

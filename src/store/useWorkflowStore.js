@@ -12,6 +12,8 @@ export const useWorkflowStore = create((set, get) => ({
   retryCount: 0,
   activeSessionId: null,
   agentLogs: [],
+  isAutoPush: false,
+  lastPushedCommitUrl: null,
 
   // Target Scope Configuration
   targetScope: 'project', // 'project' (all project code files) | 'selected' (user picked files) | 'active' (active file only)
@@ -44,9 +46,12 @@ export const useWorkflowStore = create((set, get) => ({
 
   clearLogs: () => set({ agentLogs: [] }),
 
-  startAutonomousWorkflow: async () => {
+  startAutonomousWorkflow: async (options = {}) => {
     const appStore = useAppStore.getState();
     const currentProject = appStore.currentProject;
+    const isAutoPush = Boolean(options.autoPush);
+
+    set({ isAutoPush, lastPushedCommitUrl: null });
 
     if (get().workflowState !== 'idle' && get().workflowState !== 'completed' && get().workflowState !== 'failed') {
       return; // Already running
@@ -654,6 +659,83 @@ export const useWorkflowStore = create((set, get) => ({
         rightSidebarTab: 'analysis',
         lastAnalysisDuration: durationFormatted,
       });
+
+      // ⚡ AUTONOMOUS AGENT AUTO-PUSH: Apply verified fixes, record git commit, and push to GitHub
+      if (get().isAutoPush) {
+        set({ activeAgent: 'Pushing to GitHub...', progress: 98 });
+        get().addLog({
+          agent: 'Fix & Test Agent',
+          message: `⚡ Auto-Push Mode: Applying verified repairs to workspace files (${finalIssues.length} issues)...`,
+          status: 'info',
+        });
+
+        // 1. Auto-apply all verified repairs to files
+        for (const iss of finalIssues) {
+          appStore.applyFix(iss.id);
+        }
+
+        // 2. Automatically record git commit in workspace
+        const commitMsg = finalIssues.length > 0
+          ? `fix: autonomous AI repair of ${finalIssues.length} defects [AETHERION]`
+          : 'chore: autonomous AI code verification [AETHERION]';
+        await appStore.recordCommit(commitMsg);
+
+        // 3. Directly push to remote repository using saved GitHub token
+        const savedToken = appStore.githubToken || localStorage.getItem('aetherion_github_token');
+        if (savedToken && savedToken.trim()) {
+          get().addLog({
+            agent: 'Validation Agent',
+            message: `⚡ Pushing verified commit to GitHub remote (${appStore.selectedBranch || 'main'})...`,
+            status: 'info',
+          });
+
+          try {
+            const pushRes = await appStore.pushToGitHub({
+              branch: appStore.selectedBranch || 'main',
+              commitMessage: commitMsg,
+              token: savedToken.trim(),
+            });
+
+            const commitUrl = pushRes.commit_url || pushRes.pr_url || null;
+            set({ lastPushedCommitUrl: commitUrl });
+
+            get().addLog({
+              agent: 'Validation Agent',
+              message: `✓ Successfully repaired code and pushed commit to GitHub! Branch: ${pushRes.branch || appStore.selectedBranch || 'main'}`,
+              status: 'success',
+            });
+
+            appStore.addNotification({
+              title: '⚡ Autonomous Auto-Fix & Push Succeeded',
+              message: `Repaired ${finalIssues.length} defects and pushed commit directly to GitHub!`,
+              type: 'success',
+            });
+          } catch (pushErr) {
+            console.error('Auto-push failed:', pushErr);
+            get().addLog({
+              agent: 'Validation Agent',
+              message: `⚠️ Auto-push to GitHub encountered an issue: ${pushErr.message || pushErr}`,
+              status: 'warning',
+            });
+            appStore.addNotification({
+              title: 'Auto-Push Paused',
+              message: pushErr.message || 'Check GitHub token in Settings',
+              type: 'warning',
+            });
+          }
+        } else {
+          get().addLog({
+            agent: 'Validation Agent',
+            message: `⚠️ Auto-push paused: All ${finalIssues.length} repairs applied and committed locally, but no GitHub Token is configured in Settings.`,
+            status: 'warning',
+          });
+          appStore.addNotification({
+            title: 'GitHub Token Required',
+            message: 'All repairs applied! Please configure your GitHub PAT in Settings to push directly to remote.',
+            type: 'warning',
+          });
+        }
+      }
 
       set({
         workflowState: 'completed',
