@@ -502,8 +502,23 @@ class StaticAnalysisService:
         try:
             tree = ast.parse(content, filename=filename)
         except SyntaxError as e:
-            # Deterministic syntax error detection
+            # Deterministic syntax error detection and fix recommendation
             snippet = e.text.strip() if e.text else ""
+            suggested_fix = ""
+            if e.msg and "never closed" in e.msg:
+                if snippet:
+                    opens = snippet.count("(")
+                    closes = snippet.count(")")
+                    if opens > closes:
+                        code_part = snippet.split("#")[0]
+                        comm_part = snippet[len(code_part):]
+                        suggested_fix = code_part.rstrip() + (")" * (opens - closes)) + comm_part
+            elif e.msg and "expected ':'" in e.msg:
+                if snippet and not snippet.rstrip().endswith(":"):
+                    code_part = snippet.split("#")[0]
+                    comm_part = snippet[len(code_part):]
+                    suggested_fix = code_part.rstrip() + ":" + comm_part
+
             findings.append({
                 "category": "Syntax",
                 "severity": "Critical",
@@ -513,6 +528,7 @@ class StaticAnalysisService:
                 "line_number": e.lineno,
                 "column_number": e.offset,
                 "evidence": snippet,
+                "suggested_fix": suggested_fix,
                 "origin": "AST",
                 "status": "Open",
             })
@@ -1314,6 +1330,8 @@ class StaticAnalysisService:
         has_cond_syntax_err = any(f.get("title", "").startswith("Missing closing parenthesis") for f in findings)
         if delim_stack and not has_cond_syntax_err and not is_test_file:
             for unclosed_char, unclosed_line in delim_stack:
+                target_ev = lines[unclosed_line - 1].strip() if 1 <= unclosed_line <= len(lines) else f"Unclosed '{unclosed_char}'"
+                matching_close = { '(': ')', '{': '}', '[': ']' }.get(unclosed_char, "")
                 findings.append({
                     "category": "Syntax",
                     "severity": "Critical",
@@ -1322,7 +1340,8 @@ class StaticAnalysisService:
                     "file": filename,
                     "line_number": unclosed_line,
                     "column_number": 1,
-                    "evidence": f"Unclosed '{unclosed_char}'",
+                    "evidence": target_ev,
+                    "suggested_fix": matching_close,
                     "origin": "JS Syntax Analyzer",
                     "status": "Open",
                 })
