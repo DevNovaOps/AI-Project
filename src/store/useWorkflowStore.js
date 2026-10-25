@@ -66,7 +66,8 @@ export const useWorkflowStore = create((set, get) => ({
     const nonCodeExts = [
       '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp',
       '.woff', '.woff2', '.ttf', '.eot', '.mp4', '.mp3',
-      '.pdf', '.zip', '.tar', '.gz', '.lock'
+      '.pdf', '.zip', '.tar', '.gz', '.lock',
+      '.md', '.markdown', '.txt', '.rst', '.adoc'
     ];
 
     let sourceFiles = [];
@@ -319,8 +320,38 @@ export const useWorkflowStore = create((set, get) => ({
       const sessionId = session.id;
       set({ activeSessionId: sessionId });
 
+      const startTime = Date.now();
+
       // 2. Start running the session
       await sessionsApi.run(sessionId);
+
+      // Smooth dynamic progress ticker while agents process in background
+      const stageTargets = {
+        'Planner / Orchestrator': 25,
+        'Planner Agent': 25,
+        'Code Analysis Agent': 52,
+        'Diagnosis Agent': 74,
+        'Fix & Test Agent': 88,
+        'Validation Agent': 96
+      };
+
+      const progressTicker = setInterval(() => {
+        const state = get();
+        if (state.workflowState === 'idle' || state.workflowState === 'completed' || state.workflowState === 'failed') {
+          clearInterval(progressTicker);
+          return;
+        }
+
+        const currentProg = state.progress || 10;
+        const targetProgress = stageTargets[state.activeAgent] || 35;
+
+        if (currentProg < targetProgress) {
+          set({ progress: Math.min(targetProgress, currentProg + 1) });
+        } else if (currentProg < 96) {
+          // Continuously advance so user sees live ongoing work
+          set({ progress: currentProg + 1 });
+        }
+      }, 450);
 
       // 3. Connect WebSocket for live events, with polling fallback
       let wsConnected = false;
@@ -357,12 +388,15 @@ export const useWorkflowStore = create((set, get) => ({
 
           if (status === 'completed' || status === 'partially_validated') {
             clearInterval(pollInterval);
-            await get().finalizeWorkflow(sessionId);
+            clearInterval(progressTicker);
+            set({ progress: 100 });
+            await get().finalizeWorkflow(sessionId, startTime);
           } else if (status === 'failed' || status === 'cancelled') {
             clearInterval(pollInterval);
+            clearInterval(progressTicker);
             set({ workflowState: 'failed', activeAgent: null });
             get().addLog({
-              agent: 'Planner',
+              agent: 'Planner Agent',
               message: `Autonomous workflow terminated with status: ${status}`,
               status: 'critical',
             });
@@ -386,7 +420,7 @@ export const useWorkflowStore = create((set, get) => ({
     } catch (err) {
       set({ workflowState: 'failed', activeAgent: null });
       get().addLog({
-        agent: 'Planner',
+        agent: 'Planner Agent',
         message: `Workflow launch failed: ${normalizeError(err)}`,
         status: 'critical',
       });
@@ -394,27 +428,55 @@ export const useWorkflowStore = create((set, get) => ({
   },
 
   handleWorkflowEvent: (ev) => {
-    const type = ev.event_type || ev.type;
+    const rawStage = (ev.stage_or_agent || ev.stage || ev.agent || '').toLowerCase();
+    const rawType = (ev.event_type || ev.type || '').toLowerCase();
+    const rawMsg = (ev.message || '').toLowerCase();
     const payload = ev.payload || {};
 
-    if (type?.includes('planner')) {
-      set({ workflowState: 'planning', activeAgent: 'Planner / Orchestrator', progress: 20 });
-    } else if (type?.includes('analysis')) {
-      set({ workflowState: 'analyzing', activeAgent: 'Code Analysis Agent', progress: 40 });
-    } else if (type?.includes('diagnos')) {
-      set({ workflowState: 'diagnosing', activeAgent: 'Diagnosis Agent', progress: 60 });
-    } else if (type?.includes('fix') || type?.includes('repair')) {
-      set({ workflowState: 'generating_fix', activeAgent: 'Fix & Test Agent', progress: 75 });
-    } else if (type?.includes('test')) {
-      set({ workflowState: 'running_tests', activeAgent: 'Fix & Test Agent', progress: 85 });
-    } else if (type?.includes('validat') || type?.includes('report')) {
-      set({ workflowState: 'validating', activeAgent: 'Validation Agent', progress: 95 });
+    const combined = `${rawStage} ${rawType} ${rawMsg}`;
+
+    if (combined.includes('planner') || combined.includes('strategy')) {
+      set((s) => ({
+        workflowState: 'planning',
+        activeAgent: 'Planner Agent',
+        progress: Math.max(s.progress, 20)
+      }));
+    } else if (combined.includes('code analysis') || combined.includes('analysis') || combined.includes('finding')) {
+      set((s) => ({
+        workflowState: 'analyzing',
+        activeAgent: 'Code Analysis Agent',
+        progress: Math.max(s.progress, 42)
+      }));
+    } else if (combined.includes('diagnos') || combined.includes('root cause')) {
+      set((s) => ({
+        workflowState: 'diagnosing',
+        activeAgent: 'Diagnosis Agent',
+        progress: Math.max(s.progress, 62)
+      }));
+    } else if (combined.includes('fix') || combined.includes('repair') || combined.includes('patch')) {
+      set((s) => ({
+        workflowState: 'generating_fix',
+        activeAgent: 'Fix & Test Agent',
+        progress: Math.max(s.progress, 78)
+      }));
+    } else if (combined.includes('test') || combined.includes('verification')) {
+      set((s) => ({
+        workflowState: 'running_tests',
+        activeAgent: 'Fix & Test Agent',
+        progress: Math.max(s.progress, 86)
+      }));
+    } else if (combined.includes('validat') || combined.includes('report')) {
+      set((s) => ({
+        workflowState: 'validating',
+        activeAgent: 'Validation Agent',
+        progress: Math.max(s.progress, 94)
+      }));
     }
 
     if (payload.message || ev.message) {
-      const agentName = ev.agent_name || payload.agent || 'System';
+      const agentName = ev.stage_or_agent || ev.agent_name || payload.agent || 'Pipeline';
       get().addLog({
-        agent: agentName,
+        agent: agentName.includes('Agent') ? agentName : `${agentName} Agent`,
         message: payload.message || ev.message,
         status: payload.status || 'info',
         duration: payload.duration_ms ? `${payload.duration_ms}ms` : undefined,
@@ -422,7 +484,7 @@ export const useWorkflowStore = create((set, get) => ({
     }
   },
 
-  finalizeWorkflow: async (sessionId) => {
+  finalizeWorkflow: async (sessionId, startTime) => {
     const appStore = useAppStore.getState();
 
     try {
@@ -436,10 +498,22 @@ export const useWorkflowStore = create((set, get) => ({
       }
       const rawFindings = Array.isArray(findingsRes) ? findingsRes : [];
 
-      // Exclude pure informational skip notices so clean code isn't flagged as an error
+      // Exclude pure informational skip notices and syntax/runtime errors on documentation files
       const actionFindings = rawFindings.filter(f => {
         const title = (f.title || f.message || '').toLowerCase();
-        return !title.includes('static analysis skipped');
+        if (title.includes('static analysis skipped')) return false;
+
+        const path = (
+          f.file || f.file_path || f.source_file_path || f.filename ||
+          (f.metadata_info && (f.metadata_info.file || f.metadata_info.file_path || f.metadata_info.source_file_path)) ||
+          ''
+        ).toLowerCase();
+
+        // Documentation files (.md, .txt, etc.) are never source code; ignore non-security findings
+        if (path.endsWith('.md') || path.endsWith('.markdown') || path.endsWith('.mdown') || path.endsWith('.txt') || path.endsWith('.rst')) {
+          if (f.category !== 'Security') return false;
+        }
+        return true;
       });
 
       const formattedIssues = actionFindings.map((f, idx) => {
@@ -567,6 +641,9 @@ export const useWorkflowStore = create((set, get) => ({
         finalReport = null;
       }
 
+      const durationSeconds = startTime ? ((Date.now() - startTime) / 1000).toFixed(1) : '2.4';
+      const durationFormatted = `${durationSeconds}s`;
+
       // Update app store
       useAppStore.setState({
         issues: finalIssues,
@@ -575,18 +652,19 @@ export const useWorkflowStore = create((set, get) => ({
         testCases: testRuns,
         finalReport,
         rightSidebarTab: 'analysis',
+        lastAnalysisDuration: durationFormatted,
       });
 
       set({
         workflowState: 'completed',
-        activeAgent: null,
+        activeAgent: 'Completed',
         progress: 100,
         currentStepIndex: 7,
       });
 
       get().addLog({
-        agent: 'Validation & Reporting',
-        message: `Autonomous workflow completed. Found ${formattedIssues.length} finding(s) across target files.`,
+        agent: 'Validation Agent',
+        message: `Autonomous workflow completed in ${durationFormatted}. Verified ${finalIssues.length} finding(s) across target files.`,
         status: 'success',
       });
 

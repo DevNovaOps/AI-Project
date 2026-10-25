@@ -88,12 +88,16 @@ export default function IssueDetailsPanel({
         backgroundColor: 'var(--bg-card)',
         border: '1px solid var(--border-subtle)',
         borderRadius: 10,
-        padding: '10px 12px',
+        padding: '12px 14px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 7,
+        gap: 8,
         height: '100%',
         minHeight: 450,
+        width: '100%',
+        maxWidth: 380,
+        minWidth: 280,
+        overflow: 'hidden',
         boxSizing: 'border-box'
       }}
     >
@@ -238,11 +242,13 @@ export default function IssueDetailsPanel({
           backgroundColor: 'var(--bg-code-block)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 4,
-          padding: '4px 8px',
+          padding: '6px 8px',
           fontFamily: 'var(--font-mono)',
           fontSize: 10,
           lineHeight: 1.45,
-          color: 'var(--text-primary)'
+          color: 'var(--text-primary)',
+          overflowX: 'auto',
+          maxWidth: '100%'
         }}>
           {(() => {
             let lines = [];
@@ -332,11 +338,13 @@ export default function IssueDetailsPanel({
           backgroundColor: 'var(--bg-code-block)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 4,
-          padding: '4px 8px',
+          padding: '6px 8px',
           fontFamily: 'var(--font-mono)',
           fontSize: 10,
           lineHeight: 1.45,
-          color: 'var(--text-primary)'
+          color: 'var(--text-primary)',
+          overflowX: 'auto',
+          maxWidth: '100%'
         }}>
           {(() => {
             let lines = [];

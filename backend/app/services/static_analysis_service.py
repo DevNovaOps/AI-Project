@@ -1973,7 +1973,9 @@ class StaticAnalysisService:
             return findings
 
         # 1. Determine by file extension first! Extension takes strict precedence over session fallback
-        if ext in ("html", "htm"):
+        if ext in ("md", "markdown", "mdown", "mkdn", "txt", "text", "rst", "adoc", "log"):
+            findings = self.analyze_text_document(filename, content)
+        elif ext in ("html", "htm"):
             findings = self.analyze_html(filename, content)
         elif ext in ("css", "scss", "sass", "less"):
             findings = self.analyze_css(filename, content)

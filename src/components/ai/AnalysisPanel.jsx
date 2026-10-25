@@ -167,7 +167,17 @@ export default function AnalysisPanel() {
               {activeAgent || '5-Agent Pipeline Working'}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-              Running AST static checks, root cause diagnosis, and verification...
+              {activeAgent?.includes('Planner')
+                ? 'Synthesizing execution plan and indexing project target files...'
+                : activeAgent?.includes('Analysis')
+                ? 'Running AST static verification and LLM deep multi-file inspection...'
+                : activeAgent?.includes('Diagnosis')
+                ? 'Diagnosing root causes and correlating defect signatures...'
+                : activeAgent?.includes('Fix') || activeAgent?.includes('Test')
+                ? 'Synthesizing targeted code repairs and test assertions...'
+                : activeAgent?.includes('Validation')
+                ? 'Verifying syntax balance, regression safety, and quality metrics...'
+                : 'Running AST static checks, root cause diagnosis, and verification...'}
             </div>
           </div>
 
@@ -175,14 +185,14 @@ export default function AnalysisPanel() {
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 4 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)' }}>
               <span>Autonomous Progress</span>
-              <span style={{ fontWeight: 600, color: '#38bdf8' }}>{progress || 35}%</span>
+              <span style={{ fontWeight: 600, color: '#38bdf8' }}>{progress || 10}%</span>
             </div>
             <div style={{ width: '100%', height: 4, background: 'var(--bg-input)', borderRadius: 2, overflow: 'hidden' }}>
               <div style={{
-                width: `${progress || 35}%`,
+                width: `${progress || 10}%`,
                 height: '100%',
                 background: 'linear-gradient(90deg, #38bdf8, #a855f7)',
-                transition: 'width 0.4s ease'
+                transition: 'width 0.3s ease'
               }} />
             </div>
           </div>

@@ -258,7 +258,16 @@ export default function TopBar() {
           {isRunning ? (
             <>
               <div className="animate-spin" style={{ width: 12, height: 12, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%' }} />
-              <span>{activeAgent ? activeAgent.split(' ')[0] : 'Running...'} ({progress}%)</span>
+              <span>
+                {activeAgent
+                  ? (activeAgent.includes('Planner') ? 'Planner'
+                    : activeAgent.includes('Code') || activeAgent.includes('Analysis') ? 'Code Analysis'
+                    : activeAgent.includes('Diagnosis') ? 'Diagnosis'
+                    : activeAgent.includes('Fix') || activeAgent.includes('Test') ? 'Fix & Test'
+                    : activeAgent.includes('Validation') ? 'Validation'
+                    : activeAgent.replace(' Agent', ''))
+                  : 'Running...'} ({progress}%)
+              </span>
             </>
           ) : (
             <>

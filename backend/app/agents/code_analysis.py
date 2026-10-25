@@ -18,11 +18,12 @@ def _run_llm_deep_analysis(files: List[Dict[str, Any]], language: str, task_desc
     if not llm_service.is_configured():
         return []
 
-    # Ignore vendor / binary / lock / non-code files
+    # Ignore vendor / binary / lock / non-code and documentation files
     non_code_exts = (
         ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf", ".eot",
         ".pdf", ".zip", ".tar", ".gz", ".lock", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
-        ".min.js", ".min.css", ".map"
+        ".min.js", ".min.css", ".map",
+        ".md", ".markdown", ".mdown", ".txt", ".rst", ".adoc", ".log"
     )
     eligible_files = []
     for f in files:
@@ -218,6 +219,12 @@ def _filter_and_deduplicate_findings(findings: List[Dict[str, Any]], files: List
         # 1. Ignore "Undefined variable" in test runner / test suite files
         if any(p in fname.lower() for p in ("test-suite", ".test.", ".spec.", "test_")):
             if "undefined variable" in title or "is not defined" in title:
+                continue
+
+        # 2. Documentation and markdown files (.md, .txt) are not code files; ignore syntax/logic/runtime errors
+        lower_fname = fname.lower()
+        if lower_fname.endswith((".md", ".markdown", ".mdown", ".txt", ".rst", ".adoc", ".log")):
+            if f.get("category") != "Security":
                 continue
 
         # 2. Comment line detector: if line_number points to a comment line or docstring

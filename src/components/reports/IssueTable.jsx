@@ -123,7 +123,10 @@ export default function IssueTable({
         flexDirection: 'column',
         gap: 12,
         height: '100%',
-        minHeight: 460
+        minHeight: 460,
+        minWidth: 0,
+        overflow: 'hidden',
+        boxSizing: 'border-box'
       }}
     >
       {/* Filter Toolbar */}
@@ -403,19 +406,19 @@ export default function IssueTable({
       </div>
 
       {/* Table Container */}
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
+      <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', overflowX: 'auto' }}>
+        <table style={{ width: '100%', minWidth: 540, tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>
-              <th style={{ padding: '8px 6px', width: 28, textAlign: 'center' }}>#</th>
-              <th style={{ padding: '8px 10px', width: 95 }}>Severity</th>
-              <th style={{ padding: '8px 10px' }}>Message</th>
-              <th style={{ padding: '8px 10px', width: 85 }}>File</th>
-              <th style={{ padding: '8px 6px', width: 45 }}>Line</th>
-              <th style={{ padding: '8px 10px', width: 105 }}>Category</th>
-              <th style={{ padding: '8px 10px', width: 75 }}>Status</th>
-              <th style={{ padding: '8px 10px', width: 85 }}>Detected</th>
-              <th style={{ padding: '8px 10px', width: 85, textAlign: 'center' }}>Actions</th>
+              <th style={{ padding: '8px 4px', width: 26, textAlign: 'center' }}>#</th>
+              <th style={{ padding: '8px 8px', width: 84 }}>Severity</th>
+              <th style={{ padding: '8px 8px', width: 'auto' }}>Message</th>
+              <th style={{ padding: '8px 8px', width: 130 }}>File</th>
+              <th style={{ padding: '8px 4px', width: 40, textAlign: 'center' }}>Line</th>
+              <th style={{ padding: '8px 8px', width: 90 }}>Category</th>
+              <th style={{ padding: '8px 6px', width: 66, textAlign: 'center' }}>Status</th>
+              <th style={{ padding: '8px 8px', width: 80 }}>Detected</th>
+              <th style={{ padding: '8px 6px', width: 68, textAlign: 'center' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -442,36 +445,45 @@ export default function IssueTable({
                   }}
                 >
                   {/* # */}
-                  <td style={{ padding: '8px 6px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 11 }}>
+                  <td style={{ padding: '8px 4px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 11 }}>
                     {rowNum}
                   </td>
 
                   {/* Severity */}
-                  <td style={{ padding: '8px 10px' }}>
+                  <td style={{ padding: '8px 8px', whiteSpace: 'nowrap' }}>
                     {getSeverityBadge(item.severity)}
                   </td>
 
                   {/* Message */}
-                  <td style={{ padding: '8px 10px' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 12 }}>
+                  <td style={{ padding: '8px 8px', overflow: 'hidden' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.title}>
                       {item.title}
                     </div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: 10, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 280 }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: 10, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.detail}>
                       {item.detail}
                     </div>
                   </td>
 
                   {/* File */}
-                  <td style={{ padding: '8px 10px' }}>
+                  <td style={{ padding: '8px 8px', overflow: 'hidden' }}>
                     <span
-                      style={{ color: '#38bdf8', fontSize: 11, textDecoration: 'none', cursor: 'pointer' }}
+                      style={{
+                        color: '#38bdf8',
+                        fontSize: 11,
+                        textDecoration: 'none',
+                        cursor: 'pointer',
+                        display: 'block',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (onViewInEditor) onViewInEditor(item.file, item.line);
                       }}
                       title={`Open ${item.file} in editor`}
                     >
-                      {item.file}
+                      {item.file ? (item.file.includes('/') ? item.file.split('/').slice(-2).join('/') : item.file) : 'file'}
                     </span>
                   </td>
 

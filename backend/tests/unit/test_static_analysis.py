@@ -165,3 +165,26 @@ def test_universal_framework_session_limits():
         validate_session_limits(files, language=fw, max_repair_attempts=3)
 
 
+def test_documentation_files_no_syntax_errors():
+    """Verify markdown/doc files (like bugs.md) are never flagged for missing semicolons or code syntax."""
+    md_content = (
+        "# Known Issues\n\n"
+        "### Bug #1: Missing Semicolon in Java Constant\n"
+        "- **File**: `WorkoutValidator.java`\n"
+        "```java\n"
+        "public static final int MAX_DURATION_MINUTES = 360\n"
+        "```\n"
+        "Notice this snippet is inside a markdown code block.\n"
+    )
+
+    # Even when project language is springboot, bugs.md should not trigger Java AST syntax errors
+    findings = static_analysis_service.analyze_file("bugs.md", md_content, "springboot")
+    assert len(findings) == 0
+
+    # Non-code text document should only check for secrets/credentials, never syntax
+    txt_content = "This is a documentation note without semicolons or class headers."
+    txt_findings = static_analysis_service.analyze_file("notes.txt", txt_content, "java")
+    assert len(txt_findings) == 0
+
+
+
